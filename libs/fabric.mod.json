@@ -1,0 +1,7 @@
+{
+    "schemaVersion": 1,
+    "id": "transport_simulation_core",
+    "version": "0.0.1",
+    "name": "Transport Simulation Core",
+    "environment": "*"
+}

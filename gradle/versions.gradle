@@ -1,0 +1,42 @@
+// ---------------------------------------------------------------------------
+// 各 Minecraft 版本对应的依赖矩阵
+//
+// 切换目标版本只需改 gradle.properties 里的 minecraft_version，
+// 或在命令行覆盖：
+//
+//     ./gradlew collectJars -Pminecraft_version=1.20.4
+//
+// 其余版本号由此处推导，不必逐个手改。
+// ---------------------------------------------------------------------------
+
+ext.rteVersionMatrix = [
+    '1.20.1': [
+        yarn        : '1.20.1+build.10',
+        architectury: '9.2.14',
+        fabricApi   : '0.92.6+1.20.1',
+        forge       : '1.20.1-47.4.12',
+        mtr         : 'local.mtr:MTR-fabric:4.0.5',
+        msd         : 'MSD-fabric-1.20.1-4.0.5-1.4.5.jar',
+        msdForge    : 'MSD-forge-1.20.1-4.0.5-1.4.5.jar',
+    ],
+    '1.20.4': [
+        yarn        : '1.20.4+build.3',
+        architectury: '11.1.17',
+        fabricApi   : '0.97.3+1.20.4',
+        forge       : '1.20.4-49.1.0',
+        mtr         : 'local.mtr:MTR-fabric:4.0.5-1.20.4',
+        msd         : 'MSD-fabric-1.20.1-4.0.5-1.4.5.jar',
+        msdForge    : 'MSD-forge-1.20.1-4.0.5-1.4.5.jar',
+    ],
+]
+
+ext.rteMc = rootProject.property('minecraft_version').toString()
+
+if (!ext.rteVersionMatrix.containsKey(ext.rteMc)) {
+    throw new GradleException(
+        "不支持的 minecraft_version=${ext.rteMc}，" +
+        "可选：${ext.rteVersionMatrix.keySet().join(', ')}。" +
+        "新增版本请在 gradle/versions.gradle 补一行。")
+}
+
+ext.rteDeps = ext.rteVersionMatrix[ext.rteMc]

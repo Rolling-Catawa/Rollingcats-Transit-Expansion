@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "cn.jstxjf_.rte.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "priority": 1500,
+  "minVersion": "0.8",
+  "client": [],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

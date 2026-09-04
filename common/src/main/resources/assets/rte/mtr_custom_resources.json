@@ -1,0 +1,11 @@
+{
+    "custom_trains": {
+        "rte_lcd_demo": {
+            "name": "RTE 示例列车[内置LCD]",
+            "color": "1976D2",
+            "script_files": [ "rte:lcd_demo/main.js" ],
+            "base_train_type": "sp1900",
+            "texture_id": "rte:textures/sp1900.png"
+        }
+    }
+}

@@ -1,0 +1,69 @@
+loom {
+    enableTransitiveAccessWideners = true
+    accessWidenerPath = file("src/main/resources/rte.accesswidener")
+}
+
+architectury {
+    common rootProject.enabled_platforms.split(',')
+}
+
+apply from: rootProject.file('gradle/preprocess.gradle')
+
+def preprocessedJava = layout.buildDirectory.dir('preprocessed/java')
+def originalJavaDir = file('src/main/java')
+
+def preprocessSources = tasks.register('preprocessSources') {
+    inputs.dir(originalJavaDir).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.property('mc', project.ext.MC)
+    outputs.dir(preprocessedJava)
+    doLast {
+        def target = preprocessedJava.get().asFile
+        target.deleteDir()
+        target.mkdirs()
+        int mc = project.ext.MC
+        int touched = 0
+        originalJavaDir.eachFileRecurse { src ->
+            if (!src.isFile()) return
+            def rel = originalJavaDir.toPath().relativize(src.toPath()).toString()
+            def dst = new File(target, rel)
+            dst.parentFile.mkdirs()
+            if (src.name.endsWith('.java')) {
+                def text = src.getText('UTF-8')
+                def processed = project.ext.preprocessText(text, mc)
+                if (processed != text) touched++
+                dst.setText(processed, 'UTF-8')
+            } else {
+                dst.bytes = src.bytes
+            }
+        }
+        logger.lifecycle("[preprocess] MC=${mc}, 处理了 ${touched} 个含条件块的文件")
+    }
+}
+
+sourceSets.main.java.srcDirs = [preprocessedJava]
+tasks.named('compileJava').configure { dependsOn preprocessSources }
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+    modImplementation "dev.architectury:architectury:${rootProject.rteDeps.architectury}"
+    
+    modCompileOnly "net.fabricmc.fabric-api:fabric-api:${rootProject.rteDeps.fabricApi}"
+    modCompileOnly "${rootProject.rteDeps.mtr}"
+    modImplementation files('libs/Transport-Simulation-Core-0.0.1.jar')
+    compileOnly 'local.minecraft-mappings:Minecraft-Mappings-common:0.0.1'
+    modImplementation files('libs/Shadow-Libraries-util-0.0.1.jar')
+    modImplementation files('libs/Shadow-Libraries-net-0.0.1.jar')
+    
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    
+    
+    modImplementation "org.graalvm.sdk:graal-sdk:23.0.1"
+    modImplementation "org.graalvm.js:js:23.0.1"
+    modImplementation "org.mozilla:rhino:1.7.15"
+    compileOnly files("../libs/MSD-fabric-1.20.1-4.0.5-1.4.5.jar")
+    modImplementation("io.github.spair:imgui-java-binding:1.86.12") { exclude group: 'org.lwjgl' }
+    modImplementation("io.github.spair:imgui-java-lwjgl3:1.86.12") { exclude group: 'org.lwjgl' }
+    modImplementation("io.github.spair:imgui-java-natives-windows:1.86.12") { exclude group: 'org.lwjgl' }
+    implementation 'com.github.stuxuhai:jpinyin:1.1.8'
+    implementation 'org.msgpack:msgpack-core:0.9.3'
+}

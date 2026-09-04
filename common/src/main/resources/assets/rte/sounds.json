@@ -1,0 +1,10 @@
+{
+  "bell": {
+    "sounds": [
+      {
+        "name": "rte:bell",
+        "attenuation_distance": 32
+      }
+    ]
+  }
+}

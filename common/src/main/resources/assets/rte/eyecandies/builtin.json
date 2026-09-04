@@ -1,0 +1,40 @@
+{
+    "group": "group.rte.builtin_deco",
+    "rte_bench": {
+        "name": "eyecandy.rte.bench",
+        "model": "rte:eyecandies/builtin/bench.obj",
+        "shape": "0, 0, 4, 16, 16, 12",
+        "collisionShape": "0, 0, 4, 16, 8, 12"
+    },
+    "rte_railing": {
+        "name": "eyecandy.rte.railing",
+        "model": "rte:eyecandies/builtin/railing.obj",
+        "shape": "0, 0, 6, 16, 16, 10",
+        "collisionShape": "0, 0, 6, 16, 16, 10"
+    },
+    "rte_pillar": {
+        "name": "eyecandy.rte.pillar",
+        "model": "rte:eyecandies/builtin/pillar.obj",
+        "shape": "4, 0, 4, 12, 16, 12",
+        "collisionShape": "4, 0, 4, 12, 16, 12"
+    },
+    "rte_trash_bin": {
+        "name": "eyecandy.rte.trash_bin",
+        "model": "rte:eyecandies/builtin/trash_bin.obj",
+        "shape": "3, 0, 3, 13, 15, 13",
+        "collisionShape": "3, 0, 3, 13, 15, 13"
+    },
+    "rte_lightbox": {
+        "name": "eyecandy.rte.lightbox",
+        "model": "rte:eyecandies/builtin/lightbox.obj",
+        "lightLevel": 12,
+        "shape": "0, 0, 6, 16, 16, 10",
+        "collisionShape": "0, 0, 6, 16, 16, 10"
+    },
+    "rte_warning_strip": {
+        "name": "eyecandy.rte.warning_strip",
+        "model": "rte:eyecandies/builtin/warning_strip.obj",
+        "shape": "0, 0, 0, 16, 1, 8",
+        "collisionShape": "0, 0, 0, 0, 0, 0"
+    }
+}

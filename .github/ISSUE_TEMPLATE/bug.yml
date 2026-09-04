@@ -1,0 +1,124 @@
+name: 崩溃 / Bug report
+description: 游戏崩溃、启动失败或功能异常 / Crash, failed startup, or broken behaviour
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请尽量填全。**日志和「同时安装的 MTR 附属」两项最关键** —— 大部分崩溃是与其他附属冲突导致的。
+        Please fill in as much as possible. **The log and the list of other MTR addons matter most** — most crashes come from addon conflicts.
+
+  - type: input
+    id: rte-version
+    attributes:
+      label: RTE 版本 / RTE version
+      placeholder: 1.0.0-beta.2
+    validations:
+      required: true
+
+  - type: dropdown
+    id: loader
+    attributes:
+      label: 加载器 / Mod loader
+      options:
+        - Fabric
+        - Forge
+    validations:
+      required: true
+
+  - type: input
+    id: loader-version
+    attributes:
+      label: 加载器版本 / Loader version
+      placeholder: Fabric Loader 0.16.9 / Forge 47.4.12
+    validations:
+      required: true
+
+  - type: input
+    id: mc-version
+    attributes:
+      label: Minecraft 版本 / Minecraft version
+      placeholder: 1.20.1
+    validations:
+      required: true
+
+  - type: input
+    id: mtr-version
+    attributes:
+      label: MTR 版本 / MTR version
+      placeholder: 4.0.5
+    validations:
+      required: true
+
+  - type: input
+    id: java-version
+    attributes:
+      label: Java 版本 / Java version
+      description: 启动器里可以看到。Java 22 及以上会影响 JS 引擎。Shown in your launcher; Java 22+ affects the JS engine.
+      placeholder: 21.0.12
+    validations:
+      required: true
+
+  - type: dropdown
+    id: side
+    attributes:
+      label: 发生在哪一侧 / Which side
+      options:
+        - 单人 / Singleplayer
+        - 多人客户端 / Multiplayer client
+        - 专用服务端 / Dedicated server
+    validations:
+      required: true
+
+  - type: textarea
+    id: addons
+    attributes:
+      label: 同时安装的 MTR 附属 / Other MTR addons installed
+      description: 例如 JCM(jsblock)、方速、S1、MSD、Metropolis、NTE 等，请带版本号。List every MTR addon with versions.
+      placeholder: |
+        JCM 2.2.3
+        方速 1.1.1-fix2
+        MSD 1.4.5
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      placeholder: |
+        1. 进入世界
+        2. 手持复合构建器右键空气
+        3. 崩溃
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期表现 / Expected behaviour
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 完整日志 / Full log
+      description: |
+        **请上传文件，不要只贴几行。** 需要 `logs/latest.log`；若生成了 `crash-reports/` 也一并附上。
+        **Please attach the file rather than pasting a few lines.** `logs/latest.log` is required; include `crash-reports/` if present.
+      placeholder: 把 latest.log 拖进这个框即可上传。Drag latest.log into this box to upload.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 确认 / Confirmation
+      options:
+        - label: 我已确认使用的是 RTE 的最新版本 / I am on the latest RTE release
+          required: true
+        - label: 我已搜索过现有 issue，没有重复 / I searched existing issues for duplicates
+          required: true
+        - label: 我已尝试只装 MTR + RTE 复现（若能，请说明结果）/ I tried reproducing with only MTR + RTE
+          required: false

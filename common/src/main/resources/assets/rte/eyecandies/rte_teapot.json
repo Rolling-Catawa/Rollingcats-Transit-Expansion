@@ -1,0 +1,6 @@
+{
+    "name": "eyecandy.rte.teapot",
+    "model": "rte:eyecandies/teapot.obj",
+    "scale": [ 0.15, 0.20, 0.15 ],
+    "group": "group.rte.builtin"
+}

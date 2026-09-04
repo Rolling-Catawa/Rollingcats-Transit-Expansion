@@ -1,0 +1,21 @@
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+        mavenCentral()
+        maven { url "https://maven.saps.dev/minecraft" }
+        maven { url "https://maven.fabricmc.net/" }
+        maven { url "https://maven.architectury.dev/" }
+        maven {
+            url "http://maven.architectury.dev/"
+            allowInsecureProtocol = true
+        }
+        maven { url "https://files.minecraftforge.net/maven/" }
+    }
+}
+
+rootProject.name = 'rte'
+
+include 'common'
+include 'fabric'
+include 'forge'

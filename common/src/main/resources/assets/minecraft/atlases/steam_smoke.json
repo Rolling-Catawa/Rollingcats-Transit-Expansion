@@ -1,0 +1,8 @@
+{
+    "sources": [
+        {
+            "type": "single",
+            "resource": "rte:particle/steam_smoke"
+        }
+    ]
+}

@@ -1,0 +1,72 @@
+// 轻量源码预处理器：按 mcVersion 保留 //#if 分支，行号不变
+//
+//   //#if MC>=12004
+//       newApiCall();
+//   //#else
+//       oldApiCall();
+//   //#endif
+//
+// 未选中的分支在输出中替换为空行，因此堆栈行号与源码一致。
+
+def mcVersionNumeric = { String v ->
+    def parts = v.tokenize('.')
+    int major = parts[0] as int
+    int minor = parts.size() > 1 ? parts[1] as int : 0
+    int patch = parts.size() > 2 ? parts[2] as int : 0
+    return major * 10000 + minor * 100 + patch
+}
+
+ext.MC = mcVersionNumeric(rootProject.property('minecraft_version'))
+
+def evalCondition = { String expr, int mc ->
+    def m = (expr =~ /MC\s*(>=|<=|>|<|==|!=)\s*(\d+)/)
+    if (!m.find()) {
+        return true
+    }
+    int rhs = m.group(2) as int
+    switch (m.group(1)) {
+        case '>=': return mc >= rhs
+        case '<=': return mc <= rhs
+        case '>':  return mc >  rhs
+        case '<':  return mc <  rhs
+        case '==': return mc == rhs
+        case '!=': return mc != rhs
+        default:   return true
+    }
+}
+
+ext.preprocessText = { String text, int mc ->
+    if (!text.contains('//#if')) {
+        return text
+    }
+    def out = new StringBuilder()
+    def stack = []          // 每层：[激活?, 该 if 链是否已有分支被采用]
+    text.eachLine { line ->
+        def trimmed = line.trim()
+        boolean active = stack.every { it[0] }
+        if (trimmed.startsWith('//#if ')) {
+            boolean cond = active && evalCondition(trimmed.substring(6), mc)
+            stack.push([cond, cond])
+            out.append('\n')
+        } else if (trimmed.startsWith('//#elseif ') || trimmed.startsWith('//#elif ')) {
+            def frame = stack.pop()
+            boolean parentActive = stack.every { it[0] }
+            def expr = trimmed.substring(trimmed.indexOf(' ') + 1)
+            boolean cond = parentActive && !frame[1] && evalCondition(expr, mc)
+            stack.push([cond, frame[1] || cond])
+            out.append('\n')
+        } else if (trimmed == '//#else') {
+            def frame = stack.pop()
+            boolean parentActive = stack.every { it[0] }
+            boolean cond = parentActive && !frame[1]
+            stack.push([cond, true])
+            out.append('\n')
+        } else if (trimmed == '//#endif') {
+            stack.pop()
+            out.append('\n')
+        } else {
+            out.append(active ? line : '').append('\n')
+        }
+    }
+    return out.toString()
+}

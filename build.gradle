@@ -1,0 +1,196 @@
+plugins {
+    id 'dev.architectury.loom' version '1.17.491' apply false
+    id 'architectury-plugin' version '3.5.169'
+    id 'com.gradleup.shadow' version '9.6.1' apply false
+}
+
+apply from: rootProject.file('gradle/versions.gradle')
+
+architectury {
+    minecraft = project.minecraft_version
+}
+
+allprojects {
+    group = rootProject.maven_group
+    version = rootProject.mod_version
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
+}
+
+subprojects {
+    apply plugin: 'dev.architectury.loom'
+    apply plugin: 'architectury-plugin'
+    apply plugin: 'maven-publish'
+
+    base {
+        // Set up a suffixed format for the mod jar names, e.g. `example-fabric`.
+        archivesName = "$rootProject.archives_name-$project.name"
+    }
+
+    repositories {
+        mavenLocal()
+        flatDir { dirs 'libs' }
+        maven { url = rootProject.file('libs/repo') }
+        maven { url 'https://api.modrinth.com/maven' }
+        maven { url 'https://maven.architectury.dev/' }
+        maven { url 'https://maven.shedaniel.me/' }
+        mavenCentral()
+        maven { url 'https://maven.fabricmc.net/' }
+        // Add repositories to retrieve artifacts from in here.
+        // You should only use this when depending on other mods because
+        // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+        // See https://docs.gradle.org/current/userguide/declaring_repositories.html
+        // for more information about repositories.
+    }
+
+    dependencies {
+        minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
+        // mappings "net.fabricmc:yarn:$rootProject.yarn_version:v2"
+        mappings loom.officialMojangMappings()
+    }
+
+    java {
+        // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+        // if it is present.
+        // If you remove this line, sources will not be generated.
+        // sources are not published (All Rights Reserved)
+        // withSourcesJar()
+
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        it.options.release = 17
+    }
+
+    // Configure Maven publishing.
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                artifactId = base.archivesName.get()
+                from components.java
+            }
+        }
+
+        // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
+        repositories {
+            // Add repositories to publish to here.
+            // Notice: This block does NOT have the same function as the block in the top level.
+            // The repositories here will be used for publishing your artifact, not for
+            // retrieving dependencies.
+        }
+    }
+}
+
+// ---- build stamp ----
+// Evaluated once at configuration time so every subproject shares one id.
+ext.rteStamp = {
+    def exec = { String... cmd ->
+        try {
+            def out = new ByteArrayOutputStream()
+            def proc = new ProcessBuilder(cmd).directory(rootProject.projectDir).redirectErrorStream(false).start()
+            proc.inputStream.eachByte { out.write(it) }
+            proc.waitFor()
+            return proc.exitValue() == 0 ? out.toString('UTF-8').trim() : ''
+        } catch (Exception ignored) {
+            return ''
+        }
+    }
+    def commit = exec('git', 'rev-parse', '--short=12', 'HEAD')
+    def branch = exec('git', 'rev-parse', '--abbrev-ref', 'HEAD')
+    def dirty = exec('git', 'status', '--porcelain')
+    def time = java.time.Instant.now().toString()
+    def seed = "${rootProject.mod_version}|${commit}|${time}|${System.getProperty('user.name') ?: '?'}"
+    def digest = java.security.MessageDigest.getInstance('SHA-256').digest(seed.getBytes('UTF-8'))
+    return [
+        version: rootProject.mod_version as String,
+        commit : commit.isEmpty() ? 'unknown' : commit,
+        branch : branch.isEmpty() ? 'unknown' : branch,
+        clean  : dirty.isEmpty() ? 'true' : 'false',
+        time   : time,
+        id     : digest.encodeHex().toString().substring(0, 16)
+    ]
+}()
+
+// ---------------------------------------------------------------------------
+// collectJars —— 把各平台的发布用 jar 收集到 build/dist
+//
+//   ./gradlew collectJars
+//
+// 多 MC 版本构建会产出同名 jar，故统一重命名为
+//   rte-<平台>-<模组版本>+<MC版本>.jar
+// 与 MTR 自身的命名约定一致，避免不同版本互相覆盖。
+// 同时输出 CHECKSUMS.txt，含体积与 SHA-256，便于发布页核对。
+// ---------------------------------------------------------------------------
+
+def rteDistDir = layout.buildDirectory.dir('dist')
+
+def rtePublishableJars = { Project p ->
+    p.fileTree(p.layout.buildDirectory.dir('libs')) {
+        include '*.jar'
+        exclude '*-dev-shadow.jar'
+        exclude '*-dev.jar'
+        exclude '*-sources.jar'
+        exclude '*-transformProduction*.jar'
+    }
+}
+
+tasks.register('collectJars', Copy) {
+    group = 'build'
+    description = '收集各平台发布用 jar 到 build/dist，按 MC 版本命名'
+
+    dependsOn ':fabric:remapJar', ':forge:remapJar'
+
+    def mcVersion = rootProject.property('minecraft_version').toString()
+    def modVersion = rootProject.mod_version.toString()
+
+    from(rtePublishableJars(project(':fabric')))
+    from(rtePublishableJars(project(':forge')))
+    into rteDistDir
+
+    rename { String fileName ->
+        if (!fileName.endsWith('.jar') || fileName.contains('+')) {
+            return fileName
+        }
+        return fileName.substring(0, fileName.length() - 4) + '+' + mcVersion + '.jar'
+    }
+
+    doLast {
+        def dir = rteDistDir.get().asFile
+        def files = (dir.listFiles() ?: []).findAll { it.name.endsWith('.jar') }.sort { it.name }
+        if (files.isEmpty()) {
+            logger.lifecycle('[collectJars] build/dist 为空')
+            return
+        }
+        def md = java.security.MessageDigest.getInstance('SHA-256')
+        def lines = []
+        def mcVersions = files.collect { f ->
+            def name = f.name
+            def plus = name.lastIndexOf('+')
+            plus < 0 ? mcVersion : name.substring(plus + 1, name.length() - 4)
+        }.unique().sort()
+        lines.add('RTE ' + modVersion + ' | Minecraft ' + mcVersions.join(', '))
+        lines.add('-' * 78)
+        logger.lifecycle('[collectJars] ' + dir)
+        files.each { f ->
+            md.reset()
+            f.eachByte(1 << 16) { buf, len -> md.update(buf, 0, len) }
+            def sha = md.digest().encodeHex().toString()
+            def line = String.format('%-48s %8.1f MB  %s', f.name, f.length() / 1048576d, sha)
+            logger.lifecycle('  ' + line)
+            lines.add(line)
+        }
+        def sep = System.lineSeparator()
+        new File(dir, 'CHECKSUMS.txt').setText(lines.join(sep) + sep, 'UTF-8')
+        logger.lifecycle('  已写入 CHECKSUMS.txt')
+    }
+}
+
+tasks.register('cleanDist', Delete) {
+    group = 'build'
+    description = '清空 build/dist'
+    delete rteDistDir
+}

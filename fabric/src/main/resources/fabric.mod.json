@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "id": "rte",
+  "version": "${version}",
+  "name": "Rollingcats Transit Expansion",
+  "description": "RTE expands MTR 4.0 with advanced track geometry, construction tools, scripted resources, and ImGui interfaces.",
+  "authors": [
+    "Rolling-Catawa"
+  ],
+  "contact": {
+    "homepage": "https://rolling-catawa.github.io/rte/",
+    "issues": "https://github.com/Rolling-Catawa/rte/issues"
+  },
+  "license": "All-Rights-Reserved",
+  "icon": "icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "cn.jstxjf_.rte.fabric.RTEFabric"
+    ],
+    "client": [
+      "cn.jstxjf_.rte.fabric.client.RTEFabricClient"
+    ],
+    "modmenu": [
+      "cn.jstxjf_.rte.fabric.ModMenuApiImpl"
+    ]
+  },
+  "mixins": [
+    "rte.mixins.json",
+    "rte-fabric.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.18.1",
+    "minecraft": "~1.20.1",
+    "java": ">=17",
+    "architectury": ">=9.2.14",
+    "fabric-api": "*",
+    "mtr": ">=4.0.0"
+  },
+  "suggests": {
+    "msd": "*"
+  }
+}

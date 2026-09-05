@@ -113,8 +113,12 @@ public final class JcmCompat {
             }
             final Set<String> taken = new HashSet<>();
             final Set<String> takenEyeCandy = new HashSet<>();
-            for (final Object key : instances.keySet()) {
+            for (final Map.Entry<?, ?> instanceEntry : instances.entrySet()) {
+                final Object key = instanceEntry.getKey();
                 if (key == null) {
+                    continue;
+                }
+                if (!rte$instanceIsHealthy(instanceEntry.getValue())) {
                     continue;
                 }
                 if (uniqueKeyObjs == null) {
@@ -136,6 +140,59 @@ public final class JcmCompat {
         } catch (Throwable e) {
             bridgeUsable = false;
             reportBridgeFailure(e);
+        }
+    }
+
+    private static java.lang.reflect.Method getScriptMethod;
+    private static java.lang.reflect.Method failCooldownMethod;
+    private static java.lang.reflect.Method capturedExceptionMethod;
+    private static boolean healthProbeResolved;
+    private static final java.util.Set<String> REPORTED_UNHEALTHY =
+        java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    private static boolean rte$instanceIsHealthy(Object instance) {
+        if (instance == null) {
+            return false;
+        }
+        if (!healthProbeResolved) {
+            healthProbeResolved = true;
+            try {
+                getScriptMethod = instance.getClass().getMethod("getScript");
+                final Class<?> parsed = getScriptMethod.getReturnType();
+                failCooldownMethod = parsed.getMethod("duringFailCooldown");
+                capturedExceptionMethod = parsed.getMethod("getCapturedScriptException");
+            } catch (Throwable e) {
+                getScriptMethod = null;
+                RTE.LOGGER.info(
+                    "[JcmCompat] cannot read JCM script health, dedupe stays unconditional: {}",
+                    String.valueOf(e));
+            }
+        }
+        if (getScriptMethod == null) {
+            return true;
+        }
+        try {
+            final Object parsedScript = getScriptMethod.invoke(instance);
+            if (parsedScript == null) {
+                return false;
+            }
+            final boolean cooling = Boolean.TRUE.equals(failCooldownMethod.invoke(parsedScript));
+            final Object captured = capturedExceptionMethod.invoke(parsedScript);
+            if (!cooling && captured == null) {
+                return true;
+            }
+            rte$reportUnhealthy(parsedScript, captured);
+            return false;
+        } catch (Throwable e) {
+            return true;
+        }
+    }
+
+    private static void rte$reportUnhealthy(Object parsedScript, Object captured) {
+        final String key = String.valueOf(parsedScript);
+        if (REPORTED_UNHEALTHY.add(key)) {
+            RTE.LOGGER.info("[JcmCompat] JCM script is failing, RTE takes it back: {}",
+                captured == null ? "in fail cooldown" : String.valueOf(captured));
         }
     }
 

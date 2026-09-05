@@ -34,6 +34,9 @@ public final class MapRailArchive {
 
     private static final Map<String, Entry> ENTRIES = new ConcurrentHashMap<>();
 
+    private static final java.util.Set<String> FULL_SYNC_SEEN =
+        java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     private static Path currentFile;
     private static final AtomicLong revision = new AtomicLong();
     private static volatile long savedRevision;
@@ -91,6 +94,8 @@ public final class MapRailArchive {
         savedRevision = 0;
         currentFile = file;
         fullSyncDone = false;
+        syncInProgress = false;
+        FULL_SYNC_SEEN.clear();
         lastFullRequestMillis = 0;
         load();
     }
@@ -170,15 +175,28 @@ public final class MapRailArchive {
 
     private static long lastFullRequestMillis;
     private static boolean fullSyncDone;
+    private static volatile boolean syncInProgress;
+    private static final long RESYNC_INTERVAL_MILLIS = 60000;
+    private static final long SYNC_STALL_MILLIS = 30000;
 
     public static void requestFullSyncIfDue() {
-        if (fullSyncDone || currentFile == null || !cn.jstxjf_.rte.RTEConfig.allowFullRailSync) {
+        if (currentFile == null || !cn.jstxjf_.rte.RTEConfig.allowFullRailSync) {
             return;
         }
         final long now = System.currentTimeMillis();
-        if (now - lastFullRequestMillis < 30000) {
+        if (syncInProgress) {
+            if (now - lastFullRequestMillis < SYNC_STALL_MILLIS) {
+                return;
+            }
+            syncInProgress = false;
+            FULL_SYNC_SEEN.clear();
+            RTE.LOGGER.warn("[MapArchive] full sync stalled, retrying");
+        }
+        final long interval = fullSyncDone ? RESYNC_INTERVAL_MILLIS : 30000;
+        if (now - lastFullRequestMillis < interval) {
             return;
         }
+        syncInProgress = true;
         lastFullRequestMillis = now;
         requestPage(0);
     }
@@ -196,12 +214,16 @@ public final class MapRailArchive {
         if (currentFile == null) {
             return;
         }
+        if (page == 0) {
+            FULL_SYNC_SEEN.clear();
+        }
         int added = 0;
         for (final cn.jstxjf_.rte.network.PacketAllRails.RailLine line : lines) {
             if (line.id == null || line.xs.length == 0 || line.xs.length != line.zs.length
                 || line.xs.length > MAX_SAMPLES + 1) {
                 continue;
             }
+            FULL_SYNC_SEEN.add(line.id);
             final Entry existing = ENTRIES.get(line.id);
             if (existing == null) {
                 ENTRIES.put(line.id, new Entry(line.xs, line.zs, line.color));
@@ -215,9 +237,36 @@ public final class MapRailArchive {
         if (hasMore) {
             requestPage(page + 1);
         } else {
+            final int removed = pruneToServerList();
             fullSyncDone = true;
+            syncInProgress = false;
             flush();
-            RTE.LOGGER.info("[MapArchive] full sync complete, {} rails archived", ENTRIES.size());
+            RTE.LOGGER.info("[MapArchive] full sync complete, {} rails archived, {} stale removed",
+                ENTRIES.size(), removed);
+        }
+    }
+
+    private static int pruneToServerList() {
+        if (FULL_SYNC_SEEN.isEmpty()) {
+            return 0;
+        }
+        int removed = 0;
+        for (final String id : new java.util.ArrayList<>(ENTRIES.keySet())) {
+            if (!FULL_SYNC_SEEN.contains(id)) {
+                ENTRIES.remove(id);
+                removed++;
+            }
+        }
+        FULL_SYNC_SEEN.clear();
+        if (removed > 0) {
+            markDirty();
+        }
+        return removed;
+    }
+
+    public static void forgetRail(String id) {
+        if (id != null && ENTRIES.remove(id) != null) {
+            markDirty();
         }
     }
 

@@ -72,7 +72,10 @@ public class LevelRendererMixin {
             }
 
             if (client.getEntityRenderDispatcher().shouldRenderHitBoxes() && !client.showOnlyReducedInfo()) {
+                poseStack.pushPose();
+                poseStack.translate(-camPos3.x, -camPos3.y, -camPos3.z);
                 RTEClient.railRenderDispatcher.drawBoundingBoxes(poseStack, bufferSource.getBuffer(RenderType.lines()));
+                poseStack.popPose();
             }
 
             RTEClient.railRenderDispatcher.drawRailNodes(worldWrapper, RTEClient.drawScheduler, viewMatrix);

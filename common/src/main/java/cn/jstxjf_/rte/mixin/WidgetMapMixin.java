@@ -131,7 +131,7 @@ public abstract class WidgetMapMixin {
 
         final GuiDrawing guiDrawing = new GuiDrawing(graphicsHolder);
         guiDrawing.beginDrawingRectangle();
-        final double dot = Math.max(1.0, Math.min(8, scale * 0.5));
+        final double dot = 2.0;
         for (final Rail dashboardRail : rails) {
             final Rail rail = cn.jstxjf_.rte.render.rail.RailRenderDispatcher.resolveRenderCarrier(dashboardRail);
             if (!(((Object) rail) instanceof RailExtraSupplier extra)) continue;

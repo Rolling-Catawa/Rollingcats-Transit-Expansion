@@ -75,7 +75,11 @@ public abstract class ItemRailModifierMixin {
 
         ItemStack stack = player.getStackInHand(hand);
         CompoundTag tag = stack.getTag();
-        if (tag != null && tag.contains(cn.jstxjf_.rte.util.RailBrushHelper.BRUSH_TAG) || tag.contains(cn.jstxjf_.rte.util.RailBrushHelper.LEGACY_BRUSH_TAG)) {
+        if (tag == null) {
+            return;
+        }
+        if (tag.contains(cn.jstxjf_.rte.util.RailBrushHelper.BRUSH_TAG)
+            || tag.contains(cn.jstxjf_.rte.util.RailBrushHelper.LEGACY_BRUSH_TAG)) {
             tag.data.remove(cn.jstxjf_.rte.util.RailBrushHelper.BRUSH_TAG);
             tag.data.remove(cn.jstxjf_.rte.util.RailBrushHelper.LEGACY_BRUSH_TAG);
             player.sendMessage(new Text(TextHelper.translatable("gui.rte.brush.reset").data), true);

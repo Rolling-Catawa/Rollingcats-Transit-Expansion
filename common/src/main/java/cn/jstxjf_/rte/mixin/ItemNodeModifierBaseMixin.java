@@ -43,7 +43,10 @@ public abstract class ItemNodeModifierBaseMixin {
 
         final BlockEntityDirectNode beStart = getBlockEntity(world, posStart);
         final BlockEntityDirectNode beEnd = getBlockEntity(world, posEnd);
-        if (beStart == null && beEnd == null) {
+        final boolean anyDirectBlock =
+            world.getBlockState(posStart).getBlock().data instanceof BlockDirectNode
+                || world.getBlockState(posEnd).getBlock().data instanceof BlockDirectNode;
+        if (beStart == null && beEnd == null && !anyDirectBlock) {
             return;
         }
 
@@ -82,18 +85,11 @@ public abstract class ItemNodeModifierBaseMixin {
                 }
             }
 
-            boolean s1 = false, s2 = false;
-            if (beStart == null) {
-                s1 = true;
-            } else if (beStart.isBound()) {
-                s1 = true;
-            }
+            final boolean startIsDirect = stateStart.getBlock().data instanceof BlockDirectNode;
+            final boolean endIsDirect = stateEnd.getBlock().data instanceof BlockDirectNode;
 
-            if (beEnd == null) {
-                s2 = true;
-            } else if (beEnd.isBound()) {
-                s2 = true;
-            }
+            boolean s1 = !startIsDirect || (beStart != null && beStart.isBound());
+            boolean s2 = !endIsDirect || (beEnd != null && beEnd.isBound());
 
             double radStart = Math.toRadians(BlockNode.getAngle(stateStart));
             double radEnd = Math.toRadians(BlockNode.getAngle(stateEnd));
@@ -112,7 +108,9 @@ public abstract class ItemNodeModifierBaseMixin {
                 if (deg == null) {
                     deg = (double) angleDifference;
                 }
-                beEnd.bind(deg);
+                if (beEnd != null) {
+                    beEnd.bind(deg);
+                }
                 radEnd = normalizeRadians(Math.toRadians(deg));
                 s2 = true;
                 serverPlayer.sendMessage(new Text(TextHelper.translatable("gui.rte.direct_node.success_bind").data), true);
@@ -123,9 +121,26 @@ public abstract class ItemNodeModifierBaseMixin {
                 if (deg == null) {
                     deg = (double) angleDifference + 180;
                 }
-                beStart.bind(deg);
+                if (beStart != null) {
+                    beStart.bind(deg);
+                }
                 radStart = normalizeRadians(Math.toRadians(deg));
                 s1 = true;
+                serverPlayer.sendMessage(new Text(TextHelper.translatable("gui.rte.direct_node.success_bind").data), true);
+            }
+
+            if (!s1 && !s2) {
+                final double chord = Math.toRadians(angleDifference);
+                radStart = chord;
+                radEnd = chord;
+                if (beStart != null) {
+                    beStart.bind(angleDifference);
+                }
+                if (beEnd != null) {
+                    beEnd.bind(angleDifference);
+                }
+                s1 = true;
+                s2 = true;
                 serverPlayer.sendMessage(new Text(TextHelper.translatable("gui.rte.direct_node.success_bind").data), true);
             }
 

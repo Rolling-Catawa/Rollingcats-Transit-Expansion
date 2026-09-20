@@ -82,10 +82,13 @@ public class BlockEntityDirectNodeRenderer extends BlockEntityRenderer<BlockDire
             final BlockPos pos = entity.getBlockPos();
             final int light = LevelRenderer.getLightColor(entity.getLevel(), pos);
             final Matrix4f basePose = worldPose.copy();
-            basePose.translate(pos.getX() + 0.5F, pos.getY() + 0.5F, pos.getZ() + 0.5F);
+            basePose.translate((float) (pos.getX() + 0.5F + entity.getXOffset()),
+                    (float) (pos.getY() + 0.5F + entity.getYOffset()),
+                    (float) (pos.getZ() + 0.5F + entity.getZOffset()));
 
             if (!entity.isBound()) {
                 if (verticalModel == null) continue;
+                applyAttachment(basePose, entity.getAttachmentFace());
                 final double radians = (System.currentTimeMillis() % 1000L) * (Math.PI * 2D / 1000D);
                 basePose.rotateY((float) radians);
                 RTEClient.drawScheduler.enqueue(verticalModel, basePose, light);
@@ -94,8 +97,9 @@ public class BlockEntityDirectNodeRenderer extends BlockEntityRenderer<BlockDire
                 final ModelCluster model = connected ? connectionModel : verticalModel;
                 if (connected && ClientConfig.enableRail3D) continue;
                 if (model == null) continue;
-                float yaw = computeNodeYaw(pos, entity.getAngleRadians());
-                basePose.rotateY(yaw);
+                final NodeOrientation orientation = computeNodeOrientation(pos, entity);
+                basePose.rotateY(orientation.yaw);
+                basePose.rotateX(-orientation.pitch);
                 RTEClient.drawScheduler.enqueue(model, basePose, light);
             }
         }
@@ -116,20 +120,21 @@ public class BlockEntityDirectNodeRenderer extends BlockEntityRenderer<BlockDire
         return true;
     }
 
-    private static float computeNodeYaw(BlockPos pos, double storedMathAngle) {
-        float fallbackYaw = (float)(Math.PI / 2.0 - storedMathAngle);
+    private static NodeOrientation computeNodeOrientation(BlockPos pos, BlockDirectNode.BlockEntityDirectNode entity) {
+        final NodeOrientation fallback = new NodeOrientation(
+                (float) (Math.PI / 2.0 - entity.getAngleRadians()),
+                (float) Math.toRadians(entity.getPitchDegrees()));
         try {
             org.mtr.core.data.Position nodePos = new org.mtr.core.data.Position(pos.getX(), pos.getY(), pos.getZ());
             var railsAtPos = org.mtr.mod.client.MinecraftClientData.getInstance().positionsToRail.get(nodePos);
-            if (railsAtPos == null || railsAtPos.isEmpty()) return fallbackYaw;
+            if (railsAtPos == null || railsAtPos.isEmpty()) return fallback;
             org.mtr.core.data.Rail rail = railsAtPos.values().iterator().next();
-            if (rail == null || !(((Object)rail) instanceof RailExtraSupplier extra)) return fallbackYaw;
-            if (extra.getBezierCurve() == null) return fallbackYaw;
+            if (rail == null || !(((Object)rail) instanceof RailExtraSupplier extra)) return fallback;
             double length = extra.getLength();
-            if (!Double.isFinite(length) || length < 0.01) return fallbackYaw;
+            if (!Double.isFinite(length) || length < 0.01) return fallback;
             org.mtr.mapping.holder.Vector3d posAt0 = extra.getPosition(0);
-            double nodeX = pos.getX() + 0.5;
-            double nodeZ = pos.getZ() + 0.5;
+            double nodeX = pos.getX() + 0.5 + entity.getXOffset();
+            double nodeZ = pos.getZ() + 0.5 + entity.getZOffset();
             double distSqTo0 = (posAt0.getXMapped() - nodeX) * (posAt0.getXMapped() - nodeX)
                     + (posAt0.getZMapped() - nodeZ) * (posAt0.getZMapped() - nodeZ);
             boolean nodeIsAtStart = distSqTo0 < 1.0;
@@ -140,16 +145,31 @@ public class BlockEntityDirectNodeRenderer extends BlockEntityRenderer<BlockDire
                 p0 = posAt0;
                 p1 = extra.getPosition(epsilon);
             } else {
-                p0 = extra.getPosition(length - epsilon);
-                p1 = extra.getPosition(length);
+                p0 = extra.getPosition(length);
+                p1 = extra.getPosition(length - epsilon);
             }
             double dx = p1.getXMapped() - p0.getXMapped();
+            double dy = p1.getYMapped() - p0.getYMapped();
             double dz = p1.getZMapped() - p0.getZMapped();
-            if (Math.abs(dx) < 1e-9 && Math.abs(dz) < 1e-9) return fallbackYaw;
-            return (float) net.minecraft.util.Mth.atan2(dx, dz);
+            final double horizontal = Math.sqrt(dx * dx + dz * dz);
+            if (horizontal < 1e-9 && Math.abs(dy) < 1e-9) return fallback;
+            final float yaw = horizontal < 1e-9 ? fallback.yaw : (float) net.minecraft.util.Mth.atan2(dx, dz);
+            return new NodeOrientation(yaw, (float) net.minecraft.util.Mth.atan2(dy, horizontal));
         } catch (Exception e) {
-            return fallbackYaw;
+            return fallback;
         }
+    }
+
+    private static void applyAttachment(Matrix4f pose, int faceId) {
+        final org.mtr.mapping.holder.Direction face = org.mtr.mapping.holder.Direction.byId(faceId);
+        if (face == org.mtr.mapping.holder.Direction.DOWN) pose.rotateX((float) Math.PI);
+        else if (face == org.mtr.mapping.holder.Direction.NORTH) pose.rotateX((float) (-Math.PI / 2));
+        else if (face == org.mtr.mapping.holder.Direction.SOUTH) pose.rotateX((float) (Math.PI / 2));
+        else if (face == org.mtr.mapping.holder.Direction.EAST) pose.rotateZ((float) (-Math.PI / 2));
+        else if (face == org.mtr.mapping.holder.Direction.WEST) pose.rotateZ((float) (Math.PI / 2));
+    }
+
+    private record NodeOrientation(float yaw, float pitch) {
     }
 
     private static void applyColor(ModelCluster model, int color) {

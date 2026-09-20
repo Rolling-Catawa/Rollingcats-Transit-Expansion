@@ -12,6 +12,7 @@ public final class RTECreativeModeEntries {
 
     private static final String[] TOOLS_AND_UTILITIES_ITEM_IDS = {
         "direct_node",
+        "free_node",
         "bridge_creator_1",
         "bridge_creator_2",
         "bridge_creator_3",

@@ -301,5 +301,14 @@
   "gui.rte.config.client.slsmoke": "蒸気機関車の煙を表示",
   "gui.rte.config.client.mtr_mesh_dedupe_limit": "MTR メッシュ重複除去の上限（面数）",
   "gui.rte.config.client.mtr_mesh_dedupe_limit.description": "この面数を超えるモデルは頂点の重複除去をスキップします。読み込みが大幅に速くなりますが、VRAM がやや増えます。0 で無制限",
-  "gui.rte.config.client.shadercompat.description": "RTE 独自のレンダリングパイプラインを使用し、線路と車両のフレームレートを大幅に改善します。シェーダーパック使用中は自動的に無効化されます。"
+  "gui.rte.config.client.shadercompat.description": "RTE 独自のレンダリングパイプラインを使用し、線路と車両のフレームレートを大幅に改善します。シェーダーパック使用中は自動的に無効化されます。",
+  "gui.rte.direct_node.y_offset": "ノード Y 軸オフセット",
+  "gui.rte.direct_node.reset_y_offset": "Y オフセットをリセット",
+  "block.rte.free_node": "自由ノード",
+  "tooltip.rte.free_node": "表面に吸着し、XYZ 位置とピッチを自由に調整できます",
+  "gui.rte.direct_node.x_offset": "ノード X オフセット",
+  "gui.rte.direct_node.z_offset": "ノード Z オフセット",
+  "gui.rte.direct_node.pitch": "ノードピッチ",
+  "gui.rte.direct_node.reset_position": "位置をリセット",
+  "gui.rte.direct_node.reset_pitch": "ピッチをリセット"
 }

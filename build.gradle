@@ -6,6 +6,18 @@ plugins {
 
 apply from: rootProject.file('gradle/versions.gradle')
 
+def rtePython = System.getenv('PYTHON') ?: 'python'
+def rteBootstrap = new ProcessBuilder(
+    rtePython,
+    rootProject.file('scripts/bootstrap_dependencies.py').absolutePath,
+    '--minecraft',
+    rootProject.minecraft_version.toString()
+).directory(rootProject.projectDir).inheritIO().start()
+def rteBootstrapExit = rteBootstrap.waitFor()
+if (rteBootstrapExit != 0) {
+    throw new GradleException("Dependency bootstrap failed with exit code ${rteBootstrapExit}")
+}
+
 architectury {
     minecraft = project.minecraft_version
 }
@@ -102,16 +114,17 @@ ext.rteStamp = {
     def commit = exec('git', 'rev-parse', '--short=12', 'HEAD')
     def branch = exec('git', 'rev-parse', '--abbrev-ref', 'HEAD')
     def dirty = exec('git', 'status', '--porcelain')
-    def time = java.time.Instant.now().toString()
+    def time = System.getenv('RTE_BUILD_TIME') ?: java.time.Instant.now().toString()
     def seed = "${rootProject.mod_version}|${commit}|${time}|${System.getProperty('user.name') ?: '?'}"
     def digest = java.security.MessageDigest.getInstance('SHA-256').digest(seed.getBytes('UTF-8'))
+    def requestedId = System.getenv('RTE_BUILD_ID')?.trim()
     return [
         version: rootProject.mod_version as String,
         commit : commit.isEmpty() ? 'unknown' : commit,
         branch : branch.isEmpty() ? 'unknown' : branch,
         clean  : dirty.isEmpty() ? 'true' : 'false',
         time   : time,
-        id     : digest.encodeHex().toString().substring(0, 16)
+        id     : requestedId ? requestedId : digest.encodeHex().toString().substring(0, 16)
     ]
 }()
 
@@ -127,6 +140,42 @@ ext.rteStamp = {
 // ---------------------------------------------------------------------------
 
 def rteDistDir = layout.buildDirectory.dir('dist')
+def rteJavaHome = System.getProperty('java.home')
+def rteMatrixChild = providers.gradleProperty('rteMatrixChild').map { it.toBoolean() }.orElse(false).get()
+def rteKeepDist = providers.gradleProperty('rteKeepDist').map { it.toBoolean() }.orElse(false).get()
+
+def bootstrapDependencies = tasks.register('bootstrapDependencies', Exec) {
+    group = 'build setup'
+    workingDir rootProject.projectDir
+    commandLine rtePython, rootProject.file('scripts/bootstrap_dependencies.py'), '--minecraft', rootProject.minecraft_version
+}
+
+def compatTests = tasks.register('compatTests', Exec) {
+    group = 'verification'
+    dependsOn bootstrapDependencies
+    workingDir rootProject.projectDir
+    commandLine rtePython, rootProject.file('tests/compat/run.py'), '--java-home', rteJavaHome
+}
+
+def pathGeometryTests = tasks.register('pathGeometryTests', Exec) {
+    group = 'verification'
+    dependsOn bootstrapDependencies
+    workingDir rootProject.projectDir
+    commandLine rtePython, rootProject.file('tests/path_geometry/run.py'), '--java-home', rteJavaHome
+}
+
+def mtr3EquivalenceTests = tasks.register('mtr3EquivalenceTests', Exec) {
+    group = 'verification'
+    dependsOn bootstrapDependencies
+    workingDir rootProject.projectDir
+    commandLine rtePython, rootProject.file('tests/mtr3_equivalence/run.py')
+}
+
+subprojects {
+    tasks.withType(JavaCompile).configureEach {
+        dependsOn bootstrapDependencies
+    }
+}
 
 def rtePublishableJars = { Project p ->
     p.fileTree(p.layout.buildDirectory.dir('libs')) {
@@ -142,7 +191,7 @@ tasks.register('collectJars', Copy) {
     group = 'build'
     description = '收集各平台发布用 jar 到 build/dist，按 MC 版本命名'
 
-    dependsOn ':fabric:remapJar', ':forge:remapJar'
+    dependsOn 'cleanDist', ':fabric:remapJar', ':forge:remapJar'
 
     def mcVersion = rootProject.property('minecraft_version').toString()
     def modVersion = rootProject.mod_version.toString()
@@ -189,8 +238,139 @@ tasks.register('collectJars', Copy) {
     }
 }
 
+tasks.register('verifyDistribution') {
+    group = 'verification'
+    dependsOn 'collectJars', compatTests, pathGeometryTests, mtr3EquivalenceTests
+    doLast {
+        def dir = rteDistDir.get().asFile
+        def mcVersion = rootProject.property('minecraft_version').toString()
+        def jars = (dir.listFiles() ?: []).findAll { it.name.endsWith("+${mcVersion}.jar") }.sort { it.name }
+        if (jars.size() != 2) {
+            throw new GradleException("Expected two distribution jars, found ${jars.size()}")
+        }
+        def checksums = new File(dir, 'CHECKSUMS.txt')
+        if (!checksums.isFile()) {
+            throw new GradleException('CHECKSUMS.txt was not generated')
+        }
+        def checksumText = checksums.getText('UTF-8')
+        jars.each { jarFile ->
+            def zip = new java.util.zip.ZipFile(jarFile)
+            try {
+                def entry = zip.getEntry('rte/rte-build.properties')
+                if (entry == null) {
+                    throw new GradleException("Missing build metadata in ${jarFile.name}")
+                }
+                def properties = new Properties()
+                zip.getInputStream(entry).withCloseable { properties.load(it) }
+                if (properties.getProperty('buildId') != rootProject.ext.rteStamp.id) {
+                    throw new GradleException("Build id mismatch in ${jarFile.name}")
+                }
+                def expectedPlatform = jarFile.name.contains('-fabric-') ? 'fabric' : 'forge'
+                if (properties.getProperty('platform') != expectedPlatform) {
+                    throw new GradleException("Platform metadata mismatch in ${jarFile.name}")
+                }
+                def metadataPath = expectedPlatform == 'fabric' ? 'fabric.mod.json' : 'META-INF/mods.toml'
+                def metadataEntry = zip.getEntry(metadataPath)
+                if (metadataEntry == null) {
+                    throw new GradleException("Missing ${metadataPath} in ${jarFile.name}")
+                }
+                def metadataText = zip.getInputStream(metadataEntry).withCloseable { it.getText('UTF-8') }
+                def expectedMinecraft = expectedPlatform == 'fabric'
+                    ? "\"minecraft\": \"~${mcVersion}\""
+                    : "versionRange = \"[${mcVersion}]\""
+                if (!metadataText.contains(expectedMinecraft)) {
+                    throw new GradleException("Minecraft ${mcVersion} metadata mismatch in ${jarFile.name}")
+                }
+                if (!checksumText.contains(jarFile.name)) {
+                    throw new GradleException("Checksum entry missing for ${jarFile.name}")
+                }
+            } finally {
+                zip.close()
+            }
+        }
+    }
+}
+
+tasks.register('releaseBuild') {
+    group = 'build'
+    dependsOn 'verifyDistribution'
+}
+
+def buildAllVersions = tasks.register('buildAllVersions') {
+    group = 'build'
+    doLast {
+        def dir = rteDistDir.get().asFile
+        dir.mkdirs()
+        fileTree(dir).files.each { it.delete() }
+        def wrapper = new File(rootProject.projectDir, System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows') ? 'gradlew.bat' : 'gradlew')
+        ['1.20.1', '1.20.4'].each { mcVersion ->
+            def command = [
+                wrapper.absolutePath,
+                "-Dorg.gradle.java.home=${rteJavaHome}",
+                '--no-daemon',
+                '--max-workers=1',
+                "--project-cache-dir=${new File(rootProject.projectDir, ".gradle/matrix-cache-${mcVersion}").absolutePath}",
+                "-Pminecraft_version=${mcVersion}",
+                '-PrteMatrixChild=true',
+                '-PrteKeepDist=true',
+                ':common:clean',
+                ':fabric:clean',
+                ':forge:clean',
+                'releaseBuild'
+            ]
+            def process = new ProcessBuilder(command.collect { it.toString() })
+                .directory(rootProject.projectDir)
+                .redirectErrorStream(true)
+                .start()
+            process.inputStream.withReader('UTF-8') { reader ->
+                reader.eachLine { line -> logger.lifecycle("[${mcVersion}] ${line}") }
+            }
+            def exitCode = process.waitFor()
+            if (exitCode != 0) {
+                throw new GradleException("Minecraft ${mcVersion} build failed with exit code ${exitCode}")
+            }
+        }
+        def expected = ['1.20.1', '1.20.4'].collectMany { mcVersion ->
+            ['fabric', 'forge'].collect { platform -> "rte-${platform}-${rootProject.mod_version}+${mcVersion}.jar" }
+        }
+        def missing = expected.findAll { !new File(dir, it).isFile() }
+        if (!missing.isEmpty()) {
+            throw new GradleException("Missing matrix artifacts: ${missing.join(', ')}")
+        }
+        def checksums = new File(dir, 'CHECKSUMS.txt')
+        if (!checksums.isFile()) {
+            throw new GradleException('Missing matrix CHECKSUMS.txt')
+        }
+        def checksumText = checksums.getText('UTF-8')
+        def missingChecksums = expected.findAll { !checksumText.contains(it) }
+        if (!missingChecksums.isEmpty()) {
+            throw new GradleException("Missing matrix checksums: ${missingChecksums.join(', ')}")
+        }
+    }
+}
+
+tasks.register('build') {
+    group = 'build'
+    dependsOn rteMatrixChild ? 'releaseBuild' : buildAllVersions
+}
+
 tasks.register('cleanDist', Delete) {
     group = 'build'
     description = '清空 build/dist'
-    delete rteDistDir
+    delete fileTree(rteDistDir)
+    onlyIf { !rteKeepDist }
+}
+
+gradle.projectsEvaluated {
+    if (!rteMatrixChild) {
+        tasks.named('build').configure {
+            setDependsOn([buildAllVersions])
+        }
+        subprojects.each { subproject ->
+            subproject.tasks.named('build').configure {
+                setDependsOn([])
+                enabled = false
+            }
+        }
+    }
 }

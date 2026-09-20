@@ -20,6 +20,8 @@ import cn.jstxjf_.rte.gfxext.reuse.DrawScheduler;
 import cn.jstxjf_.rte.gfxext.reuse.ModelManager;
 import cn.jstxjf_.rte.gfxext.reuse.AtlasManager;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.client.Minecraft;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -45,6 +47,11 @@ public class RTEClient {
     private static boolean workbenchAutoloadPending;
     private static boolean jcmPromptChecked;
     private static boolean resourcesReloading;
+    private static boolean welcomePending;
+    private static boolean wasInWorld;
+    private static int welcomeDelayTicks;
+    private static String lastResourcePackSignature = "";
+    private static long lastResourceReloadCompletedNanos;
 
     public static void init() {
         ShadersModHandler.init();
@@ -66,8 +73,8 @@ public class RTEClient {
             itemPredicatesRegistered = true;
         }
         if (!lifecycleEventsRegistered) {
-            InitClient.REGISTRY_CLIENT.eventRegistryClient.registerClientJoin(RTEClient::clearTransientState);
-            InitClient.REGISTRY_CLIENT.eventRegistryClient.registerClientDisconnect(RTEClient::clearTransientState);
+            InitClient.REGISTRY_CLIENT.eventRegistryClient.registerClientJoin(RTEClient::onClientJoin);
+            InitClient.REGISTRY_CLIENT.eventRegistryClient.registerClientDisconnect(RTEClient::onClientDisconnect);
             InitClient.REGISTRY_CLIENT.eventRegistryClient.registerResourceReloadEvent(() -> {
                 final Minecraft client = getMinecraft();
                 if (client != null) {
@@ -80,6 +87,7 @@ public class RTEClient {
     }
 
     public static void tick() {
+        tickWelcomeMessage();
         if (cn.jstxjf_.rte.render.RailChainHandles.isActive()
             && !cn.jstxjf_.rte.data.RailChainSelection.isManual()) {
             cn.jstxjf_.rte.render.RailChainHandles.exit();
@@ -198,7 +206,7 @@ public class RTEClient {
         }
 
         try {
-            reloadResources(client.getResourceManager());
+            reloadResources(client.getResourceManager(), true);
             if (player != null) {
                 player.displayClientMessage(Component.literal("RTE client resources reloaded"), true);
             }
@@ -211,10 +219,25 @@ public class RTEClient {
     }
 
     public static void reloadResources(ResourceManager resourceManager) {
+        reloadResources(resourceManager, false);
+    }
+
+    private static void reloadResources(ResourceManager resourceManager, boolean force) {
         if (resourcesReloading) {
             return;
         }
+        final String packSignature = resourceManager.listPacks()
+            .map(pack -> pack.packId())
+            .collect(java.util.stream.Collectors.joining("\u001f"));
+        final long now = System.nanoTime();
+        if (!force && packSignature.equals(lastResourcePackSignature)
+                && now - lastResourceReloadCompletedNanos < java.util.concurrent.TimeUnit.SECONDS.toNanos(5)) {
+            resourcesLoaded = true;
+            return;
+        }
         resourcesReloading = true;
+        cn.jstxjf_.rte.util.JcmCompat.reset();
+        boolean completed = false;
         try {
             resourcesLoaded = true;
             ContextCapability.checkContextVersion();
@@ -232,6 +255,7 @@ public class RTEClient {
             ClientConfig.clearCustomResponders();
             ScriptContextManager.disposeAllContexts();
             ScriptHolderBase.resetRunner();
+            cn.jstxjf_.rte.scripting.util.client.GraphicsTexture.disposeAll();
             cn.jstxjf_.rte.scripting.util.ScriptResourceUtil.clearFontCache();
             try {
                 drawScheduler.reloadShaders(resourceManager);
@@ -261,7 +285,12 @@ public class RTEClient {
                 final List<String> errors = List.copyOf(MtrModelRegistryUtil.loadingErrorList);
                 cn.jstxjf_.rte.gui.ErrorScreen.show(client, errors);
             }
+            completed = true;
         } finally {
+            if (completed) {
+                lastResourcePackSignature = packSignature;
+                lastResourceReloadCompletedNanos = System.nanoTime();
+            }
             resourcesReloading = false;
         }
     }
@@ -315,8 +344,50 @@ public class RTEClient {
     }
 
     private static void clearTransientState() {
+        cn.jstxjf_.rte.util.JcmCompat.reset();
         ScriptContextManager.disposeAllContexts();
         railRenderDispatcher.clearRail();
         cn.jstxjf_.rte.render.DashboardMapCache.flushAndClear();
+    }
+
+    private static void onClientJoin() {
+        clearTransientState();
+        welcomePending = true;
+        welcomeDelayTicks = 20;
+    }
+
+    private static void onClientDisconnect() {
+        clearTransientState();
+        welcomePending = false;
+        welcomeDelayTicks = 0;
+        wasInWorld = false;
+    }
+
+    private static void tickWelcomeMessage() {
+        final Minecraft client = getMinecraft();
+        final boolean inWorld = client != null && client.player != null && client.level != null;
+        if (!inWorld) {
+            wasInWorld = false;
+            return;
+        }
+        if (!wasInWorld) {
+            wasInWorld = true;
+            welcomePending = true;
+            welcomeDelayTicks = 20;
+        }
+        if (!welcomePending || welcomeDelayTicks-- > 0) {
+            return;
+        }
+        welcomePending = false;
+        client.player.displayClientMessage(
+            Component.literal("\u6b22\u8fce\u4f7f\u7528 Rollingcats Transit Expansion\uff01\u8be5\u6a21\u7ec4\u8fd8\u5904\u4e8e beta \u6d4b\u8bd5\u9636\u6bb5\uff0c\u5982\u6709\u4efb\u4f55 bug \u8bf7 ")
+                .append(Component.literal("[\u70b9\u6b64]").withStyle(style -> style
+                    .withColor(ChatFormatting.AQUA)
+                    .withUnderlined(true)
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL,
+                        "https://github.com/Rolling-Catawa/rte/issues"))))
+                .append(Component.literal(" \u4e0a\u62a5\u3002\u6784\u5efa\u53f7\uff1a" + BuildStamp.buildId() + "\u3002")),
+            false
+        );
     }
 }

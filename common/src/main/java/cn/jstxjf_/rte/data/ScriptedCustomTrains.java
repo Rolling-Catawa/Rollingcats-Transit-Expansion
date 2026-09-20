@@ -48,28 +48,25 @@ public class ScriptedCustomTrains {
     }
 
     public static ResourceLocation parseLegacyLocation(String raw) {
-        try {
-            return new ResourceLocation(raw);
-        } catch (Exception e) {
-            final String lowered = raw.toLowerCase(java.util.Locale.ROOT).trim();
-            try {
-                final ResourceLocation location = new ResourceLocation(lowered);
-                LEGACY_RAW_PATHS.put(location, raw.trim());
-                RTE.LOGGER.info("[ScriptedCustomTrains] Legacy resource path '{}' contains invalid characters, using '{}' instead", raw, location);
-                return location;
-            } catch (Exception e2) {
-                final int colon = lowered.indexOf(':');
-                final String namespace = colon > 0 ? lowered.substring(0, colon) : "minecraft";
-                final String path = (colon > 0 ? lowered.substring(colon + 1) : lowered).replaceAll("[^a-z0-9/._-]", "_");
-                final ResourceLocation location = new ResourceLocation(namespace.replaceAll("[^a-z0-9._-]", "_"), path);
-                LEGACY_RAW_PATHS.put(location, raw.trim());
-                RTE.LOGGER.warn("[ScriptedCustomTrains] Legacy resource path '{}' heavily sanitized to '{}'", raw, location);
-                return location;
-            }
+        final String original = raw == null ? "" : raw.trim();
+        final String lowered = original.toLowerCase(java.util.Locale.ROOT);
+        final int colon = lowered.indexOf(':');
+        String namespace = colon > 0 ? lowered.substring(0, colon) : "minecraft";
+        namespace = namespace.replaceAll("[^a-z0-9._-]", "_");
+        if (namespace.isEmpty()) {
+            namespace = "minecraft";
         }
+        final String inputPath = colon > 0 ? lowered.substring(colon + 1) : lowered;
+        final String path = ResourceUtil.normalizeResourcePath(inputPath);
+        final ResourceLocation location = new ResourceLocation(namespace, path);
+        if (!location.toString().equals(lowered)) {
+            LEGACY_RAW_PATHS.put(location, original);
+        }
+        return location;
     }
 
     public static void init(ResourceManager resourceManager) {
+        new HashSet<>(SCRIPTED_TRAINS.values()).forEach(ScriptHolderBase::close);
         SCRIPTED_TRAINS.clear();
         GangwayPolicy.reset();
         LegacyVehicleRegistry.reset();
@@ -230,6 +227,7 @@ public class ScriptedCustomTrains {
                                     cn.jstxjf_.rte.scripting.util.ScriptResourceUtil.readScriptSource(resourceManager, scriptLocation));
                             }
                         }
+                        GangwayPolicy.recordScriptSources(trainId, scripts.values());
                         scriptContext.load("Train " + trainEntry.getKey(), "Train", resourceManager, scripts, jsonObject, trainEntry.getKey(), "create", "render", "dispose", "use");
                         registerScript(trainId, scriptContext);
                         loadedTrainIds.add(trainId);

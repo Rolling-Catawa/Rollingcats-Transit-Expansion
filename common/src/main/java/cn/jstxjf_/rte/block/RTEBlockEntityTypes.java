@@ -12,6 +12,13 @@ public class RTEBlockEntityTypes {
             RTEBlocks.DIRECT_NODE::get
         );
 
+    public static final BlockEntityTypeRegistryObject<BlockFreeNode.BlockEntityFreeNode> FREE_NODE =
+        RTE.REGISTRY.registerBlockEntityType(
+            new Identifier(RTE.MOD_ID, "free_node"),
+            BlockFreeNode.BlockEntityFreeNode::new,
+            RTEBlocks.FREE_NODE::get
+        );
+
     public static final BlockEntityTypeRegistryObject<BlockEyeCandy.BlockEntityEyeCandy> EYE_CANDY =
         RTE.REGISTRY.registerBlockEntityType(
             new Identifier(RTE.MOD_ID, "eye_candy"),
@@ -21,4 +28,3 @@ public class RTEBlockEntityTypes {
 
     public static void init() {}
 }
-

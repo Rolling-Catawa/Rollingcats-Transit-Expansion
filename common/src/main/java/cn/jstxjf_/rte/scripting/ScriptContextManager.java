@@ -10,7 +10,12 @@ public class ScriptContextManager {
         livingContexts.put(ctx, holder);
     }
 
+    private static long nextDeadScanNanos;
+
     public static void disposeDeadContexts() {
+        final long now = System.nanoTime();
+        if (now - nextDeadScanNanos < 0) return;
+        nextDeadScanNanos = now + 250_000_000L;
         livingContexts.entrySet().removeIf(entry -> {
             AbstractScriptContext ctx = entry.getKey();
             if (ctx.disposed) {
@@ -28,6 +33,7 @@ public class ScriptContextManager {
     }
 
     public static void disposeAllContexts() {
+        nextDeadScanNanos = 0;
         livingContexts.forEach((ctx, holder) -> {
             if (!ctx.disposed && ctx.created) {
                 holder.tryCallDisposeFunctionAsync(ctx);

@@ -2,8 +2,6 @@ package cn.jstxjf_.rte.network;
 
 import cn.jstxjf_.rte.block.BlockDirectNode;
 import cn.jstxjf_.rte.block.RTEBlocks;
-import cn.jstxjf_.rte.gui.DirectNodeScreen;
-import net.minecraft.client.Minecraft;
 import org.mtr.core.data.TransportMode;
 import org.mtr.mapping.holder.BlockPos;
 import org.mtr.mapping.holder.BlockState;
@@ -94,7 +92,7 @@ public class PacketReplaceRailNode extends PacketHandler {
         }
     }
 
-    public static void sendUpdateC2S(World world, BlockPos pos, BlockState state, Supplier<net.minecraft.client.gui.screens.Screen> parentSupplier) {
+    public static void sendUpdateC2S(World world, BlockPos pos, BlockState state, Supplier<?> parentSupplier) {
         if (world == null || state == null || !(state.getBlock().data instanceof BlockNode blockNode) || blockNode.transportMode != TransportMode.TRAIN) {
             return;
         }
@@ -107,10 +105,7 @@ public class PacketReplaceRailNode extends PacketHandler {
         }
 
         replaceNode(world, pos, angle, state, true, false);
-        final Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.level != null) {
-            minecraft.setScreen(DirectNodeScreen.createScreen(minecraft.level, new net.minecraft.core.BlockPos(pos.getX(), pos.getY(), pos.getZ()), parentSupplier));
-        }
+        ClientHandler.openDirectNodeScreen(pos, parentSupplier);
     }
 
     private static void replaceNode(World world, BlockPos pos, float angle, BlockState sourceState, boolean triggerRebuild, boolean fittingNode) {
@@ -141,6 +136,29 @@ public class PacketReplaceRailNode extends PacketHandler {
             return new BlockState(directState.data.setValue(BlockNode.IS_CONNECTED.data, sourceState.data.getValue(BlockNode.IS_CONNECTED.data)));
         } catch (Exception ignored) {
             return directState;
+        }
+    }
+
+    /**
+     * Keep every reference to client-only GUI classes out of the packet class that
+     * is eagerly loaded while a dedicated server registers its packet handlers.
+     */
+    private static final class ClientHandler {
+
+        private static void openDirectNodeScreen(BlockPos pos, Supplier<?> parentSupplier) {
+            final net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getInstance();
+            if (minecraft.level == null) {
+                return;
+            }
+            final Supplier<net.minecraft.client.gui.screens.Screen> screenSupplier = () -> {
+                final Object parent = parentSupplier == null ? null : parentSupplier.get();
+                return parent instanceof net.minecraft.client.gui.screens.Screen screen ? screen : null;
+            };
+            minecraft.setScreen(cn.jstxjf_.rte.gui.DirectNodeScreen.createScreen(
+                    minecraft.level,
+                    new net.minecraft.core.BlockPos(pos.getX(), pos.getY(), pos.getZ()),
+                    screenSupplier
+            ));
         }
     }
 }

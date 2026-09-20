@@ -459,7 +459,7 @@ public final class RailRebuildHelper {
         );
     }
 
-    private static void copyExtraState(Rail source, Rail target) {
+    public static void copyExtraState(Rail source, Rail target) {
         if (!(((Object) source) instanceof RailExtraSupplier) || !(((Object) target) instanceof RailExtraSupplier)) {
             return;
         }
@@ -481,6 +481,14 @@ public final class RailRebuildHelper {
             int raw = targetExtra.getOpeningDirectionRaw();
             if (raw == 1) targetExtra.setOpeningDirectionRaw(2);
             else if (raw == 2) targetExtra.setOpeningDirectionRaw(1);
+            targetExtra.setNodeXOffset1(sourceExtra.getNodeXOffset2());
+            targetExtra.setNodeYOffset1(sourceExtra.getNodeYOffset2());
+            targetExtra.setNodeZOffset1(sourceExtra.getNodeZOffset2());
+            targetExtra.setNodeXOffset2(sourceExtra.getNodeXOffset1());
+            targetExtra.setNodeYOffset2(sourceExtra.getNodeYOffset1());
+            targetExtra.setNodeZOffset2(sourceExtra.getNodeZOffset1());
+            targetExtra.setNodePitch1(sourceExtra.getNodePitch2());
+            targetExtra.setNodePitch2(sourceExtra.getNodePitch1());
         }
 
         final RailAccessor srcAcc = (RailAccessor)(Object) source;

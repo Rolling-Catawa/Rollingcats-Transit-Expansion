@@ -54,6 +54,11 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
         private static final double ANGLE_EPSILON = 1E-6;
 
         private double angle = Double.NaN;
+        private double xOffset = 0;
+        private double yOffset = 0;
+        private double zOffset = 0;
+        private double pitch = 0;
+        private int attachmentFace = org.mtr.mapping.holder.Direction.UP.getId();
         private boolean fittingNode = false;
         private boolean isRebuilding = false;
         private int rebuildRetryCount = 0;
@@ -65,28 +70,43 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
                 return t;
             });
         public static final String KEY_ANGLE = "angle";
+        public static final String KEY_X_OFFSET = "x_offset";
+        public static final String KEY_Y_OFFSET = "y_offset";
+        public static final String KEY_Z_OFFSET = "z_offset";
+        public static final String KEY_PITCH = "pitch";
+        public static final String KEY_ATTACHMENT_FACE = "attachment_face";
         public static final String KEY_FITTING_NODE = "fitting_node";
         
         public BlockEntityDirectNode(BlockPos pos, BlockState state) {
-            super(RTEBlockEntityTypes.DIRECT_NODE.get(), pos, state);
+            this(pos, state, false);
+        }
+
+        protected BlockEntityDirectNode(BlockPos pos, BlockState state, boolean freeNode) {
+            super(freeNode ? RTEBlockEntityTypes.FREE_NODE.get() : RTEBlockEntityTypes.DIRECT_NODE.get(), pos, state);
         }
 
         public void bind(BlockEntityDirectNode other) {
             if (isBound()) return;
             BlockPos thi = getPos2();
             BlockPos oth = other.getPos2();
-            final double rawAngle = Math.toDegrees(Math.atan2(oth.getZ() - thi.getZ(), oth.getX() - thi.getX()));
+            final double rawAngle = Math.toDegrees(Math.atan2(
+                    oth.getZ() + other.getZOffset() - thi.getZ() - zOffset,
+                    oth.getX() + other.getXOffset() - thi.getX() - xOffset));
             logDebug("bind pair self={} other={} rawDeg={} normalizedDeg={}", thi, oth, rawAngle, normalize(rawAngle));
             bind(rawAngle);
             other.bind(this);
         }
 
         public void bind(double angleDegrees) {
+            setAngleLocal(angleDegrees);
+            sendUpdateC2S();
+        }
+
+        public void setAngleLocal(double angleDegrees) {
             final double rawAngle = angleDegrees;
             angleDegrees = normalize(angleDegrees);
             logDebug("bind direct pos={} rawDeg={} normalizedDeg={} oldDeg={}", getPos2(), rawAngle, angleDegrees, angle);
             this.angle = angleDegrees;
-            sendUpdateC2S();
         }
 
         public boolean isBound() {
@@ -126,6 +146,52 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
             return angle;
         }
 
+        public double getYOffset() {
+            return yOffset;
+        }
+
+        public double getXOffset() {
+            return xOffset;
+        }
+
+        public double getZOffset() {
+            return zOffset;
+        }
+
+        public double getPitchDegrees() {
+            return pitch;
+        }
+
+        public int getAttachmentFace() {
+            return attachmentFace;
+        }
+
+        public void setXOffsetLocal(double value) {
+            xOffset = sanitizeOffset(value);
+        }
+
+        public void setYOffsetLocal(double value) {
+            yOffset = sanitizeOffset(value);
+        }
+
+        public void setZOffsetLocal(double value) {
+            zOffset = sanitizeOffset(value);
+        }
+
+        public void setOffsetsLocal(double x, double y, double z) {
+            xOffset = sanitizeOffset(x);
+            yOffset = sanitizeOffset(y);
+            zOffset = sanitizeOffset(z);
+        }
+
+        public void setPitchLocal(double value) {
+            pitch = normalizePitch(value);
+        }
+
+        public void setAttachmentFaceLocal(int value) {
+            attachmentFace = org.mtr.mapping.holder.Direction.byId(value).getId();
+        }
+
         public boolean isFittingNode() {
             return fittingNode;
         }
@@ -140,20 +206,37 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
         }
 
         public void readCompoundTag(CompoundTag compoundTag, boolean triggerRebuild) {
+            boolean geometryChanged = false;
             if (compoundTag.contains(KEY_ANGLE)) {
                 final double newAngle = normalize(compoundTag.getDouble(KEY_ANGLE));
                 final boolean changed = Double.isNaN(angle) || Math.abs(newAngle - angle) > 1E-4;
                 logDebug("read pos={} tagDeg={} oldDeg={} changed={} triggerRebuild={}", getPos2(), newAngle, angle, changed, triggerRebuild);
                 angle = newAngle;
-                if (changed && triggerRebuild) {
-                    scheduleUpdateRailwayData();
-                }
+                geometryChanged |= changed;
             } else {
                 logDebug("read pos={} unbound oldDeg={}", getPos2(), angle);
                 angle = Double.NaN;
             }
+            final double newXOffset = compoundTag.contains(KEY_X_OFFSET) ? sanitizeOffset(compoundTag.getDouble(KEY_X_OFFSET)) : 0;
+            final double newYOffset = compoundTag.contains(KEY_Y_OFFSET) ? sanitizeOffset(compoundTag.getDouble(KEY_Y_OFFSET)) : 0;
+            final double newZOffset = compoundTag.contains(KEY_Z_OFFSET) ? sanitizeOffset(compoundTag.getDouble(KEY_Z_OFFSET)) : 0;
+            final double newPitch = compoundTag.contains(KEY_PITCH) ? normalizePitch(compoundTag.getDouble(KEY_PITCH)) : 0;
+            geometryChanged |= Math.abs(newXOffset - xOffset) > 1E-4;
+            geometryChanged |= Math.abs(newYOffset - yOffset) > 1E-4;
+            geometryChanged |= Math.abs(newZOffset - zOffset) > 1E-4;
+            geometryChanged |= Math.abs(newPitch - pitch) > 1E-4;
+            xOffset = newXOffset;
+            yOffset = newYOffset;
+            zOffset = newZOffset;
+            pitch = newPitch;
+            attachmentFace = compoundTag.contains(KEY_ATTACHMENT_FACE)
+                    ? org.mtr.mapping.holder.Direction.byId(compoundTag.getInt(KEY_ATTACHMENT_FACE)).getId()
+                    : org.mtr.mapping.holder.Direction.UP.getId();
             if (compoundTag.contains(KEY_FITTING_NODE)) {
                 fittingNode = compoundTag.getBoolean(KEY_FITTING_NODE);
+            }
+            if (geometryChanged && triggerRebuild) {
+                scheduleUpdateRailwayData();
             }
         }
 
@@ -161,6 +244,21 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
         public void writeCompoundTag(CompoundTag compoundTag) {
             if (isBound()) {
                 compoundTag.putDouble(KEY_ANGLE, angle);
+            }
+            if (Math.abs(xOffset) > 1E-6) {
+                compoundTag.putDouble(KEY_X_OFFSET, xOffset);
+            }
+            if (Math.abs(yOffset) > 1E-6) {
+                compoundTag.putDouble(KEY_Y_OFFSET, yOffset);
+            }
+            if (Math.abs(zOffset) > 1E-6) {
+                compoundTag.putDouble(KEY_Z_OFFSET, zOffset);
+            }
+            if (Math.abs(pitch) > 1E-6) {
+                compoundTag.putDouble(KEY_PITCH, pitch);
+            }
+            if (attachmentFace != org.mtr.mapping.holder.Direction.UP.getId()) {
+                compoundTag.putInt(KEY_ATTACHMENT_FACE, attachmentFace);
             }
             if (fittingNode) {
                 compoundTag.putBoolean(KEY_FITTING_NODE, true);
@@ -177,6 +275,18 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
             radians = radians % (2 * Math.PI);
             if (radians < 0) radians += 2 * Math.PI;
             return radians;
+        }
+
+        private static double sanitizeOffset(double value) {
+            return Double.isFinite(value) ? Math.max(-64, Math.min(64, value)) : 0;
+        }
+
+        private static double normalizePitch(double value) {
+            if (!Double.isFinite(value)) return 0;
+            value %= 360;
+            if (value <= -180) value += 360;
+            if (value > 180) value -= 360;
+            return value;
         }
 
         public void scheduleUpdateRailwayData() {
@@ -263,6 +373,18 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
                     final Rail forward = matchedRails.get(i);
                     final Position targetPosition = matchedTargets.get(i);
                     final RailExtraSupplier forwardExtra = (RailExtraSupplier)(Object)forward;
+                    final Position pos1 = forwardExtra.getExtraPosition1();
+                    final Position pos2 = forwardExtra.getExtraPosition2();
+                    if (pos1 == null || pos2 == null) continue;
+
+                    final NodeTransform ownTransform = new NodeTransform(xOffset, yOffset, zOffset, pitch,
+                            this instanceof BlockFreeNode.BlockEntityFreeNode);
+                    final NodeTransform targetTransform = getRailTransform(targetPosition, serverWorld);
+                    final NodeTransform desiredTransform1 = pos1.equals(fromPosition) ? ownTransform : targetTransform;
+                    final NodeTransform desiredTransform2 = pos2.equals(fromPosition) ? ownTransform : targetTransform;
+                    final boolean transformsUnchanged = hasSameNodeTransforms(
+                            forwardExtra, desiredTransform1, desiredTransform2);
+                    final boolean needsSpatialBezier = requiresSpatialBezier(desiredTransform1, desiredTransform2);
 
                     final double targetRawRadians = getRailAngleRadians(targetPosition, serverWorld);
                     if (Double.isNaN(targetRawRadians)) {
@@ -270,21 +392,24 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
                         continue;
                     }
 
-                    if (RailExtraSupplier.usesBezierCurve(forwardExtra.getPathMode())) {
-                        logDebug("skip custom path rail id={} pathMode={} pos={}", forward.getHexId(), forwardExtra.getPathMode(), getPos2());
+                    if (RailExtraSupplier.usesBezierCurve(forwardExtra.getPathMode()) && !needsSpatialBezier) {
+                        if (!transformsUnchanged || needsSpatialBezier && forwardExtra.getPathMode() != RailExtraSupplier.PATH_MODE_AUTO_BEZIER) {
+                            setRailNodeTransforms(forwardExtra, desiredTransform1, desiredTransform2);
+                            if (needsSpatialBezier) {
+                                forwardExtra.setPathModeRaw(RailExtraSupplier.PATH_MODE_AUTO_BEZIER);
+                                forwardExtra.regenerateAutoBezier();
+                            }
+                            applyServerRailUpdate(serverWorld, forward, forward);
+                        }
                         continue;
                     }
 
-                    final Position pos1 = forwardExtra.getExtraPosition1();
-                    final Position pos2 = forwardExtra.getExtraPosition2();
-                    if (pos1 == null || pos2 == null) continue;
-
                     final float outwardDeg1 = (float) Math.toDegrees(Math.atan2(
-                        pos2.getZ() - pos1.getZ(),
-                        pos2.getX() - pos1.getX()));
+                        pos2.getZ() + desiredTransform2.z - pos1.getZ() - desiredTransform1.z,
+                        pos2.getX() + desiredTransform2.x - pos1.getX() - desiredTransform1.x));
                     final float outwardDeg2 = (float) Math.toDegrees(Math.atan2(
-                        pos1.getZ() - pos2.getZ(),
-                        pos1.getX() - pos2.getX()));
+                        pos1.getZ() + desiredTransform1.z - pos2.getZ() - desiredTransform2.z,
+                        pos1.getX() + desiredTransform1.x - pos2.getX() - desiredTransform2.x));
 
                     double angleAtPos1, angleAtPos2;
                     if (pos1.equals(fromPosition)) {
@@ -297,7 +422,7 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
 
                     if (!org.mtr.core.tool.Angle.similarFacing(outwardDeg1, (float) Math.toDegrees(angleAtPos1)))
                         angleAtPos1 += Math.PI;
-                    if (!org.mtr.core.tool.Angle.similarFacing(outwardDeg1, (float) Math.toDegrees(angleAtPos2)))
+                    if (!org.mtr.core.tool.Angle.similarFacing(outwardDeg2, (float) Math.toDegrees(angleAtPos2)))
                         angleAtPos2 += Math.PI;
 
                     final double rad1 = normalizeRadians(angleAtPos1);
@@ -319,13 +444,40 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
                         Math.toDegrees(forwardExtra.getExtraAngle2Rad())
                     );
                     if (hasSameExtraAngles(forwardExtra, rad1, rad2)) {
-                        logDebug("rail unchanged id={} pos={}", forward.getHexId(), getPos2());
+                        if (!transformsUnchanged || needsSpatialBezier
+                                && forwardExtra.getPathMode() != RailExtraSupplier.PATH_MODE_AUTO_BEZIER) {
+                            setRailNodeTransforms(forwardExtra, desiredTransform1, desiredTransform2);
+                            if (needsSpatialBezier) {
+                                forwardExtra.setPathModeRaw(RailExtraSupplier.PATH_MODE_AUTO_BEZIER);
+                                forwardExtra.regenerateAutoBezier();
+                            }
+                            applyServerRailUpdate(serverWorld, forward, forward);
+                        } else {
+                            logDebug("rail unchanged id={} pos={}", forward.getHexId(), getPos2());
+                        }
                         continue;
                     }
                     final Rail rebuilt = rebuildRail(forward, rad1, rad2);
                     if (rebuilt == null) {
+                        if (!transformsUnchanged || needsSpatialBezier) {
+                            setRailNodeTransforms(forwardExtra, desiredTransform1, desiredTransform2);
+                            if (needsSpatialBezier) {
+                                forwardExtra.setExtraAngle1Rad(rad1);
+                                forwardExtra.setExtraAngle2Rad(rad2);
+                                forwardExtra.setPathModeRaw(RailExtraSupplier.PATH_MODE_AUTO_BEZIER);
+                                forwardExtra.regenerateAutoBezier();
+                                RailAngleExtra.ensureCarrierRailMath(forward, forwardExtra.getLength(), rad1);
+                            }
+                            applyServerRailUpdate(serverWorld, forward, forward);
+                        }
                         logDebug("rail rebuild null id={} pos={}", forward.getHexId(), getPos2());
                         continue;
+                    }
+                    final RailExtraSupplier rebuiltExtra = (RailExtraSupplier) (Object) rebuilt;
+                    setRailNodeTransforms(rebuiltExtra, desiredTransform1, desiredTransform2);
+                    if (needsSpatialBezier) {
+                        rebuiltExtra.setPathModeRaw(RailExtraSupplier.PATH_MODE_AUTO_BEZIER);
+                        rebuiltExtra.regenerateAutoBezier();
                     }
                     logDebug("rail rebuilt oldId={} newId={} valid={} pos={}", forward.getHexId(), rebuilt.getHexId(), rebuilt.isValid(), getPos2());
                     applyServerRailUpdate(serverWorld, forward, rebuilt);
@@ -352,6 +504,62 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
             final double vanillaDeg = BlockNode.getAngle(state);
             logDebug("target vanilla angle pos={} deg={}", blockPos, vanillaDeg);
             return Math.toRadians(vanillaDeg);
+        }
+
+        private static NodeTransform getRailTransform(Position position, ServerWorld world) {
+            final BlockPos blockPos = new BlockPos((int) position.getX(), (int) position.getY(), (int) position.getZ());
+            final org.mtr.mapping.holder.BlockEntity blockEntity = world.getBlockEntity(blockPos);
+            return blockEntity != null && blockEntity.data instanceof BlockEntityDirectNode directNode
+                    ? new NodeTransform(directNode.getXOffset(), directNode.getYOffset(), directNode.getZOffset(), directNode.getPitchDegrees(),
+                            directNode instanceof BlockFreeNode.BlockEntityFreeNode)
+                    : NodeTransform.ZERO;
+        }
+
+        private static boolean hasSameNodeTransforms(RailExtraSupplier rail, NodeTransform transform1, NodeTransform transform2) {
+            return Math.abs(rail.getNodeXOffset1() - transform1.x) <= 1E-4
+                    && Math.abs(rail.getNodeYOffset1() - transform1.y) <= 1E-4
+                    && Math.abs(rail.getNodeZOffset1() - transform1.z) <= 1E-4
+                    && Math.abs(rail.getNodeXOffset2() - transform2.x) <= 1E-4
+                    && Math.abs(rail.getNodeYOffset2() - transform2.y) <= 1E-4
+                    && Math.abs(rail.getNodeZOffset2() - transform2.z) <= 1E-4
+                    && Math.abs(rail.getNodePitch1() - transform1.pitch) <= 1E-4
+                    && Math.abs(rail.getNodePitch2() - transform2.pitch) <= 1E-4;
+        }
+
+        private static void setRailNodeTransforms(RailExtraSupplier rail, NodeTransform transform1, NodeTransform transform2) {
+            rail.setNodeXOffset1(transform1.x);
+            rail.setNodeYOffset1(transform1.y);
+            rail.setNodeZOffset1(transform1.z);
+            rail.setNodeXOffset2(transform2.x);
+            rail.setNodeYOffset2(transform2.y);
+            rail.setNodeZOffset2(transform2.z);
+            rail.setNodePitch1(transform1.pitch);
+            rail.setNodePitch2(transform2.pitch);
+        }
+
+        private static boolean requiresSpatialBezier(NodeTransform transform1, NodeTransform transform2) {
+            return transform1.requiresSpatialBezier() || transform2.requiresSpatialBezier();
+        }
+
+        private static final class NodeTransform {
+            private static final NodeTransform ZERO = new NodeTransform(0, 0, 0, 0, false);
+            private final double x;
+            private final double y;
+            private final double z;
+            private final double pitch;
+            private final boolean free;
+
+            private NodeTransform(double x, double y, double z, double pitch, boolean free) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.pitch = pitch;
+                this.free = free;
+            }
+
+            private boolean requiresSpatialBezier() {
+                return free || Math.abs(x) > 1E-6 || Math.abs(z) > 1E-6 || Math.abs(pitch) > 1E-6;
+            }
         }
 
         private static boolean hasSameExtraAngles(RailExtraSupplier rail, double rad1, double rad2) {

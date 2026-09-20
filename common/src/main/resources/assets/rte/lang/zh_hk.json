@@ -385,5 +385,14 @@
   "gui.rte.imgui.unavailable": "本系統上 RTE 面板不可用",
   "gui.rte.imgui.unavailable.hint": "按 Esc 返回。RTE 的其他功能不受影響。",
   "commands.rte.selftest.line": "%s",
-  "commands.rte.selftest.done": "RTE 自檢：%s"
+  "commands.rte.selftest.done": "RTE 自檢：%s",
+  "gui.rte.direct_node.y_offset": "節點 Y 軸位移",
+  "gui.rte.direct_node.reset_y_offset": "重設 Y 位移",
+  "block.rte.free_node": "自由節點",
+  "tooltip.rte.free_node": "可吸附表面並自由調整 XYZ 位置與俯仰角",
+  "gui.rte.direct_node.x_offset": "節點 X 軸位移",
+  "gui.rte.direct_node.z_offset": "節點 Z 軸位移",
+  "gui.rte.direct_node.pitch": "節點俯仰角",
+  "gui.rte.direct_node.reset_position": "重設位置",
+  "gui.rte.direct_node.reset_pitch": "重設俯仰角"
 }

@@ -108,17 +108,15 @@ public final class CompatArbiter {
     }
 
     public static boolean owns(Domain domain) {
-        boolean anyRival = false;
         for (final String modId : domain.rivals) {
             if (!isModLoaded(modId)) {
                 continue;
             }
-            anyRival = true;
             if (OWNER_OTHER.equals(ownerOf(domain, modId))) {
                 return false;
             }
         }
-        return !anyRival || true;
+        return true;
     }
 
     public static void applyDefaults() {
@@ -160,7 +158,7 @@ public final class CompatArbiter {
     }
 
     public static void syncVehicleChoiceToLegacy() {
-        final String owner = ownerOf(Domain.SCRIPT_VEHICLE);
+        final String owner = ownerOf(Domain.SCRIPT_VEHICLE, MOD_JCM);
         if (OWNER_OTHER.equals(owner)) {
             ClientConfig.jcmJsChoice = JcmCompat.CHOICE_DISABLE_RTE_JS;
         } else if (OWNER_DEDUPE.equals(owner)) {
@@ -171,6 +169,10 @@ public final class CompatArbiter {
     }
 
     public static void adoptLegacyVehicleChoice() {
+        if (OWNERS.containsKey(Domain.SCRIPT_VEHICLE) || hasPerModChoice(Domain.SCRIPT_VEHICLE)) {
+            syncVehicleChoiceToLegacy();
+            return;
+        }
         switch (ClientConfig.jcmJsChoice) {
             case JcmCompat.CHOICE_DISABLE_RTE_JS -> setOwner(Domain.SCRIPT_VEHICLE, OWNER_OTHER);
             case JcmCompat.CHOICE_AUTO_DEDUPE -> setOwner(Domain.SCRIPT_VEHICLE, OWNER_DEDUPE);
@@ -187,7 +189,7 @@ public final class CompatArbiter {
         if (owner == null) {
             return fallback;
         }
-        final String trimmed = owner.trim().toLowerCase();
+        final String trimmed = owner.trim().toLowerCase(java.util.Locale.ROOT);
         if (OWNER_RTE.equals(trimmed) || OWNER_OTHER.equals(trimmed)
             || OWNER_BOTH.equals(trimmed) || OWNER_DEDUPE.equals(trimmed)) {
             return trimmed;

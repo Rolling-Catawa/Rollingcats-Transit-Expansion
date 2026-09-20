@@ -296,7 +296,7 @@ public class RenderVehiclesMixin {
         return RidingRollTransform.rollLocalForwards(vector).rotateX(pitch);
     }
 
-    @Inject(method = "renderConnection", at = @At("HEAD"), require = 0)
+    @Inject(method = "renderConnection", at = @At("HEAD"), cancellable = true, require = 0)
     private static void rte$renderScriptedConnectionTexture(
             boolean shouldRender1, boolean shouldRender2, boolean canHaveLight,
             RenderVehicles.PreviousConnectionPositions previousConnectionPositions,
@@ -305,14 +305,22 @@ public class RenderVehiclesMixin {
             PositionAndRotation positionAndRotation, boolean useOffset,
             double vehicleLength, double width, double height, double yOffset, double zOffset,
             double oscillationAmount, boolean isOnRoute, CallbackInfo ci) {
-        if (!shouldRender1 || !(previousConnectionPositions instanceof PreviousConnectionPositionsAccessor accessor)) {
-            return;
+        // canHaveLight distinguishes MTR's gangway call from the barrier call.
+        // ANTE/NTE commits drawConnModel only from renderConnection, never from
+        // renderBarrier.
+        if (canHaveLight && shouldRender1 && previousConnectionPositions instanceof PreviousConnectionPositionsAccessor accessor) {
+            final Vector prevPos1 = accessor.rte$getPosition1();
+            final Vector prevPos2 = accessor.rte$getPosition2();
+            final Vector prevPos3 = accessor.rte$getPosition3();
+            final Vector prevPos4 = accessor.rte$getPosition4();
+            ScriptedTrainRenderers.renderConnectionIfScripted(canHaveLight, prevPos1, prevPos2, prevPos3, prevPos4, positionAndRotation, useOffset, vehicleLength, width, height, yOffset, zOffset, oscillationAmount, isOnRoute);
         }
 
-        final Vector prevPos1 = accessor.rte$getPosition1();
-        final Vector prevPos2 = accessor.rte$getPosition2();
-        final Vector prevPos3 = accessor.rte$getPosition3();
-        final Vector prevPos4 = accessor.rte$getPosition4();
-        ScriptedTrainRenderers.renderConnectionIfScripted(canHaveLight, prevPos1, prevPos2, prevPos3, prevPos4, positionAndRotation, useOffset, vehicleLength, width, height, yOffset, zOffset, oscillationAmount, isOnRoute);
+        // A legacy scripted connector is the complete visual, not an overlay.
+        // Keep the script commit above, then prevent MTR 4's connector material
+        // from being rendered over it.
+        if (ScriptedTrainRenderers.shouldSuppressNativeConnection(canHaveLight)) {
+            ci.cancel();
+        }
     }
 }

@@ -38,6 +38,14 @@ public class BakedRail {
         h = mixFingerprint(h, bezier == null ? 0 : Double.doubleToLongBits(bezier.getLength()));
         h = mixFingerprint(h, Double.doubleToLongBits(extra.getExtraAngle1Rad()));
         h = mixFingerprint(h, Double.doubleToLongBits(extra.getExtraAngle2Rad()));
+        h = mixFingerprint(h, Double.doubleToLongBits(extra.getNodeXOffset1()));
+        h = mixFingerprint(h, Double.doubleToLongBits(extra.getNodeYOffset1()));
+        h = mixFingerprint(h, Double.doubleToLongBits(extra.getNodeZOffset1()));
+        h = mixFingerprint(h, Double.doubleToLongBits(extra.getNodeXOffset2()));
+        h = mixFingerprint(h, Double.doubleToLongBits(extra.getNodeYOffset2()));
+        h = mixFingerprint(h, Double.doubleToLongBits(extra.getNodeZOffset2()));
+        h = mixFingerprint(h, Double.doubleToLongBits(extra.getNodePitch1()));
+        h = mixFingerprint(h, Double.doubleToLongBits(extra.getNodePitch2()));
         h = mixFingerprint(h, extra.getRenderReversed() ? 1 : 0);
         h = mixFingerprint(h, Float.floatToIntBits(extra.getRollingOffset()));
         h = mixFingerprint(h, Float.floatToIntBits(extra.getVerticalCurveRadius()));

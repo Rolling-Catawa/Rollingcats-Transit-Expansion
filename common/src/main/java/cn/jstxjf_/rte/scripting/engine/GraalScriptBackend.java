@@ -1,6 +1,7 @@
 package cn.jstxjf_.rte.scripting.engine;
 
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.EnvironmentAccess;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.SandboxPolicy;
@@ -28,12 +29,16 @@ import java.util.function.Predicate;
 
 public class GraalScriptBackend implements ScriptBackend {
 
+    private static final Engine SHARED_ENGINE = Engine.newBuilder()
+        .option("engine.WarnInterpreterOnly", "false")
+        .option("log.file", "./logs/latest.log")
+        .build();
     private final Context context;
 
     public GraalScriptBackend(Predicate<String> classFilter, Path scriptDataFolder) {
         context = Context.newBuilder("js")
+            .engine(SHARED_ENGINE)
             .allowNativeAccess(false)
-            .option("engine.WarnInterpreterOnly", "false")
             .allowCreateThread(true)
             .allowCreateProcess(false)
             .allowHostClassLoading(true)
@@ -77,7 +82,6 @@ public class GraalScriptBackend implements ScriptBackend {
             .option("js.nashorn-compat", "true")
             .option("js.ecmascript-version", "latest")
             .option("js.foreign-object-prototype", "true")
-            .option("log.file", "./logs/latest.log")
             .build();
 
         try {

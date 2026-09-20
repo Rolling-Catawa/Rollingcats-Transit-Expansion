@@ -16,6 +16,7 @@ ext.rteVersionMatrix = [
         fabricApi   : '0.92.6+1.20.1',
         forge       : '1.20.1-47.4.12',
         mtr         : 'local.mtr:MTR-fabric:4.0.5',
+        mtrForge    : 'local.mtr:MTR-forge:4.0.5',
         msd         : 'MSD-fabric-1.20.1-4.0.5-1.4.5.jar',
         msdForge    : 'MSD-forge-1.20.1-4.0.5-1.4.5.jar',
     ],
@@ -25,8 +26,9 @@ ext.rteVersionMatrix = [
         fabricApi   : '0.97.3+1.20.4',
         forge       : '1.20.4-49.1.0',
         mtr         : 'local.mtr:MTR-fabric:4.0.5-1.20.4',
-        msd         : 'MSD-fabric-1.20.1-4.0.5-1.4.5.jar',
-        msdForge    : 'MSD-forge-1.20.1-4.0.5-1.4.5.jar',
+        mtrForge    : 'local.mtr:MTR-forge:4.0.5-1.20.4',
+        msd         : 'MSD-fabric-1.20.4-4.0.5-1.4.5.jar',
+        msdForge    : 'MSD-forge-1.20.4-4.0.5-1.4.5.jar',
     ],
 ]
 

@@ -14,4 +14,10 @@ public interface VehicleAccessor {
 
     @Accessor(value = "speed", remap = false)
     double getSpeed();
+
+    @Accessor(value = "departureIndex", remap = false)
+    long rte$getDepartureIndex();
+
+    @Accessor(value = "sidingDepartureTime", remap = false)
+    long rte$getSidingDepartureTime();
 }

@@ -18,7 +18,7 @@ public final class RidingRollTransform {
             return;
         }
         final float roll = TrainExtraSupplier.getRollAngleAt(vehicle, carIndex);
-        if (Math.abs(roll) < 1E-6F) {
+        if (!Float.isFinite(roll) || Math.abs(roll) < 1E-6F) {
             STATE.remove();
             return;
         }

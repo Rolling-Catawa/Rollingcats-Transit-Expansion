@@ -535,5 +535,14 @@
   "gui.rte.compound_creator.ghost.close": "Close editor and look around",
   "gui.rte.imgui.unavailable.hint": "Press Esc to go back. Other RTE features are unaffected.",
   "commands.rte.selftest.line": "%s",
-  "commands.rte.selftest.done": "RTE self test: %s"
+  "commands.rte.selftest.done": "RTE self test: %s",
+  "gui.rte.direct_node.y_offset": "Node Y offset",
+  "gui.rte.direct_node.reset_y_offset": "Reset Y offset",
+  "block.rte.free_node": "Free Node",
+  "tooltip.rte.free_node": "Surface-aware node with free XYZ position and pitch",
+  "gui.rte.direct_node.x_offset": "Node X offset",
+  "gui.rte.direct_node.z_offset": "Node Z offset",
+  "gui.rte.direct_node.pitch": "Node pitch",
+  "gui.rte.direct_node.reset_position": "Reset position",
+  "gui.rte.direct_node.reset_pitch": "Reset pitch"
 }

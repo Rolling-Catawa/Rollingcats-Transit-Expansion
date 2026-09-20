@@ -2,6 +2,7 @@ package cn.jstxjf_.rte.mixin;
 
 import cn.jstxjf_.rte.block.BlockDirectNode;
 import cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode;
+import cn.jstxjf_.rte.block.BlockFreeNode;
 import cn.jstxjf_.rte.RTE;
 import cn.jstxjf_.rte.data.RailAngleExtra;
 import cn.jstxjf_.rte.data.RailCalculator;
@@ -173,16 +174,18 @@ public abstract class ItemNodeModifierBaseMixin {
                 final double finalRadStart = bestStart;
                 final double finalRadEnd = bestEnd;
                 RailAngleExtra.withAngles(finalRadStart, finalRadEnd, (preciseStart, preciseEnd) -> {
-                    onConnect(world, context.getStack(), blockNodeStart.transportMode,
-                        stateStart, stateEnd, posStart, posEnd, preciseStart, preciseEnd, serverPlayer);
+                    connect(world, context.getStack(), blockNodeStart.transportMode,
+                        stateStart, stateEnd, posStart, posEnd, preciseStart, preciseEnd, serverPlayer,
+                        beStart instanceof BlockFreeNode.BlockEntityFreeNode || beEnd instanceof BlockFreeNode.BlockEntityFreeNode);
                 });
                 boolean connected = isConnected(world.getBlockState(posStart)) && isConnected(world.getBlockState(posEnd));
                 if (!connected) {
                     for (final double[] candidate : candidateOrder) {
                         final Angle quantizedStart = Angle.fromAngle((float) Math.toDegrees(candidate[0]));
                         final Angle quantizedEnd = Angle.fromAngle((float) Math.toDegrees(candidate[1]));
-                        onConnect(world, context.getStack(), blockNodeStart.transportMode,
-                            stateStart, stateEnd, posStart, posEnd, quantizedStart, quantizedEnd, serverPlayer);
+                        connect(world, context.getStack(), blockNodeStart.transportMode,
+                            stateStart, stateEnd, posStart, posEnd, quantizedStart, quantizedEnd, serverPlayer,
+                            beStart instanceof BlockFreeNode.BlockEntityFreeNode || beEnd instanceof BlockFreeNode.BlockEntityFreeNode);
                         if (isConnected(world.getBlockState(posStart)) && isConnected(world.getBlockState(posEnd))) {
                             break;
                         }
@@ -211,6 +214,47 @@ public abstract class ItemNodeModifierBaseMixin {
              return (BlockDirectNode.BlockEntityDirectNode) entity.data;
         }
         return null;
+    }
+
+    private void connect(World world, ItemStack stack, TransportMode transportMode, BlockState stateStart, BlockState stateEnd,
+                         BlockPos posStart, BlockPos posEnd, Angle facingStart, Angle facingEnd,
+                         ServerPlayerEntity player, boolean spatial) {
+        final BlockEntityDirectNode startNode = getBlockEntity(world, posStart);
+        final BlockEntityDirectNode endNode = getBlockEntity(world, posEnd);
+        final double startAngle = startNode != null && startNode.isBound()
+                ? startNode.getAngleRadians() : facingStart.angleRadians;
+        final double endAngle = endNode != null && endNode.isBound()
+                ? endNode.getAngleRadians() : normalizeRadians(facingEnd.angleRadians + Math.PI);
+        final org.mtr.core.data.Position startPosition = org.mtr.mod.Init.blockPosToPosition(posStart);
+        cn.jstxjf_.rte.data.RailSpatialContext.run(spatial ? rail -> {
+            final boolean firstIsStart = startPosition.equals(rail.getExtraPosition1());
+            setSpatialEndpoint(rail, firstIsStart, startNode, startAngle);
+            setSpatialEndpoint(rail, !firstIsStart, endNode, endAngle);
+            rail.setPathModeRaw(cn.jstxjf_.rte.data.RailExtraSupplier.PATH_MODE_AUTO_BEZIER);
+            rail.regenerateAutoBezier();
+        } : null, () ->
+                onConnect(world, stack, transportMode, stateStart, stateEnd, posStart, posEnd, facingStart, facingEnd, player));
+    }
+
+    private static void setSpatialEndpoint(cn.jstxjf_.rte.data.RailExtraSupplier rail, boolean first,
+                                           BlockEntityDirectNode node, double angle) {
+        final double x = node == null ? 0 : node.getXOffset();
+        final double y = node == null ? 0 : node.getYOffset();
+        final double z = node == null ? 0 : node.getZOffset();
+        final double pitch = node == null ? 0 : node.getPitchDegrees();
+        if (first) {
+            rail.setNodeXOffset1(x);
+            rail.setNodeYOffset1(y);
+            rail.setNodeZOffset1(z);
+            rail.setNodePitch1(pitch);
+            rail.setExtraAngle1Rad(angle);
+        } else {
+            rail.setNodeXOffset2(x);
+            rail.setNodeYOffset2(y);
+            rail.setNodeZOffset2(z);
+            rail.setNodePitch2(pitch);
+            rail.setExtraAngle2Rad(angle);
+        }
     }
 
     private boolean isConnected(BlockState state) {

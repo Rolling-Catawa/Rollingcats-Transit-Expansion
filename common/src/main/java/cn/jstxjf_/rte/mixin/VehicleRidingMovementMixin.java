@@ -25,7 +25,7 @@ public class VehicleRidingMovementMixin {
     @Shadow private static long ridingVehicleId;
     @Shadow private static int ridingVehicleCarNumber;
 
-    @Inject(method = "movePlayer", at = @At("HEAD"), require = 0)
+    @Inject(method = "movePlayer(JJILorg/mtr/libraries/it/unimi/dsi/fastutil/objects/ObjectArrayList;Lorg/mtr/mod/client/GangwayMovementPositions;Lorg/mtr/mod/client/GangwayMovementPositions;Lorg/mtr/mod/client/GangwayMovementPositions;Lorg/mtr/mod/render/PositionAndRotation;)V", at = @At("HEAD"), cancellable = true, require = 0)
     private static void rte$movePlayerHead(
             long millisElapsed, long vehicleId, int carNumber,
             ObjectArrayList<ObjectBooleanImmutablePair<Box>> floorsAndDoorways,
@@ -33,6 +33,14 @@ public class VehicleRidingMovementMixin {
             GangwayMovementPositions thisCarGangwayMovementPositions1,
             GangwayMovementPositions thisCarGangwayMovementPositions2,
             PositionAndRotation positionAndRotation, CallbackInfo ci) {
+        if (positionAndRotation == null || positionAndRotation.position == null
+                || !rte$finitePosition(positionAndRotation.position.x, positionAndRotation.position.y, positionAndRotation.position.z)
+                || !Double.isFinite(positionAndRotation.yaw) || !Double.isFinite(positionAndRotation.pitch)) {
+            RidingRollTransform.end();
+            rte$reportInvalidMovement();
+            ci.cancel();
+            return;
+        }
         RidingRollTransform.begin(vehicleId, carNumber);
         rte$updateCameraRolling(vehicleId, carNumber, positionAndRotation);
     }
@@ -93,16 +101,28 @@ public class VehicleRidingMovementMixin {
         return result;
     }
 
-    @Inject(method = "tick", at = @At("TAIL"))
-    private static void rte$tickTail(CallbackInfo ci) {
-        if (ridingVehicleId == 0) return;
+    @org.spongepowered.asm.mixin.Unique
+    private static long rte$nextInvalidMovementLog;
 
-        MinecraftClientData.getInstance().vehicles.forEach(vehicle -> {
-            if (vehicle.getId() == ridingVehicleId && vehicle instanceof TrainExtraSupplier) {
-                float roll = TrainExtraSupplier.getRollAngleAt(vehicle, ridingVehicleCarNumber);
-                double speed = ((VehicleAccessor)(Object)vehicle).getSpeed();
-            }
-        });
+    @Inject(method = "movePlayer(DDD)V", at = @At("HEAD"), cancellable = true, require = 0)
+    private static void rte$guardPlayerPosition(double x, double y, double z, CallbackInfo ci) {
+        if (!rte$finitePosition(x, y, z)) {
+            rte$reportInvalidMovement();
+            ci.cancel();
+        }
+    }
+
+    @org.spongepowered.asm.mixin.Unique
+    private static boolean rte$finitePosition(double x, double y, double z) {
+        return Double.isFinite(x) && Double.isFinite(y) && Double.isFinite(z);
+    }
+
+    @org.spongepowered.asm.mixin.Unique
+    private static void rte$reportInvalidMovement() {
+        final long now = System.nanoTime();
+        if (now - rte$nextInvalidMovementLog >= 0) {
+            rte$nextInvalidMovementLog = now + 5_000_000_000L;
+            cn.jstxjf_.rte.RTE.LOGGER.warn("[Riding] skipped invalid vehicle movement; retaining player position");
+        }
     }
 }
-

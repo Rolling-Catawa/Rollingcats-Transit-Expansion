@@ -77,15 +77,12 @@ public class TrainScriptContext extends AbstractScriptContext {
         return MinecraftClientData.getInstance().vehicles.stream().anyMatch(vehicle -> vehicle.getId() == train.getId());
     }
 
-    private int rte$skippedSwaps = 0;
-
     public void extraFinished() {
         cn.jstxjf_.rte.scripting.train.StationTimingProbe.sample(trainExtraWriting);
         synchronized (this) {
-            if (scriptStatus != null && !scriptStatus.isDone() && ++rte$skippedSwaps < 3) {
+            if (scriptStatus != null && !scriptStatus.isDone()) {
                 return;
             }
-            rte$skippedSwaps = 0;
             final TrainWrapper temp = trainExtraWriting;
             trainExtraWriting = trainExtra;
             trainExtra = temp;

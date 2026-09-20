@@ -535,5 +535,14 @@
   "gui.rte.compound_creator.ghost.close": "关闭编辑器去看",
   "gui.rte.imgui.unavailable.hint": "按 Esc 返回。RTE 的其他功能不受影响。",
   "commands.rte.selftest.line": "%s",
-  "commands.rte.selftest.done": "RTE 自检：%s"
+  "commands.rte.selftest.done": "RTE 自检：%s",
+  "gui.rte.direct_node.y_offset": "节点 Y 轴位移",
+  "gui.rte.direct_node.reset_y_offset": "重置 Y 位移",
+  "block.rte.free_node": "自由节点",
+  "tooltip.rte.free_node": "可吸附表面并自由调整 XYZ 位置与俯仰角",
+  "gui.rte.direct_node.x_offset": "节点 X 轴位移",
+  "gui.rte.direct_node.z_offset": "节点 Z 轴位移",
+  "gui.rte.direct_node.pitch": "节点俯仰角",
+  "gui.rte.direct_node.reset_position": "重置位置",
+  "gui.rte.direct_node.reset_pitch": "重置俯仰角"
 }

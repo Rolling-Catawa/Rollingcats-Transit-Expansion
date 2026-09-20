@@ -96,20 +96,44 @@ public final class GangwayPolicy {
     }
 
     private static boolean declaresOwnGangway(JsonObject vehicle) {
-        if (!vehicle.has("gangway_connection_id")) {
-            return false;
-        }
-        final String id;
         try {
-            id = vehicle.get("gangway_connection_id").getAsString();
-        } catch (Exception e) {
-            return false;
+            if (vehicle.has("script_files") && vehicle.get("script_files").isJsonArray()) {
+                for (final com.google.gson.JsonElement element : vehicle.getAsJsonArray("script_files")) {
+                    final String name = element.getAsString().toLowerCase(Locale.ROOT);
+                    if (name.contains("gangway") || name.contains("connection") || name.contains("conn_")) {
+                        return true;
+                    }
+                }
+            }
+            if (vehicle.has("script_texts") && vehicle.get("script_texts").isJsonArray()) {
+                for (final com.google.gson.JsonElement element : vehicle.getAsJsonArray("script_texts")) {
+                    final String source = element.getAsString();
+                    if (source.contains("drawConnModel") || source.contains("drawConnStretchTexture")) {
+                        return true;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
         }
-        if (id == null) {
-            return true;
+        return false;
+    }
+
+    public static boolean hasDeclaredConnection(String trainId) {
+        return connectionIdOf(trainId) != null;
+    }
+
+    public static void recordScriptSources(String trainId, Iterable<String> sources) {
+        if (trainId == null || sources == null) {
+            return;
         }
-        final String trimmed = id.trim().toLowerCase(Locale.ROOT);
-        return trimmed.isEmpty();
+        for (final String source : sources) {
+            if (source != null && (source.contains("drawConnModel")
+                    || source.contains("drawConnStretchTexture"))) {
+                SELF_HANDLED.add(trainId.toLowerCase(Locale.ROOT));
+                LOOKUP_CACHE.clear();
+                return;
+            }
+        }
     }
 
     private static final String CUSTOM_PREFIX = "mtr_custom_train_";

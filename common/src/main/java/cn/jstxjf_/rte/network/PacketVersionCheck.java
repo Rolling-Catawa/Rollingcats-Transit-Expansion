@@ -2,8 +2,6 @@ package cn.jstxjf_.rte.network;
 
 import cn.jstxjf_.rte.BuildConfig;
 import cn.jstxjf_.rte.RTE;
-import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 import org.mtr.mapping.holder.ServerPlayerEntity;
 import org.mtr.mapping.registry.PacketHandler;
 import org.mtr.mapping.tool.PacketBufferReceiver;
@@ -65,38 +63,47 @@ public class PacketVersionCheck extends PacketHandler {
 
     @Override
     public void runClient() {
-        final Minecraft client = Minecraft.getInstance();
-        client.execute(() -> {
-            if (remoteProtocolVersion == BuildConfig.MOD_PROTOCOL_VERSION) {
-                cn.jstxjf_.rte.RTEConfig.manualNotchMultiplier = Math.max(1, Math.min(10, remoteManualNotchMultiplier));
-                cn.jstxjf_.rte.RTEConfig.allowVehiclePathSync = (remoteSyncFlags & FLAG_VEHICLE_PATH) != 0;
-                cn.jstxjf_.rte.RTEConfig.allowVehicleMarkerSync = (remoteSyncFlags & FLAG_VEHICLE_MARKER) != 0;
-                cn.jstxjf_.rte.RTEConfig.allowFullRailSync = (remoteSyncFlags & FLAG_FULL_RAIL) != 0;
-                if (remoteSyncFlags != ALL_SYNC_FLAGS) {
-                    RTE.LOGGER.info("[RTE] server restricted data sync: path={}, marker={}, rail={}",
-                        cn.jstxjf_.rte.RTEConfig.allowVehiclePathSync,
-                        cn.jstxjf_.rte.RTEConfig.allowVehicleMarkerSync,
-                        cn.jstxjf_.rte.RTEConfig.allowFullRailSync);
-                }
-                return;
-            }
-
-            final String localVersion = BuildConfig.MOD_VERSION + " (" + BuildConfig.MOD_PROTOCOL_VERSION + ")";
-            final String serverVersion = remoteVersion + " (" + remoteProtocolVersion + ")";
-            final Component disconnectReason = Component.literal(
-                "RTE version mismatch.\nYour version: " + localVersion + "\nServer version: " + serverVersion + "\nPlease use matching RTE builds."
-            );
-
-            final var connection = client.getConnection();
-            if (connection != null) {
-                connection.getConnection().disconnect(disconnectReason);
-            }
-
-            RTE.LOGGER.warn("Disconnected due to mismatched RTE protocol: client={}, server={}", localVersion, serverVersion);
-        });
+        ClientHandler.apply(remoteVersion, remoteProtocolVersion, remoteManualNotchMultiplier, remoteSyncFlags);
     }
 
     public static void sendVersionCheckS2C(ServerPlayerEntity player) {
         Init.REGISTRY.sendPacketToClient(player, new PacketVersionCheck());
+    }
+
+    /** Client-only linkage is isolated from the packet class loaded by dedicated servers. */
+    private static final class ClientHandler {
+
+        private static void apply(String remoteVersion, int remoteProtocolVersion,
+                                  int remoteManualNotchMultiplier, int remoteSyncFlags) {
+            final net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+            client.execute(() -> {
+                if (remoteProtocolVersion == BuildConfig.MOD_PROTOCOL_VERSION) {
+                    cn.jstxjf_.rte.RTEConfig.manualNotchMultiplier = Math.max(1, Math.min(10, remoteManualNotchMultiplier));
+                    cn.jstxjf_.rte.RTEConfig.allowVehiclePathSync = (remoteSyncFlags & FLAG_VEHICLE_PATH) != 0;
+                    cn.jstxjf_.rte.RTEConfig.allowVehicleMarkerSync = (remoteSyncFlags & FLAG_VEHICLE_MARKER) != 0;
+                    cn.jstxjf_.rte.RTEConfig.allowFullRailSync = (remoteSyncFlags & FLAG_FULL_RAIL) != 0;
+                    if (remoteSyncFlags != ALL_SYNC_FLAGS) {
+                        RTE.LOGGER.info("[RTE] server restricted data sync: path={}, marker={}, rail={}",
+                                cn.jstxjf_.rte.RTEConfig.allowVehiclePathSync,
+                                cn.jstxjf_.rte.RTEConfig.allowVehicleMarkerSync,
+                                cn.jstxjf_.rte.RTEConfig.allowFullRailSync);
+                    }
+                    return;
+                }
+
+                final String localVersion = BuildConfig.MOD_VERSION + " (" + BuildConfig.MOD_PROTOCOL_VERSION + ")";
+                final String serverVersion = remoteVersion + " (" + remoteProtocolVersion + ")";
+                final net.minecraft.network.chat.Component disconnectReason = net.minecraft.network.chat.Component.literal(
+                        "RTE version mismatch.\nYour version: " + localVersion + "\nServer version: " + serverVersion + "\nPlease use matching RTE builds."
+                );
+
+                final var connection = client.getConnection();
+                if (connection != null) {
+                    connection.getConnection().disconnect(disconnectReason);
+                }
+
+                RTE.LOGGER.warn("Disconnected due to mismatched RTE protocol: client={}, server={}", localVersion, serverVersion);
+            });
+        }
     }
 }

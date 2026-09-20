@@ -1,6 +1,7 @@
 package cn.jstxjf_.rte.mixin;
 
 import cn.jstxjf_.rte.ClientConfig;
+import cn.jstxjf_.rte.data.CouplingPaddingPolicy;
 import org.mtr.core.data.Vehicle;
 import org.mtr.core.data.VehicleCar;
 import org.spongepowered.asm.mixin.Mixin;
@@ -24,7 +25,7 @@ public class VehicleCouplingMixin {
         if (isFirstCar) {
             return 0;
         }
-        return rte$pad(vehicleCar, ((VehicleCarAccessor) (Object) vehicleCar).rte$getCouplingPadding1());
+        return CouplingPaddingPolicy.getEffectivePadding(vehicleCar, ((VehicleCarAccessor) (Object) vehicleCar).rte$getCouplingPadding1());
     }
 
     @Redirect(
@@ -42,19 +43,6 @@ public class VehicleCouplingMixin {
         if (isLastCar) {
             return 0;
         }
-        return rte$pad(vehicleCar, ((VehicleCarAccessor) (Object) vehicleCar).rte$getCouplingPadding2());
-    }
-
-    private static double rte$pad(VehicleCar vehicleCar, double declared) {
-        if (declared != 0 || ClientConfig.legacyCouplingGap <= 0) {
-            return declared;
-        }
-        try {
-            if (cn.jstxjf_.rte.data.GangwayPolicy.isLegacyFormat(vehicleCar.getVehicleId())) {
-                return ClientConfig.legacyCouplingGap;
-            }
-        } catch (Exception ignored) {
-        }
-        return declared;
+        return CouplingPaddingPolicy.getEffectivePadding(vehicleCar, ((VehicleCarAccessor) (Object) vehicleCar).rte$getCouplingPadding2());
     }
 }

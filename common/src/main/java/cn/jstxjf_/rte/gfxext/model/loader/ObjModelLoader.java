@@ -6,6 +6,7 @@ import cn.jstxjf_.rte.gfxext.model.RawMesh;
 import cn.jstxjf_.rte.gfxext.model.RawModel;
 import cn.jstxjf_.rte.gfxext.model.Vertex;
 import cn.jstxjf_.rte.gfxext.reuse.AtlasManager;
+import cn.jstxjf_.rte.gfxext.util.ResourceUtil;
 import cn.jstxjf_.rte.gfx.math.Vector3f;
 import de.javagl.obj.*;
 import net.minecraft.resources.ResourceLocation;
@@ -23,65 +24,6 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-
-// Helper for resolving relative paths - assuming standard MC logic
-class ResourceUtil {
-    public static ResourceLocation resolveRelativePath(ResourceLocation base, String path, String ext) {
-        path = path.toLowerCase(Locale.ROOT).replace('\\', '/');
-        if (path.contains(":")) {
-            path = path.replaceAll("[^a-z0-9/.:_-]", "_");
-            if (ext != null && !path.endsWith(ext)) path += ext;
-            final ResourceLocation absolute = new ResourceLocation(path);
-            final ResourceLocation resolved = resolveQualifiedAgainstBase(base, absolute);
-            return resolved != null ? resolved : absolute;
-        }
-        path = path.replaceAll("[^a-z0-9/._-]", "_");
-        String basePath = base.getPath();
-        int lastSlash = basePath.lastIndexOf('/');
-        String folder = lastSlash >= 0 ? basePath.substring(0, lastSlash + 1) : "";
-        String fullPath = folder + path;
-        if (ext != null && !fullPath.endsWith(ext)) fullPath += ext;
-        return new ResourceLocation(base.getNamespace(), fullPath);
-    }
-
-    private static ResourceLocation resolveQualifiedAgainstBase(ResourceLocation base, ResourceLocation absolute) {
-        if (base == null || exists(absolute)) {
-            return null;
-        }
-        String folder = base.getPath();
-        final int lastSlash = folder.lastIndexOf('/');
-        folder = lastSlash >= 0 ? folder.substring(0, lastSlash) : "";
-        while (true) {
-            final ResourceLocation candidate = new ResourceLocation(absolute.getNamespace(),
-                folder.isEmpty() ? absolute.getPath() : folder + "/" + absolute.getPath());
-            if (exists(candidate)) {
-                cn.jstxjf_.rte.RTE.LOGGER.info("[ModelLoader] '{}' resolved to '{}' relative to {}",
-                    absolute, candidate, base);
-                return candidate;
-            }
-            if (folder.isEmpty()) {
-                return null;
-            }
-            final int slash = folder.lastIndexOf('/');
-            folder = slash >= 0 ? folder.substring(0, slash) : "";
-        }
-    }
-
-    static boolean exists(ResourceLocation location) {
-        try {
-            final net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getInstance();
-            return minecraft != null && minecraft.getResourceManager().getResource(location).isPresent();
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    public static InputStream open(ResourceManager resourceManager, ResourceLocation location) throws IOException {
-        return cn.jstxjf_.rte.gfxext.util.ResourceUtil.getResource(resourceManager, location)
-            .orElseThrow(() -> new IOException("Resource not found: " + location))
-            .open();
-    }
-}
 
 public class ObjModelLoader {
 
@@ -264,7 +206,7 @@ public class ObjModelLoader {
         if (cn.jstxjf_.rte.data.ScriptTextureHints.isScriptReplaced(fileName)) {
             return location;
         }
-        if (ResourceUtil.exists(location)) {
+        if (ResourceUtil.resourceExists(location)) {
             return location;
         }
         if (REPORTED_MISSING_TEXTURES.add(location.toString())) {

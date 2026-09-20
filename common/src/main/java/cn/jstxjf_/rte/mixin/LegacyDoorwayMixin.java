@@ -23,69 +23,17 @@ public class LegacyDoorwayMixin {
         index = 0,
         require = 0
     )
-    private static JsonElement rte$synthesiseDoorways(JsonElement modelProperties) {
+    private static JsonElement rte$prepareModelProperties(JsonElement modelProperties) {
         try {
             if (modelProperties != null && modelProperties.isJsonObject()) {
                 rte$normaliseDisplayTypes(modelProperties.getAsJsonObject());
                 rte$reportDisplayParts(modelProperties.getAsJsonObject());
                 RTE_PENDING_PARTS = modelProperties.getAsJsonObject();
             }
-            if (!cn.jstxjf_.rte.ClientConfig.legacyWalkways || modelProperties == null
-                    || !modelProperties.isJsonObject()) {
-                return modelProperties;
-            }
-            final JsonObject root = modelProperties.getAsJsonObject();
-            if (!root.has("parts") || !root.get("parts").isJsonArray()) {
-                return modelProperties;
-            }
-            final JsonArray parts = root.getAsJsonArray("parts");
-            for (final JsonElement existing : parts) {
-                if (existing.isJsonObject() && "DOORWAY".equals(rte$string(existing.getAsJsonObject(), "type"))) {
-                    return modelProperties;
-                }
-            }
-
-            final java.util.Map<String, JsonObject> byOpening = new java.util.LinkedHashMap<>();
-            for (final JsonElement element : parts) {
-                if (!element.isJsonObject()) {
-                    continue;
-                }
-                final JsonObject part = element.getAsJsonObject();
-                final double doorX = rte$number(part, "doorXMultiplier");
-                final double doorZ = rte$number(part, "doorZMultiplier");
-                if (doorX == 0 && doorZ == 0) {
-                    continue;
-                }
-                final String type = rte$string(part, "type");
-                if (type != null && !"NORMAL".equals(type)) {
-                    continue;
-                }
-                final String key = rte$openingKey(part, doorX, doorZ);
-                final JsonObject previous = byOpening.get(key);
-                if (previous == null || rte$stagePriority(part) < rte$stagePriority(previous)) {
-                    byOpening.put(key, part);
-                }
-            }
-
-            final JsonArray added = new JsonArray();
-            for (final JsonObject part : byOpening.values()) {
-                added.add(rte$derive(part, "DOORWAY"));
-            }
-            if (added.isEmpty()) {
-                return modelProperties;
-            }
-            for (final JsonElement doorway : added) {
-                parts.add(doorway);
-            }
-            if (++rte$synthesisedModels <= 20) {
-                cn.jstxjf_.rte.RTE.LOGGER.info("[LegacyDoorway] synthesised {} DOORWAY parts from {} openings (total parts now {})",
-                    added.size(), byOpening.size(), parts.size());
-            }
-            return root;
         } catch (Throwable e) {
-            cn.jstxjf_.rte.RTE.LOGGER.warn("[LegacyDoorway] synthesis failed", e);
-            return modelProperties;
+            cn.jstxjf_.rte.RTE.LOGGER.warn("[LegacyDoorway] preparation failed", e);
         }
+        return modelProperties;
     }
 
 
@@ -180,15 +128,95 @@ public class LegacyDoorwayMixin {
         require = 0
     )
     private static JsonElement rte$peekArg2(JsonElement element) {
+        rte$fillFlippedPositions(element);
         rte$captureDefs(element);
         if (RTE_PENDING_PARTS != null) {
             final JsonObject pending = RTE_PENDING_PARTS;
             RTE_PENDING_PARTS = null;
+            rte$synthesiseDoorways(pending, element);
             rte$reportPartOffsets(pending);
         }
         rte$peek("ordinal2", element);
-        rte$fillFlippedPositions(element);
         return element;
+    }
+
+    private static void rte$synthesiseDoorways(JsonObject modelProperties, JsonElement definitionsElement) {
+        try {
+            if (!cn.jstxjf_.rte.ClientConfig.legacyDoorways || modelProperties == null
+                    || !modelProperties.has("parts") || !modelProperties.get("parts").isJsonArray()) {
+                return;
+            }
+            final JsonArray parts = modelProperties.getAsJsonArray("parts");
+            for (final JsonElement existing : parts) {
+                if (existing.isJsonObject() && "DOORWAY".equals(rte$string(existing.getAsJsonObject(), "type"))) {
+                    return;
+                }
+            }
+
+            final java.util.Map<String, String> definitions = rte$definitionSignatures(definitionsElement);
+            final java.util.Map<String, JsonObject> byOpening = new java.util.LinkedHashMap<>();
+            for (final JsonElement element : parts) {
+                if (!element.isJsonObject()) {
+                    continue;
+                }
+                final JsonObject part = element.getAsJsonObject();
+                final double doorX = rte$number(part, "doorXMultiplier");
+                final double doorZ = rte$number(part, "doorZMultiplier");
+                if (doorX == 0 && doorZ == 0) {
+                    continue;
+                }
+                final String type = rte$string(part, "type");
+                if (type != null && !"NORMAL".equals(type)) {
+                    continue;
+                }
+                final String key = rte$openingKey(part, doorX, doorZ, definitions);
+                final JsonObject previous = byOpening.get(key);
+                if (previous == null || rte$stagePriority(part) < rte$stagePriority(previous)) {
+                    byOpening.put(key, part);
+                }
+            }
+
+            int added = 0;
+            for (final JsonObject part : byOpening.values()) {
+                if (added >= 64) {
+                    break;
+                }
+                parts.add(rte$derive(part, "DOORWAY"));
+                added++;
+            }
+            if (added > 0 && ++rte$synthesisedModels <= 20) {
+                cn.jstxjf_.rte.RTE.LOGGER.info(
+                    "[LegacyDoorway] synthesised {} deduplicated DOORWAY parts (total parts now {})",
+                    added, parts.size());
+            }
+        } catch (Throwable e) {
+            cn.jstxjf_.rte.RTE.LOGGER.warn("[LegacyDoorway] synthesis failed", e);
+        }
+    }
+
+    private static java.util.Map<String, String> rte$definitionSignatures(JsonElement definitionsElement) {
+        final java.util.Map<String, String> result = new java.util.HashMap<>();
+        if (definitionsElement == null || !definitionsElement.isJsonObject()) {
+            return result;
+        }
+        final JsonObject root = definitionsElement.getAsJsonObject();
+        if (!root.has("positionDefinitions") || !root.get("positionDefinitions").isJsonArray()) {
+            return result;
+        }
+        for (final JsonElement element : root.getAsJsonArray("positionDefinitions")) {
+            if (!element.isJsonObject()) {
+                continue;
+            }
+            final JsonObject definition = element.getAsJsonObject();
+            final String name = rte$string(definition, "name");
+            if (name == null) {
+                continue;
+            }
+            final String positions = definition.has("positions") ? definition.get("positions").toString() : "[]";
+            final String flipped = definition.has("positionsFlipped") ? definition.get("positionsFlipped").toString() : "[]";
+            result.put(name, positions + "/flip" + flipped);
+        }
+        return result;
     }
 
     private static int rte$flippedFilled = 0;
@@ -351,11 +379,17 @@ public class LegacyDoorwayMixin {
         return derived;
     }
 
-    private static String rte$openingKey(JsonObject part, double doorX, double doorZ) {
+    private static String rte$openingKey(JsonObject part, double doorX, double doorZ,
+            java.util.Map<String, String> definitions) {
         final StringBuilder builder = new StringBuilder();
         if (part.has("positionDefinitions") && part.get("positionDefinitions").isJsonArray()) {
             for (final JsonElement element : part.getAsJsonArray("positionDefinitions")) {
-                builder.append(element).append('|');
+                try {
+                    final String name = element.getAsString();
+                    builder.append(definitions.getOrDefault(name, name)).append('|');
+                } catch (Exception ignored) {
+                    builder.append(element).append('|');
+                }
             }
         }
         if (builder.length() == 0 && part.has("names") && part.get("names").isJsonArray()) {

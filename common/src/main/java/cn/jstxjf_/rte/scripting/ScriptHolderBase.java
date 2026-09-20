@@ -122,14 +122,13 @@ public abstract class ScriptHolderBase {
 
         final ScriptEngineType resolved;
         if (engineType == ScriptEngineType.AUTO) {
-            if (key != null && RHINO_FORCED.contains(key)) {
+            if (key != null && RHINO_UNSUPPORTED.contains(key)) {
+                resolved = ScriptEngineType.GRAAL;
+            } else if (key != null && RHINO_FORCED.contains(key)) {
                 resolved = ScriptEngineType.RHINO;
                 RTE.LOGGER.info("[Script] {} loading on Rhino (previously failed under GraalJS)", name);
-            } else if (!GraalAvailability.isUsable()) {
-                resolved = ScriptEngineType.RHINO;
-                RTE.LOGGER.info("[Script] {} loading on Rhino ({})", name, GraalAvailability.reason());
             } else {
-                resolved = ScriptEngineType.GRAAL;
+                resolved = ScriptEngineType.RHINO;
             }
         } else {
             resolved = engineType;
@@ -142,6 +141,15 @@ public abstract class ScriptHolderBase {
                 RTE.LOGGER.warn("[Script] {} failed under GraalJS, retrying with Rhino: {}", name, e.toString());
                 close();
                 createBackendAndRun(ScriptEngineType.RHINO, scriptDataFolder, materialized);
+            } else if (engineType == ScriptEngineType.AUTO && resolved == ScriptEngineType.RHINO
+                    && GraalAvailability.isUsable()) {
+                if (key != null) {
+                    RHINO_FORCED.remove(key);
+                    RHINO_UNSUPPORTED.add(key);
+                }
+                RTE.LOGGER.warn("[Script] {} cannot be parsed by Rhino, returning to GraalJS: {}", name, e.toString());
+                close();
+                createBackendAndRun(ScriptEngineType.GRAAL, scriptDataFolder, materialized);
             } else {
                 throw e;
             }
@@ -181,6 +189,19 @@ public abstract class ScriptHolderBase {
                 name, entry.getKey(), entry.getValue().length(), functions.keySet());
         }
 
+        if (materialized.stream().anyMatch(entry ->
+                cn.jstxjf_.rte.scripting.compat.LegacyConnectionCache.matches(entry.getValue()))) {
+            backend.eval(cn.jstxjf_.rte.scripting.compat.LegacyConnectionCache.SOURCE, "rte:legacy_connection_cache");
+            final Object refresh = backend.getFunction(
+                cn.jstxjf_.rte.scripting.compat.LegacyConnectionCache.FUNCTION_NAME);
+            for (String renderName : new String[] { "render", "render" + contextTypeName }) {
+                final List<Object> renderFunctions = functions.get(renderName);
+                if (renderFunctions != null && refresh != null) {
+                    renderFunctions.add(0, refresh);
+                }
+            }
+            backend.removeGlobal(cn.jstxjf_.rte.scripting.compat.LegacyConnectionCache.FUNCTION_NAME);
+        }
         defineFallbackConstants();
 
         rte$activeEngine = engine;
@@ -417,10 +438,11 @@ public abstract class ScriptHolderBase {
     private ScriptEngineType rte$activeEngine = ScriptEngineType.GRAAL;
     private int rte$runtimeFailures = 0;
     private static final Set<String> RHINO_FORCED = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private static final Set<String> RHINO_UNSUPPORTED = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private synchronized void rte$noteRuntimeFailure() {
         if (engineType != ScriptEngineType.AUTO || rte$activeEngine != ScriptEngineType.GRAAL
-            || key == null || RHINO_FORCED.contains(key)) {
+            || key == null || RHINO_FORCED.contains(key) || RHINO_UNSUPPORTED.contains(key)) {
             return;
         }
         if (++rte$runtimeFailures < RUNTIME_FAILURES_BEFORE_RHINO) {
@@ -528,6 +550,13 @@ public abstract class ScriptHolderBase {
         if (!scriptCtx.created) {
             tryCallFunctionAsync("create", scriptCtx, () -> scriptCtx.created = true);
         } else {
+            final long now = System.nanoTime();
+            if (now < scriptCtx.nextRenderNanos) {
+                return;
+            }
+            final long interval = Math.max(33_000_000L,
+                Math.min(250_000_000L, scriptCtx.lastExecuteDuration * 2L));
+            scriptCtx.nextRenderNanos = now + interval;
             tryCallFunctionAsync("render", scriptCtx, () -> scriptCtx.renderFunctionFinished(), true);
         }
     }
@@ -561,5 +590,10 @@ public abstract class ScriptHolderBase {
             } catch (Exception ignored) {}
             backend = null;
         }
+        functions.clear();
+        synchronized (rte$pending) {
+            rte$pending.clear();
+        }
+        rte$engineBusy.set(false);
     }
 }

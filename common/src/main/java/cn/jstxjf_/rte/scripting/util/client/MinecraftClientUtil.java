@@ -257,7 +257,10 @@ public class MinecraftClientUtil {
                         (int) Math.floor(trainZ + offsetVec.z * checkX + traverseVec.z * checkZ)
                     );
                     net.minecraft.world.level.block.Block block = world.getBlockState(checkPos).getBlock();
-                    if (block instanceof BlockPlatform || block instanceof BlockPSDAPGBase || IBlockPlatformClass.isInstance(block)) {
+                    // Keep MTR 3's exact platform-block rule, then add MTR 4
+                    // helpers and known add-on platform interfaces.
+                    if (block instanceof BlockPlatform || block instanceof org.mtr.mod.block.PlatformHelper
+                            || block instanceof BlockPSDAPGBase || IBlockPlatformClass.isInstance(block)) {
                         return true;
                     }
                     if (block instanceof BlockEyeCandy) {

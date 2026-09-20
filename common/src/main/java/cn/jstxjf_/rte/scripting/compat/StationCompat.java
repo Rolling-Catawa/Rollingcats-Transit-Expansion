@@ -18,11 +18,20 @@ public class StationCompat {
         if (delegate == null) {
             return null;
         }
-        return registerLookups(INTERN.computeIfAbsent(delegate.getId(), ignored -> new StationCompat(delegate)));
+        return registerLookups(INTERN.compute(delegate.getId(), (ignored, current) ->
+            current != null && current.matches(delegate) ? current : new StationCompat(delegate)));
     }
 
     public static StationCompat ofFallback(long id, String name) {
         return registerLookups(INTERN.computeIfAbsent(id, ignored -> new StationCompat(id, name)));
+    }
+
+    private boolean matches(Station station) {
+        return delegate == station || delegate != null
+            && id == station.getId()
+            && color == station.getColor()
+            && zone == (int) station.getZone1()
+            && java.util.Objects.equals(name, station.getName());
     }
 
     private static StationCompat registerLookups(StationCompat station) {

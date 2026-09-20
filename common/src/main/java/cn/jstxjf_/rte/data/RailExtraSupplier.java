@@ -83,6 +83,42 @@ public interface RailExtraSupplier {
 
     float getRollingOffset();
 
+    double getNodeXOffset1();
+
+    void setNodeXOffset1(double value);
+
+    double getNodeYOffset1();
+
+    void setNodeYOffset1(double value);
+
+    double getNodeYOffset2();
+
+    void setNodeYOffset2(double value);
+
+    double getNodeZOffset1();
+
+    void setNodeZOffset1(double value);
+
+    double getNodeXOffset2();
+
+    void setNodeXOffset2(double value);
+
+    double getNodeZOffset2();
+
+    void setNodeZOffset2(double value);
+
+    double getNodePitch1();
+
+    void setNodePitch1(double value);
+
+    double getNodePitch2();
+
+    void setNodePitch2(double value);
+
+    boolean hasNodeYOffset();
+
+    boolean hasNodeOffset();
+
     boolean isStraightOnly();
 
     int getPathMode();

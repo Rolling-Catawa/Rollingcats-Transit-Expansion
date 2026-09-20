@@ -20,18 +20,28 @@ public class PacketRequestVehiclePath extends PacketHandler {
     private static final int MAX_SEGMENTS = 2048;
 
     private final long vehicleId;
+    private final boolean includeGeometry;
 
     public PacketRequestVehiclePath(PacketBufferReceiver receiver) {
         this.vehicleId = receiver.readLong();
+        boolean requested;
+        try {
+            requested = receiver.readBoolean();
+        } catch (IndexOutOfBoundsException legacyRequest) {
+            requested = false;
+        }
+        this.includeGeometry = requested;
     }
 
     public PacketRequestVehiclePath(long vehicleId) {
         this.vehicleId = vehicleId;
+        this.includeGeometry = true;
     }
 
     @Override
     public void write(PacketBufferSender sender) {
         sender.writeLong(vehicleId);
+        sender.writeBoolean(includeGeometry);
     }
 
     @Override
@@ -61,9 +71,9 @@ public class PacketRequestVehiclePath extends PacketHandler {
                         if (vehicle.getId() != vehicleId) {
                             continue;
                         }
-                        final List<PacketVehiclePath.Segment> segments = collect(vehicle);
+                        final List<PacketVehiclePath.Segment> segments = collect(vehicle, includeGeometry);
                         if (!segments.isEmpty()) {
-                            Init.REGISTRY.sendPacketToClient(player, new PacketVehiclePath(vehicleId, segments));
+                            Init.REGISTRY.sendPacketToClient(player, new PacketVehiclePath(vehicleId, segments, includeGeometry));
                         }
                         return;
                     }
@@ -73,8 +83,9 @@ public class PacketRequestVehiclePath extends PacketHandler {
         });
     }
 
-    private static List<PacketVehiclePath.Segment> collect(Vehicle vehicle) {
+    private static List<PacketVehiclePath.Segment> collect(Vehicle vehicle, boolean includeGeometry) {
         final List<PacketVehiclePath.Segment> segments = new ArrayList<>();
+        int geometryChars = 0;
         for (final PathData pathData : vehicle.vehicleExtraData.immutablePath) {
             if (segments.size() >= MAX_SEGMENTS) {
                 break;
@@ -94,9 +105,22 @@ public class PacketRequestVehiclePath extends PacketHandler {
                 }
             } catch (Exception ignored) {
             }
+            String geometry = "";
+            if (includeGeometry) {
+                try {
+                    geometry = cn.jstxjf_.rte.scripting.compat.PathGeometryCodec.encode(pathData);
+                } catch (RuntimeException invalidRail) {
+                    cn.jstxjf_.rte.RTE.LOGGER.debug("Unable to serialize vehicle path geometry", invalidRail);
+                }
+            }
+            if (geometry.length() > PacketVehiclePath.MAX_SEGMENT_CHARS
+                    || geometryChars + geometry.length() > PacketVehiclePath.MAX_GEOMETRY_CHARS) {
+                geometry = "";
+            }
+            geometryChars += geometry.length();
             segments.add(new PacketVehiclePath.Segment(
                 length, speedLimit, platform, pathData.getDwellTime(), pathData.getSavedRailBaseId(),
-                pathData.getStartDistance(), pathData.getEndDistance()));
+                pathData.getStartDistance(), pathData.getEndDistance(), geometry));
         }
         return segments;
     }

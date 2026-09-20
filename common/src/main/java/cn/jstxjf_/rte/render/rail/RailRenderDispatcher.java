@@ -392,34 +392,60 @@ public class RailRenderDispatcher {
                     Rail rail = entryEnd.getValue();
 
                     if (drawnNodes.add(entryStart.getKey())) {
-                        Position pos = entryStart.getKey();
-                        Matrix4f nodePose = viewMatrix.copy();
-                        nodePose.translate(pos.getX() + 0.5f,
-                                pos.getY(), pos.getZ() + 0.5f);
-                        BlockPos bp = new BlockPos((int)pos.getX(), (int)pos.getY(), (int)pos.getZ());
-                        boolean isEnd = isEndPosition(rail, pos);
-                        float barAngle = getNodeBarAngle(level, bp, rail, isEnd);
-                        nodePose.rotateY(barAngle);
-                        final int light = LightTexture.pack(level.getLightLevel(org.mtr.mapping.holder.LightType.BLOCK, bp),
-                                level.getLightLevel(org.mtr.mapping.holder.LightType.SKY, bp));
-                        drawScheduler.enqueue(RailModelRegistry.railNodeModel, nodePose, light);
+                        enqueueRailNode(level, drawScheduler, viewMatrix, rail, entryStart.getKey());
                     }
                     if (drawnNodes.add(entryEnd.getKey())) {
-                        Position pos = entryEnd.getKey();
-                        Matrix4f nodePose = viewMatrix.copy();
-                        nodePose.translate(pos.getX() + 0.5f,
-                                pos.getY(), pos.getZ() + 0.5f);
-                        BlockPos bp = new BlockPos((int)pos.getX(), (int)pos.getY(), (int)pos.getZ());
-                        boolean isEnd = isEndPosition(rail, pos);
-                        float barAngle = getNodeBarAngle(level, bp, rail, isEnd);
-                        nodePose.rotateY(barAngle);
-                        final int light = LightTexture.pack(level.getLightLevel(org.mtr.mapping.holder.LightType.BLOCK, bp),
-                                level.getLightLevel(org.mtr.mapping.holder.LightType.SKY, bp));
-                        drawScheduler.enqueue(RailModelRegistry.railNodeModel, nodePose, light);
+                        enqueueRailNode(level, drawScheduler, viewMatrix, rail, entryEnd.getKey());
                     }
                 }
             }
         }
+    }
+
+    private void enqueueRailNode(World level, DrawScheduler drawScheduler, Matrix4f viewMatrix, Rail rail, Position node) {
+        final boolean isEnd = isEndPosition(rail, node);
+        double x = node.getX() + 0.5;
+        double y = node.getY();
+        double z = node.getZ() + 0.5;
+        double dx = 0;
+        double dy = 0;
+        double dz = 1;
+
+        try {
+            if ((Object) rail instanceof RailExtraSupplier extra) {
+                final double length = extra.getLength();
+                if (Double.isFinite(length) && length > 0.001) {
+                    final double epsilon = Math.max(0.001, Math.min(0.5, length * 0.01));
+                    final org.mtr.mapping.holder.Vector3d endpoint = extra.getPosition(isEnd ? length : 0);
+                    final org.mtr.mapping.holder.Vector3d inside = extra.getPosition(isEnd ? Math.max(0, length - epsilon) : Math.min(length, epsilon));
+                    x = endpoint.getXMapped();
+                    y = endpoint.getYMapped();
+                    z = endpoint.getZMapped();
+                    if (isEnd) {
+                        dx = endpoint.getXMapped() - inside.getXMapped();
+                        dy = endpoint.getYMapped() - inside.getYMapped();
+                        dz = endpoint.getZMapped() - inside.getZMapped();
+                    } else {
+                        dx = inside.getXMapped() - endpoint.getXMapped();
+                        dy = inside.getYMapped() - endpoint.getYMapped();
+                        dz = inside.getZMapped() - endpoint.getZMapped();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        final double horizontal = Math.hypot(dx, dz);
+        final float yaw = horizontal < 1E-9 ? 0 : (float) net.minecraft.util.Mth.atan2(dx, dz);
+        final float pitch = (float) net.minecraft.util.Mth.atan2(dy, horizontal);
+        final Matrix4f nodePose = viewMatrix.copy();
+        nodePose.translate((float) x, (float) y, (float) z);
+        nodePose.rotateY(yaw);
+        nodePose.rotateX(-pitch);
+        final BlockPos lightPos = new BlockPos((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
+        final int light = LightTexture.pack(level.getLightLevel(org.mtr.mapping.holder.LightType.BLOCK, lightPos),
+                level.getLightLevel(org.mtr.mapping.holder.LightType.SKY, lightPos));
+        drawScheduler.enqueue(RailModelRegistry.railNodeModel, nodePose, light);
     }
 
     private static boolean isEndPosition(Rail rail, Position pos) {
@@ -478,71 +504,6 @@ public class RailRenderDispatcher {
             }
         }
     }
-
-    private float getNodeBarAngle(World level, BlockPos bp, Rail rail, boolean isEnd) {
-        rail = resolveRenderCarrier(rail);
-        if (((Object) rail) instanceof RailExtraSupplier extra && extra.getBezierCurve() != null) {
-            return getNodeBarAngleFromRtePath(extra, bp);
-        }
-        return getNodeBarAngleFromRailMath(rail, bp);
-    }
-
-    private float getNodeBarAngleFromRtePath(RailExtraSupplier extra, BlockPos bp) {
-        double length = extra.getLength();
-        if (!Double.isFinite(length) || length < 0.01) return 0f;
-
-        org.mtr.mapping.holder.Vector3d posAt0 = extra.getPosition(0);
-        double nodeX = bp.getX() + 0.5;
-        double nodeZ = bp.getZ() + 0.5;
-        double distSqTo0 = (posAt0.getXMapped() - nodeX) * (posAt0.getXMapped() - nodeX)
-                + (posAt0.getZMapped() - nodeZ) * (posAt0.getZMapped() - nodeZ);
-        boolean nodeIsAtStart = distSqTo0 < 1.0;
-
-        double epsilon = Math.min(0.5, length * 0.01);
-        if (epsilon < 0.001) epsilon = 0.001;
-
-        org.mtr.mapping.holder.Vector3d p0, p1;
-        if (nodeIsAtStart) {
-            p0 = posAt0;
-            p1 = extra.getPosition(epsilon);
-        } else {
-            p0 = extra.getPosition(length - epsilon);
-            p1 = extra.getPosition(length);
-        }
-
-        double dx = p1.getXMapped() - p0.getXMapped();
-        double dz = p1.getZMapped() - p0.getZMapped();
-        if (Math.abs(dx) < 1e-9 && Math.abs(dz) < 1e-9) return 0f;
-        return (float) net.minecraft.util.Mth.atan2(dx, dz);
-    }
-
-    private float getNodeBarAngleFromRailMath(Rail rail, BlockPos bp) {
-        double length = rail.railMath.getLength();
-        if (!Double.isFinite(length) || length < 0.01) return 0f;
-
-        org.mtr.core.tool.Vector posAt0 = rail.railMath.getPosition(0, false);
-        double nodeX = bp.getX() + 0.5;
-        double nodeZ = bp.getZ() + 0.5;
-        double distSqTo0 = (posAt0.x - nodeX) * (posAt0.x - nodeX) + (posAt0.z - nodeZ) * (posAt0.z - nodeZ);
-        boolean nodeIsAtStart = distSqTo0 < 1.0;
-
-        double epsilon = Math.min(0.5, length * 0.01);
-        if (epsilon < 0.001) epsilon = 0.001;
-        org.mtr.core.tool.Vector p0, p1;
-        if (nodeIsAtStart) {
-            p0 = posAt0;
-            p1 = rail.railMath.getPosition(epsilon, false);
-        } else {
-            p0 = rail.railMath.getPosition(length - epsilon, false);
-            p1 = rail.railMath.getPosition(length, false);
-        }
-
-        double dx = p1.x - p0.x;
-        double dz = p1.z - p0.z;
-        if (Math.abs(dx) < 1e-9 && Math.abs(dz) < 1e-9) return 0f;
-        return (float) net.minecraft.util.Mth.atan2(dx, dz);
-    }
-
 
     public void drawBoundingBoxes(PoseStack matrixStack, VertexConsumer buffer) {
         for (RailChunkBase chunk : railChunkList) {

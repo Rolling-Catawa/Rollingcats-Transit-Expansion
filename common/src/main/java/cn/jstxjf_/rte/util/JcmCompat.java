@@ -1,6 +1,5 @@
 package cn.jstxjf_.rte.util;
 
-import cn.jstxjf_.rte.ClientConfig;
 import cn.jstxjf_.rte.RTE;
 
 import java.lang.reflect.Field;
@@ -27,6 +26,8 @@ public final class JcmCompat {
     private static boolean bridgeResolved;
     private static boolean bridgeUsable;
     private static boolean bridgeFailureLogged;
+    private static long nextBridgeRetryNanos;
+    private static final long BRIDGE_RETRY_NANOS = 5_000_000_000L;
 
     private static Set<String> takenThisFrame = Collections.emptySet();
     private static Set<String> takenEyeCandyThisFrame = Collections.emptySet();
@@ -43,11 +44,13 @@ public final class JcmCompat {
     }
 
     public static boolean shouldDisableRteJs() {
-        return ClientConfig.jcmJsChoice == CHOICE_DISABLE_RTE_JS && isJcmLoaded();
+        return isJcmLoaded() && CompatArbiter.OWNER_OTHER.equals(
+            CompatArbiter.ownerOf(CompatArbiter.Domain.SCRIPT_VEHICLE, CompatArbiter.MOD_JCM));
     }
 
     public static boolean shouldAutoDedupe() {
-        return ClientConfig.jcmJsChoice == CHOICE_AUTO_DEDUPE && isJcmLoaded();
+        return isJcmLoaded() && CompatArbiter.OWNER_DEDUPE.equals(
+            CompatArbiter.ownerOf(CompatArbiter.Domain.SCRIPT_VEHICLE, CompatArbiter.MOD_JCM));
     }
 
     public static void beginFrame() {
@@ -64,12 +67,12 @@ public final class JcmCompat {
 
     public static boolean shouldAutoDedupeEyeCandy() {
         return isJcmLoaded() && cn.jstxjf_.rte.util.CompatArbiter.OWNER_DEDUPE.equals(
-            cn.jstxjf_.rte.util.CompatArbiter.ownerOf(cn.jstxjf_.rte.util.CompatArbiter.Domain.SCRIPT_EYECANDY));
+            cn.jstxjf_.rte.util.CompatArbiter.ownerOf(cn.jstxjf_.rte.util.CompatArbiter.Domain.SCRIPT_EYECANDY, CompatArbiter.MOD_JCM));
     }
 
     public static boolean shouldDisableRteEyeCandyJs() {
         return isJcmLoaded() && cn.jstxjf_.rte.util.CompatArbiter.OWNER_OTHER.equals(
-            cn.jstxjf_.rte.util.CompatArbiter.ownerOf(cn.jstxjf_.rte.util.CompatArbiter.Domain.SCRIPT_EYECANDY));
+            cn.jstxjf_.rte.util.CompatArbiter.ownerOf(cn.jstxjf_.rte.util.CompatArbiter.Domain.SCRIPT_EYECANDY, CompatArbiter.MOD_JCM));
     }
 
     private static String eyeCandyKey(String modelId, int x, int y, int z) {
@@ -143,61 +146,67 @@ public final class JcmCompat {
         }
     }
 
-    private static java.lang.reflect.Method getScriptMethod;
-    private static java.lang.reflect.Method failCooldownMethod;
-    private static java.lang.reflect.Method capturedExceptionMethod;
-    private static boolean healthProbeResolved;
-    private static final java.util.Set<String> REPORTED_UNHEALTHY =
-        java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private record HealthProbe(Method getScript, Method cooldown, Method exception) {}
+    private static final Map<Class<?>, HealthProbe> HEALTH_PROBES = new java.util.HashMap<>();
+    private static final Set<Class<?>> FAILED_HEALTH_PROBES = new HashSet<>();
+    private static final Set<String> REPORTED_UNHEALTHY = new HashSet<>();
+
+    public static void reset() {
+        bridgeResolved = false;
+        bridgeUsable = false;
+        bridgeFailureLogged = false;
+        nextBridgeRetryNanos = 0;
+        getScriptManager = null;
+        getInstanceManager = null;
+        getInstances = null;
+        uniqueKeyObjs = null;
+        HEALTH_PROBES.clear();
+        FAILED_HEALTH_PROBES.clear();
+        REPORTED_UNHEALTHY.clear();
+        takenThisFrame = Collections.emptySet();
+        takenEyeCandyThisFrame = Collections.emptySet();
+        scannedThisFrame = false;
+    }
 
     private static boolean rte$instanceIsHealthy(Object instance) {
-        if (instance == null) {
-            return false;
-        }
-        if (!healthProbeResolved) {
-            healthProbeResolved = true;
-            try {
-                getScriptMethod = instance.getClass().getMethod("getScript");
-                final Class<?> parsed = getScriptMethod.getReturnType();
-                failCooldownMethod = parsed.getMethod("duringFailCooldown");
-                capturedExceptionMethod = parsed.getMethod("getCapturedScriptException");
-            } catch (Throwable e) {
-                getScriptMethod = null;
-                RTE.LOGGER.info(
-                    "[JcmCompat] cannot read JCM script health, dedupe stays unconditional: {}",
-                    String.valueOf(e));
-            }
-        }
-        if (getScriptMethod == null) {
-            return true;
-        }
+        if (instance == null) return false;
+        final Class<?> type = instance.getClass();
+        if (FAILED_HEALTH_PROBES.contains(type)) return true;
         try {
-            final Object parsedScript = getScriptMethod.invoke(instance);
-            if (parsedScript == null) {
-                return false;
+            HealthProbe probe = HEALTH_PROBES.get(type);
+            if (probe == null) {
+                final Method getScript = type.getMethod("getScript");
+                final Class<?> parsed = getScript.getReturnType();
+                probe = new HealthProbe(getScript, parsed.getMethod("duringFailCooldown"),
+                    parsed.getMethod("getCapturedScriptException"));
+                HEALTH_PROBES.put(type, probe);
             }
-            final boolean cooling = Boolean.TRUE.equals(failCooldownMethod.invoke(parsedScript));
-            final Object captured = capturedExceptionMethod.invoke(parsedScript);
-            if (!cooling && captured == null) {
-                return true;
-            }
-            rte$reportUnhealthy(parsedScript, captured);
+            final Object script = probe.getScript().invoke(instance);
+            if (script == null) return false;
+            final boolean cooling = Boolean.TRUE.equals(probe.cooldown().invoke(script));
+            final Object captured = probe.exception().invoke(script);
+            if (!cooling && captured == null) return true;
+            rte$reportUnhealthy(script, captured);
             return false;
-        } catch (Throwable e) {
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            if (FAILED_HEALTH_PROBES.add(type)) {
+                RTE.LOGGER.warn("[JcmCompat] cannot read script health for {}; keeping dedupe until resource reload: {}",
+                    type.getName(), String.valueOf(e));
+            }
             return true;
         }
     }
 
     private static void rte$reportUnhealthy(Object parsedScript, Object captured) {
         final String key = String.valueOf(parsedScript);
-        if (REPORTED_UNHEALTHY.add(key)) {
+        if (REPORTED_UNHEALTHY.size() < 256 && REPORTED_UNHEALTHY.add(key)) {
             RTE.LOGGER.info("[JcmCompat] JCM script is failing, RTE takes it back: {}",
                 captured == null ? "in fail cooldown" : String.valueOf(captured));
         }
     }
 
     private static boolean resolveBridge() {
-        if (bridgeResolved) {
+        if (bridgeResolved && (bridgeUsable || System.nanoTime() - nextBridgeRetryNanos < 0)) {
             return bridgeUsable;
         }
         bridgeResolved = true;
@@ -208,7 +217,7 @@ public final class JcmCompat {
             getInstanceManager = managerClass.getMethod("getInstanceManager");
             getInstances = getInstanceManager.getReturnType().getMethod("getInstances");
             bridgeUsable = true;
-            RTE.LOGGER.info("[JcmCompat] auto dedupe bridge resolved");
+            if (!bridgeFailureLogged) RTE.LOGGER.info("[JcmCompat] auto dedupe bridge resolved");
         } catch (Throwable e) {
             bridgeUsable = false;
             reportBridgeFailure(e);
@@ -217,6 +226,7 @@ public final class JcmCompat {
     }
 
     private static void reportBridgeFailure(Throwable e) {
+        nextBridgeRetryNanos = System.nanoTime() + BRIDGE_RETRY_NANOS;
         if (bridgeFailureLogged) {
             return;
         }

@@ -2,6 +2,7 @@ package cn.jstxjf_.rte.mixin;
 
 import cn.jstxjf_.rte.block.BlockDirectNode;
 import cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode;
+import cn.jstxjf_.rte.block.BlockFreeNode;
 import cn.jstxjf_.rte.gui.DirectNodeScreen;
 import cn.jstxjf_.rte.render.RailPicker;
 import cn.jstxjf_.rte.util.RailBrushHelper;
@@ -24,6 +25,13 @@ import java.util.Optional;
 @Mixin(value = BlockNode.class, remap = false)
 public abstract class BlockNodeMixin {
 
+    @Inject(method = "getOutlineShape2", at = @At("HEAD"), cancellable = true)
+    private void rte$getOutlineShape2(BlockState state, BlockView world, BlockPos pos, ShapeContext context, CallbackInfoReturnable<VoxelShape> cir) {
+        if ((Object) this instanceof BlockFreeNode) {
+            cir.setReturnValue(BlockFreeNode.getNodeShape(world, pos));
+        }
+    }
+
     @Inject(method = "onUse2", at = @At("HEAD"), cancellable = true)
     private void rte$onUse2(BlockState state, World world, BlockPos pos, PlayerEntity player, Hand hand, BlockHitResult hit, CallbackInfoReturnable<ActionResult> cir) {
         if (!world.isClient()) return;
@@ -38,7 +46,7 @@ public abstract class BlockNodeMixin {
                 isConnected = state.data.getValue(BlockNode.IS_CONNECTED.data);
             } catch (Exception ignored) {}
 
-            if (!isConnected) {
+            if (!isConnected || state.getBlock().data instanceof BlockFreeNode && !player.isSneaking()) {
                 net.minecraft.client.gui.screens.Screen screen = DirectNodeScreen.createScreen(
                     directNode, () -> null);
                 if (screen != null) {

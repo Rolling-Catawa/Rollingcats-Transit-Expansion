@@ -128,14 +128,19 @@ public final class RuntimeChecks {
                     Math.pow(c0.position.x - c1.position.x, 2)
                         + Math.pow(c0.position.y - c1.position.y, 2)
                         + Math.pow(c0.position.z - c1.position.z, 2));
-                final double length = first.getLength();
-                final double bodyGap = centreToCentre - length;
-                final double mtr3 = 1.0;
+                final double convertedLength = first.getLength();
+                // LegacyVehicleResource stores original MTR 3 length + 1 in
+                // VehicleCar.length.  Compare against the original body length
+                // rather than mistaking the converted spacing for body size.
+                final double bodyLength = legacy ? convertedLength - 1 : convertedLength;
+                final double bodyGap = centreToCentre - bodyLength;
+                final double mtr3 = legacy ? 1.0 : bodyGap;
                 out.add(TestResult.check("gangway/body-gap", Math.abs(bodyGap - mtr3) < 0.05,
                     String.format(Locale.ROOT,
-                        "centre-to-centre %.3f, car length %.2f => body gap %.3f "
-                            + "(MTR 3.x uses exactly %.1f; legacyCouplingGap=%.2f)",
-                        centreToCentre, length, bodyGap, mtr3, ClientConfig.legacyCouplingGap)));
+                        "centre-to-centre %.3f, converted length %.2f, body length %.2f => body gap %.3f "
+                            + "(MTR 3.x uses exactly %.1f; additional legacyCouplingGap=%.2f)",
+                        centreToCentre, convertedLength, bodyLength, bodyGap, mtr3,
+                        ClientConfig.legacyCouplingGap)));
             }
         } catch (Throwable e) {
             out.add(TestResult.skip("gangway/body-gap", e.toString()));

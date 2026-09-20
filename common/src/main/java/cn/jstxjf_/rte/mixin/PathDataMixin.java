@@ -35,30 +35,30 @@ public abstract class PathDataMixin {
         require = 1
     )
     private Vector rte$redirectGetPosition(RailMath railMath, double value, boolean reverse) {
-        final Rail rail = rte$resolveBezierCarrier(getRail());
-        final boolean isBezier = rail != null && ((Object) rail) instanceof RailExtraSupplier supplier
-                && RailExtraSupplier.usesBezierCurve(supplier.getPathMode())
-                && supplier.getBezierCurve() != null;
+        final Rail rail = rte$resolveGeometryCarrier(getRail());
+        final boolean useExtendedGeometry = rail != null && ((Object) rail) instanceof RailExtraSupplier supplier
+                && ((RailExtraSupplier.usesBezierCurve(supplier.getPathMode())
+                && supplier.getBezierCurve() != null) || supplier.hasNodeOffset());
 
-        final Vector result = rte$sample(railMath, rail, isBezier, value, reverse);
+        final Vector result = rte$sample(railMath, rail, useExtendedGeometry, value, reverse);
 
         return result;
     }
 
-    private static Rail rte$resolveBezierCarrier(Rail rail) {
+    private static Rail rte$resolveGeometryCarrier(Rail rail) {
         if (rail == null) {
             return null;
         }
         if (((Object) rail) instanceof RailExtraSupplier supplier
-                && RailExtraSupplier.usesBezierCurve(supplier.getPathMode())
-                && supplier.getBezierCurve() != null) {
+                && ((RailExtraSupplier.usesBezierCurve(supplier.getPathMode())
+                && supplier.getBezierCurve() != null) || supplier.hasNodeOffset())) {
             return rail;
         }
         try {
             final Rail clientRail = org.mtr.mod.client.MinecraftClientData.getInstance().railIdMap.get(rail.getHexId());
             if (clientRail != null && ((Object) clientRail) instanceof RailExtraSupplier clientSupplier
-                    && RailExtraSupplier.usesBezierCurve(clientSupplier.getPathMode())
-                    && clientSupplier.getBezierCurve() != null) {
+                    && ((RailExtraSupplier.usesBezierCurve(clientSupplier.getPathMode())
+                    && clientSupplier.getBezierCurve() != null) || clientSupplier.hasNodeOffset())) {
                 return clientRail;
             }
         } catch (NoClassDefFoundError | Exception ignored) {
@@ -66,8 +66,8 @@ public abstract class PathDataMixin {
         return rail;
     }
 
-    private Vector rte$sample(RailMath railMath, Rail rail, boolean isBezier, double value, boolean reverse) {
-        if (isBezier) {
+    private Vector rte$sample(RailMath railMath, Rail rail, boolean useExtendedGeometry, double value, boolean reverse) {
+        if (useExtendedGeometry) {
             final RailExtraSupplier supplier = (RailExtraSupplier) (Object) rail;
             final Position rp1 = supplier.getExtraPosition1();
             final Position rp2 = supplier.getExtraPosition2();
@@ -85,10 +85,10 @@ public abstract class PathDataMixin {
         at = @At(value = "INVOKE", target = "Lorg/mtr/core/data/RailMath;getLength()D")
     )
     private double rte$redirectGetLength(RailMath railMath) {
-        final Rail rail = rte$resolveBezierCarrier(getRail());
+        final Rail rail = rte$resolveGeometryCarrier(getRail());
         if (rail != null && ((Object) rail) instanceof RailExtraSupplier supplier
-                && RailExtraSupplier.usesBezierCurve(supplier.getPathMode())
-                && supplier.getBezierCurve() != null) {
+                && ((RailExtraSupplier.usesBezierCurve(supplier.getPathMode())
+                && supplier.getBezierCurve() != null) || supplier.hasNodeOffset())) {
             return supplier.getLength();
         }
         return railMath.getLength();

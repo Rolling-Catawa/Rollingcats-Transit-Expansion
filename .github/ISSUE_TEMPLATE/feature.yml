@@ -1,26 +1,27 @@
-name: 功能建议 / Feature request
-description: 新功能或改进 / New feature or improvement
+name: 功能建议
+description: 建议新功能或现有功能改进
+title: "[Feature] "
 labels: ["enhancement"]
+assignees: []
 body:
   - type: textarea
     id: problem
     attributes:
-      label: 想解决什么问题 / What problem does this solve
-      description: 请描述场景，而不是直接给方案。Describe the situation rather than jumping to a solution.
+      label: 需要解决的问题
+      description: 请描述使用场景和当前限制。
     validations:
       required: true
 
   - type: textarea
     id: proposal
     attributes:
-      label: 设想的做法 / Proposed approach
+      label: 建议方案
     validations:
-      required: false
+      required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: 现在怎么绕过 / Current workaround
-      description: 别的附属有类似功能吗？Does another addon already do something similar?
+      label: 已尝试的替代方案
     validations:
       required: false

@@ -1,0 +1,1 @@
+package cn.jstxjf_.rte; public class RTEConfig {public static boolean allowVehiclePathSync=true;}

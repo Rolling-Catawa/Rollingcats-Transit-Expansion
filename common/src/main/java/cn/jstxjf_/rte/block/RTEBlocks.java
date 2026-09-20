@@ -3,6 +3,7 @@ package cn.jstxjf_.rte.block;
 import cn.jstxjf_.rte.RTE;
 import cn.jstxjf_.rte.RTECreativeModeTabs;
 import cn.jstxjf_.rte.item.BlockItemDirectNode;
+import cn.jstxjf_.rte.item.BlockItemFreeNode;
 import cn.jstxjf_.rte.item.BlockItemEyeCandy;
 import org.mtr.mapping.holder.Block;
 import org.mtr.mapping.holder.Identifier;
@@ -14,6 +15,13 @@ public class RTEBlocks {
         new Identifier(RTE.MOD_ID, "direct_node"),
         () -> new Block(new BlockDirectNode()),
         BlockItemDirectNode::new,
+        RTECreativeModeTabs.CORE
+    );
+
+    public static final BlockRegistryObject FREE_NODE = RTE.REGISTRY.registerBlockWithBlockItem(
+        new Identifier(RTE.MOD_ID, "free_node"),
+        () -> new Block(new BlockFreeNode()),
+        BlockItemFreeNode::new,
         RTECreativeModeTabs.CORE
     );
 

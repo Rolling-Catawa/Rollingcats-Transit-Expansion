@@ -7,6 +7,7 @@ import cn.jstxjf_.rte.gfxext.model.RawModel;
 import cn.jstxjf_.rte.gfxext.model.Vertex;
 import cn.jstxjf_.rte.gfx.vertex.VertAttrState;
 import cn.jstxjf_.rte.gfxext.reuse.AtlasManager;
+import cn.jstxjf_.rte.gfxext.util.ResourceUtil;
 import cn.jstxjf_.rte.gfx.math.Vector3f;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;

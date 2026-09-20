@@ -6,6 +6,7 @@ import cn.jstxjf_.rte.data.ConfigResponder;
 import cn.jstxjf_.rte.data.RailAngleExtra;
 import cn.jstxjf_.rte.data.RailExtraSupplier;
 import cn.jstxjf_.rte.data.RailCalculator;
+import cn.jstxjf_.rte.data.RailSpatialContext;
 import cn.jstxjf_.rte.network.PacketUpdateRail;
 import cn.jstxjf_.rte.util.RailRebuildHelper;
 import org.mtr.core.data.Position;
@@ -36,6 +37,47 @@ public abstract class RailMixin implements RailExtraSupplier {
 
     @Shadow public RailMath railMath;
 
+    @Inject(
+            method = "copy(Lorg/mtr/core/data/Rail;Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/ObjectArrayList;)Lorg/mtr/core/data/Rail;",
+            at = @At("RETURN"),
+            remap = false
+    )
+    private static void rte$copyStyleExtras(Rail source, ObjectArrayList<String> styles, CallbackInfoReturnable<Rail> cir) {
+        final Rail result = cir.getReturnValue();
+        if (source != null && result != null) {
+            RailRebuildHelper.copyExtraState(source, result);
+            ((RailExtraSupplier) (Object) result).setRollAngleMap(
+                    new HashMap<>(((RailExtraSupplier) (Object) source).getRollAngleMap()));
+        }
+    }
+
+    @Inject(
+            method = "copy(Lorg/mtr/core/data/Rail;Lorg/mtr/core/data/Rail$Shape;D)Lorg/mtr/core/data/Rail;",
+            at = @At("RETURN"),
+            remap = false
+    )
+    private static void rte$copyShapeExtras(Rail source, Rail.Shape shape, double verticalRadius, CallbackInfoReturnable<Rail> cir) {
+        final Rail result = cir.getReturnValue();
+        if (source != null && result != null) {
+            RailRebuildHelper.copyExtraState(source, result);
+            ((RailExtraSupplier) (Object) result).setRollAngleMap(
+                    new HashMap<>(((RailExtraSupplier) (Object) source).getRollAngleMap()));
+        }
+    }
+
+    @Inject(method = "isValid", at = @At("RETURN"), cancellable = true, remap = false)
+    private void rte$allowSpatialCarrier(CallbackInfoReturnable<Boolean> cir) {
+        if (cir.getReturnValue()) return;
+        RailSpatialContext.apply(this);
+        if (RailExtraSupplier.usesBezierCurve(rte$pathMode) && rte$bezier != null
+                && Double.isFinite(rte$bezier.getLength()) && rte$bezier.getLength() > ACCEPT_THRESHOLD) {
+            cn.jstxjf_.rte.data.RailAngleExtra.ensureCarrierRailMath(
+                    (Rail) (Object) this, rte$bezier.getLength(),
+                    Double.isFinite(rte$angle1Rad) ? rte$angle1Rad : 0);
+            cir.setReturnValue(true);
+        }
+    }
+
     @Unique private java.util.List<String> rte$modelKeys = new java.util.ArrayList<>();
     @Unique private boolean rte$isSecondaryDir = false;
     @Unique private float rte$verticalCurveRadius = 0f;
@@ -52,6 +94,19 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Unique private BlockPos rte$posEndCache = null;
     @Unique private double rte$angle1Rad = Double.NaN;
     @Unique private double rte$angle2Rad = Double.NaN;
+    @Unique private double rte$nodeXOffset1 = 0;
+    @Unique private double rte$nodeYOffset1 = 0;
+    @Unique private double rte$nodeZOffset1 = 0;
+    @Unique private double rte$nodeXOffset2 = 0;
+    @Unique private double rte$nodeYOffset2 = 0;
+    @Unique private double rte$nodeZOffset2 = 0;
+    @Unique private double rte$nodePitch1 = 0;
+    @Unique private double rte$nodePitch2 = 0;
+    @Unique private transient double rte$effectiveLength = Double.NaN;
+    @Unique private transient double rte$effectiveLengthBase = Double.NaN;
+    @Unique private transient long rte$effectiveLengthTransformHash;
+    @Unique private transient Object rte$effectiveLengthMath;
+    @Unique private transient Object rte$effectiveLengthBezier;
 
     @Override public String getModelKey() {
         return rte$modelKeys == null || rte$modelKeys.isEmpty() ? "" : rte$modelKeys.get(0);
@@ -86,7 +141,7 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Override public boolean getRenderReversed() { return rte$isSecondaryDir; }
     @Override public void setRenderReversed(boolean value) { this.rte$isSecondaryDir = value; }
     @Override public float getVerticalCurveRadius() { return rte$verticalCurveRadius; }
-    @Override public void setVerticalCurveRadius(float value) { this.rte$verticalCurveRadius = value; this.rte$vTheta = 0; }
+    @Override public void setVerticalCurveRadius(float value) { this.rte$verticalCurveRadius = value; this.rte$vTheta = 0; rte$invalidateEffectiveLength(); }
 
     @Unique
     private RailAccessor rte$accessor() { return (RailAccessor)(Object)this; }
@@ -131,6 +186,27 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Override public int getSpeedLimitKph() { return rte$speedLimitKph; }
     @Override public void setRollingOffset(float rollingOffset) { this.rte$rollingOffset = rollingOffset; }
     @Override public float getRollingOffset() { return rte$rollingOffset; }
+    @Override public double getNodeXOffset1() { return rte$nodeXOffset1; }
+    @Override public void setNodeXOffset1(double value) { rte$nodeXOffset1 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public double getNodeYOffset1() { return rte$nodeYOffset1; }
+    @Override public void setNodeYOffset1(double value) { rte$nodeYOffset1 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public double getNodeZOffset1() { return rte$nodeZOffset1; }
+    @Override public void setNodeZOffset1(double value) { rte$nodeZOffset1 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public double getNodeXOffset2() { return rte$nodeXOffset2; }
+    @Override public void setNodeXOffset2(double value) { rte$nodeXOffset2 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public double getNodeYOffset2() { return rte$nodeYOffset2; }
+    @Override public void setNodeYOffset2(double value) { rte$nodeYOffset2 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public double getNodeZOffset2() { return rte$nodeZOffset2; }
+    @Override public void setNodeZOffset2(double value) { rte$nodeZOffset2 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public double getNodePitch1() { return rte$nodePitch1; }
+    @Override public void setNodePitch1(double value) { rte$nodePitch1 = rte$sanitizePitch(value); rte$invalidateEffectiveLength(); }
+    @Override public double getNodePitch2() { return rte$nodePitch2; }
+    @Override public void setNodePitch2(double value) { rte$nodePitch2 = rte$sanitizePitch(value); rte$invalidateEffectiveLength(); }
+    @Override public boolean hasNodeYOffset() { return Math.abs(rte$nodeYOffset1) > 1E-6 || Math.abs(rte$nodeYOffset2) > 1E-6; }
+    @Override public boolean hasNodeOffset() {
+        return hasNodeYOffset() || Math.abs(rte$nodeXOffset1) > 1E-6 || Math.abs(rte$nodeZOffset1) > 1E-6
+                || Math.abs(rte$nodeXOffset2) > 1E-6 || Math.abs(rte$nodeZOffset2) > 1E-6;
+    }
 
     @Override
     public BlockPos getPosStart() {
@@ -160,10 +236,41 @@ public abstract class RailMixin implements RailExtraSupplier {
 
     @Override
     public double getLength() {
-        if (usesBezierCurve(rte$pathMode) && rte$bezier != null) {
-            return rte$bezier.getLength();
+        final double baseLength = rte$getBaseLength();
+        if (!hasNodeOffset() || !Double.isFinite(baseLength) || baseLength <= ACCEPT_THRESHOLD) {
+            return baseLength;
         }
-        return ((Rail)(Object)this).railMath.getLength();
+        final long transformHash = rte$nodeTransformHash();
+        if (rte$effectiveLengthMath == railMath
+                && rte$effectiveLengthBezier == rte$bezier
+                && Math.abs(rte$effectiveLengthBase - baseLength) <= 1E-6
+                && rte$effectiveLengthTransformHash == transformHash
+                && Double.isFinite(rte$effectiveLength)) {
+            return rte$effectiveLength;
+        }
+        final int samples = Math.max(16, Math.min(128, (int) Math.ceil(baseLength / 2)));
+        double length = 0;
+        Vector3d previous = rte$getBaseCenterPosition(0);
+        for (int i = 1; i <= samples; i++) {
+            final double value = baseLength * i / samples;
+            final Vector3d current = rte$getBaseCenterPosition(value);
+            final double ratio = value / baseLength;
+            final double previousRatio = (i - 1D) / samples;
+            final double dx = current.getXMapped() + rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, ratio)
+                    - previous.getXMapped() - rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, previousRatio);
+            final double dy = current.getYMapped() + rte$nodeYOffsetAt(ratio)
+                    - previous.getYMapped() - rte$nodeYOffsetAt(previousRatio);
+            final double dz = current.getZMapped() + rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, ratio)
+                    - previous.getZMapped() - rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, previousRatio);
+            length += Math.sqrt(dx * dx + dy * dy + dz * dz);
+            previous = current;
+        }
+        rte$effectiveLength = length;
+        rte$effectiveLengthBase = baseLength;
+        rte$effectiveLengthTransformHash = transformHash;
+        rte$effectiveLengthMath = railMath;
+        rte$effectiveLengthBezier = rte$bezier;
+        return length;
     }
 
     @Unique private transient Object rte$orientCheckedMath;
@@ -198,16 +305,73 @@ public abstract class RailMixin implements RailExtraSupplier {
 
     @Override
     public Vector3d getPosition(double value) {
+        final double baseLength = rte$getBaseLength();
+        final double effectiveLength = getLength();
+        final double ratio = effectiveLength <= ACCEPT_THRESHOLD
+                ? 0 : Mth.clamp(value / effectiveLength, 0, 1);
+        final double baseValue = baseLength * ratio;
+        final Vector3d center = rte$getBaseCenterPosition(baseValue);
+        return new Vector3d(center.getXMapped() + rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, ratio),
+                center.getYMapped() + rte$nodeYOffsetAt(ratio) + rte$rollingYOffset(baseValue),
+                center.getZMapped() + rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, ratio));
+    }
+
+    @Unique
+    private double rte$getBaseLength() {
+        return usesBezierCurve(rte$pathMode) && rte$bezier != null
+                ? rte$bezier.getLength() : ((Rail)(Object)this).railMath.getLength();
+    }
+
+    @Unique
+    private Vector3d rte$getBaseCenterPosition(double baseValue) {
         if (usesBezierCurve(rte$pathMode) && rte$bezier != null) {
-            BezierCurve.Vec3 vec = rte$bezier.getPosition(value);
-            return new Vector3d(vec.x + 0.5, vec.y + rte$rollingYOffset(value), vec.z + 0.5);
+            final BezierCurve.Vec3 vec = rte$bezier.getPosition(baseValue);
+            return new Vector3d(vec.x + 0.5, vec.y, vec.z + 0.5);
         }
-        org.mtr.core.tool.Vector vec = railMathPositionFromP1(value);
-        if (rte$verticalCurveRadius != 0) {
-            double y = getPositionY(value);
-            return new Vector3d(vec.x, y, vec.z);
-        }
-        return new Vector3d(vec.x, vec.y + rte$rollingYOffset(value), vec.z);
+        final org.mtr.core.tool.Vector vec = railMathPositionFromP1(baseValue);
+        final double y = rte$verticalCurveRadius == 0 ? vec.y : rte$getPositionYBase(baseValue);
+        return new Vector3d(vec.x, y, vec.z);
+    }
+
+    @Unique
+    private double rte$nodeYOffsetAt(double ratio) {
+        return rte$nodeOffsetAt(rte$nodeYOffset1, rte$nodeYOffset2, ratio);
+    }
+
+    @Unique
+    private static double rte$nodeOffsetAt(double first, double second, double ratio) {
+        return first + (second - first) * Mth.clamp(ratio, 0, 1);
+    }
+
+    @Unique
+    private static double rte$sanitizeNodeOffset(double value) {
+        return Double.isFinite(value) ? Mth.clamp(value, -64, 64) : 0;
+    }
+
+    @Unique
+    private static double rte$sanitizePitch(double value) {
+        if (!Double.isFinite(value)) return 0;
+        value %= 360;
+        if (value > 180) value -= 360;
+        if (value <= -180) value += 360;
+        return value;
+    }
+
+    @Unique
+    private long rte$nodeTransformHash() {
+        long hash = Double.doubleToLongBits(rte$nodeXOffset1);
+        hash = 31 * hash + Double.doubleToLongBits(rte$nodeYOffset1);
+        hash = 31 * hash + Double.doubleToLongBits(rte$nodeZOffset1);
+        hash = 31 * hash + Double.doubleToLongBits(rte$nodeXOffset2);
+        hash = 31 * hash + Double.doubleToLongBits(rte$nodeYOffset2);
+        return 31 * hash + Double.doubleToLongBits(rte$nodeZOffset2);
+    }
+
+    @Unique
+    private void rte$invalidateEffectiveLength() {
+        rte$effectiveLength = Double.NaN;
+        rte$effectiveLengthMath = null;
+        rte$effectiveLengthBezier = null;
     }
 
     @Inject(method = "getStartAngle", at = @At("HEAD"), cancellable = true, remap = false)
@@ -298,7 +462,7 @@ public abstract class RailMixin implements RailExtraSupplier {
     }
 
     @Override public int getPathMode() { return rte$pathMode; }
-    @Override public void setPathModeRaw(int mode) { this.rte$pathMode = mode; }
+    @Override public void setPathModeRaw(int mode) { this.rte$pathMode = mode; rte$invalidateEffectiveLength(); }
 
     @Override
     public void changePathMode(int mode) {
@@ -321,6 +485,7 @@ public abstract class RailMixin implements RailExtraSupplier {
                 rte$pathMode = RailExtraSupplier.PATH_MODE_CURVE_FITTING;
                 break;
         }
+        rte$invalidateEffectiveLength();
     }
 
     @Override
@@ -335,16 +500,24 @@ public abstract class RailMixin implements RailExtraSupplier {
         Position p2 = rte$accessor().rte$getPosition2();
         if (p1 == null || p2 == null) return;
 
-        Vec3 posStart = new Vec3(p1.getX(), p1.getY(), p1.getZ());
-        Vec3 posEnd = new Vec3(p2.getX(), p2.getY(), p2.getZ());
-        double dx = posEnd.x - posStart.x;
-        double dz = posEnd.z - posStart.z;
-        double length = Math.sqrt(dx * dx + dz * dz);
+        final Vec3 posStart = new Vec3(p1.getX(), p1.getY(), p1.getZ());
+        final Vec3 posEnd = new Vec3(p2.getX(), p2.getY(), p2.getZ());
+        final Vec3 offsetStart = new Vec3(rte$nodeXOffset1, rte$nodeYOffset1, rte$nodeZOffset1);
+        final Vec3 offsetEnd = new Vec3(rte$nodeXOffset2, rte$nodeYOffset2, rte$nodeZOffset2);
+        final Vec3 offsetDelta = offsetEnd.subtract(offsetStart);
+        final Vec3 actualStart = posStart.add(offsetStart);
+        final Vec3 actualEnd = posEnd.add(offsetEnd);
+        final double dx = actualEnd.x - actualStart.x;
+        final double dy = actualEnd.y - actualStart.y;
+        final double dz = actualEnd.z - actualStart.z;
+        final double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
         if (length < 0.01) return;
 
         double straightAngle = Math.atan2(dz, dx);
-        double rad1 = straightAngle;
-        double rad2 = straightAngle + Math.PI;
+        final boolean hasRad1 = Double.isFinite(rte$angle1Rad);
+        final boolean hasRad2 = Double.isFinite(rte$angle2Rad);
+        double rad1 = hasRad1 ? rte$angle1Rad : straightAngle;
+        double rad2 = hasRad2 ? rte$angle2Rad : straightAngle + Math.PI;
 
         double rmLen = railMath.getLength();
         if (Double.isFinite(rmLen) && rmLen > 0.01 && rmLen < length * 5) {
@@ -353,7 +526,7 @@ public abstract class RailMixin implements RailExtraSupplier {
 
             org.mtr.core.tool.Vector rm0 = railMathPositionFromP1(0);
             org.mtr.core.tool.Vector rm0e = railMathPositionFromP1(eps);
-            if (rm0 != null && rm0e != null) {
+            if (!hasRad1 && rm0 != null && rm0e != null) {
                 double tdx = rm0e.x - rm0.x;
                 double tdz = rm0e.z - rm0.z;
                 if (Math.abs(tdx) > 1e-9 || Math.abs(tdz) > 1e-9) {
@@ -367,7 +540,7 @@ public abstract class RailMixin implements RailExtraSupplier {
 
             org.mtr.core.tool.Vector rmN = railMathPositionFromP1(rmLen);
             org.mtr.core.tool.Vector rmNe = railMathPositionFromP1(rmLen - eps);
-            if (rmN != null && rmNe != null) {
+            if (!hasRad2 && rmN != null && rmNe != null) {
                 double tdx = rmNe.x - rmN.x;
                 double tdz = rmNe.z - rmN.z;
                 if (Math.abs(tdx) > 1e-9 || Math.abs(tdz) > 1e-9) {
@@ -381,8 +554,11 @@ public abstract class RailMixin implements RailExtraSupplier {
             }
         }
 
-        Vec3 ctrl1 = rte$getCtrlPoint(rad1, posStart, length / 2, 0);
-        Vec3 ctrl2 = rte$getCtrlPoint(rad2, posEnd, length / 2, 0);
+        final double handle = Math.max(0.05, Math.min(length / 2, 64));
+        final Vec3 direction1 = rte$direction(rad1, Math.toRadians(rte$nodePitch1));
+        final Vec3 direction2 = rte$direction(rad2, Math.toRadians(rte$nodePitch2));
+        final Vec3 ctrl1 = posStart.add(direction1.scale(handle)).subtract(offsetDelta.scale(1D / 3D));
+        final Vec3 ctrl2 = posEnd.add(direction2.scale(handle)).add(offsetDelta.scale(1D / 3D));
 
         rte$bezier = new BezierCurve(0.1,
             posStart.x, posStart.y, posStart.z,
@@ -391,6 +567,7 @@ public abstract class RailMixin implements RailExtraSupplier {
             posEnd.x, posEnd.y, posEnd.z
         );
         rte$pathMode = 1;
+        rte$invalidateEffectiveLength();
     }
 
     @Unique
@@ -435,6 +612,7 @@ public abstract class RailMixin implements RailExtraSupplier {
             && rte$pathMode != RailExtraSupplier.PATH_MODE_MANUAL_BEZIER) {
             rte$pathMode = RailExtraSupplier.PATH_MODE_AUTO_BEZIER;
         }
+        rte$invalidateEffectiveLength();
     }
 
     @Override
@@ -443,14 +621,29 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Override
     public boolean isBetween(double x, double y, double z, double radius) {
         if (usesBezierCurve(rte$pathMode) && rte$bezier != null) {
-            return rte$bezier.isBetween(x, y, z, radius);
+            if (!hasNodeOffset()) {
+                return rte$bezier.isBetween(x, y, z, radius);
+            }
+            final double length = getLength();
+            final int samples = Math.max(8, Math.min(512, (int) Math.ceil(length * 2)));
+            final double radiusSquared = radius * radius;
+            for (int i = 0; i <= samples; i++) {
+                final Vector3d point = getPosition(length * i / samples);
+                final double dx = point.getXMapped() - x;
+                final double dy = point.getYMapped() - y;
+                final double dz = point.getZMapped() - z;
+                if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
+                    return true;
+                }
+            }
+            return false;
         }
-        double minX = railMath.minX - radius;
-        double maxX = railMath.maxX + radius;
-        double minY = railMath.minY - radius;
-        double maxY = railMath.maxY + radius;
-        double minZ = railMath.minZ - radius;
-        double maxZ = railMath.maxZ + radius;
+        double minX = railMath.minX + Math.min(rte$nodeXOffset1, rte$nodeXOffset2) - radius;
+        double maxX = railMath.maxX + Math.max(rte$nodeXOffset1, rte$nodeXOffset2) + radius;
+        double minY = railMath.minY + Math.min(rte$nodeYOffset1, rte$nodeYOffset2) - radius;
+        double maxY = railMath.maxY + Math.max(rte$nodeYOffset1, rte$nodeYOffset2) + radius;
+        double minZ = railMath.minZ + Math.min(rte$nodeZOffset1, rte$nodeZOffset2) - radius;
+        double maxZ = railMath.maxZ + Math.max(rte$nodeZOffset1, rte$nodeZOffset2) + radius;
         return x >= minX && x <= maxX && y >= minY && y <= maxY && z >= minZ && z <= maxZ;
     }
 
@@ -481,6 +674,14 @@ public abstract class RailMixin implements RailExtraSupplier {
         setModelKeys(oth.getModelKeys());
         setVerticalCurveRadius(oth.getVerticalCurveRadius());
         setCustomConfigs(new HashMap<>(oth.getCustomConfigs()));
+        setNodeXOffset1(oth.getNodeXOffset1());
+        setNodeYOffset1(oth.getNodeYOffset1());
+        setNodeZOffset1(oth.getNodeZOffset1());
+        setNodeXOffset2(oth.getNodeXOffset2());
+        setNodeYOffset2(oth.getNodeYOffset2());
+        setNodeZOffset2(oth.getNodeZOffset2());
+        setNodePitch1(oth.getNodePitch1());
+        setNodePitch2(oth.getNodePitch2());
 
         double length0 = oth.getLength();
         double length1 = this.getLength();
@@ -546,17 +747,31 @@ public abstract class RailMixin implements RailExtraSupplier {
 
     @Override
     public double getPositionY(double rawValue) {
-        double length = getLength();
+        final double baseLength = rte$getBaseLength();
+        final double effectiveLength = getLength();
+        final double ratio = effectiveLength <= ACCEPT_THRESHOLD
+                ? 0 : Mth.clamp(rawValue / effectiveLength, 0, 1);
+        final double baseValue = baseLength * ratio;
+        final double baseY = usesBezierCurve(rte$pathMode) && rte$bezier != null
+                ? rte$bezier.getPosition(baseValue).y : rte$getPositionYBase(baseValue);
+        return baseY + rte$nodeYOffsetAt(ratio) + rte$rollingYOffset(baseValue);
+    }
+
+    @Unique
+    private static Vec3 rte$direction(double yaw, double pitch) {
+        final double horizontal = Math.cos(pitch);
+        return new Vec3(Math.cos(yaw) * horizontal, Math.sin(pitch), Math.sin(yaw) * horizontal);
+    }
+
+    @Unique
+    private double rte$getPositionYBase(double rawValue) {
+        double length = rte$getBaseLength();
         if (length == 0) return 0;
         Position p1 = rte$accessor().rte$getPosition1();
         Position p2 = rte$accessor().rte$getPosition2();
         if (p1 == null || p2 == null) return 0;
         int yStart = (int)p1.getY();
         int yEnd = (int)p2.getY();
-
-        if (usesBezierCurve(rte$pathMode) && rte$bezier != null) {
-            return rte$bezier.getPosition(rawValue).y + rte$rollingYOffset(rawValue);
-        }
 
         double H = Math.abs(yEnd - yStart);
         double L = length;
@@ -623,7 +838,6 @@ public abstract class RailMixin implements RailExtraSupplier {
                 }
             }
         }
-        result += rte$rollingYOffset(rawValue);
         return result;
     }
 

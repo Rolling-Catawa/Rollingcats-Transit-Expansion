@@ -16,6 +16,7 @@ public final class RailCompat {
 
     private final double syntheticLength;
     private final boolean synthetic;
+    private final boolean defaultReverse;
 
     private RailCompat(double length, long speedLimitKilometersPerHour, boolean platform) {
         this.data = null;
@@ -25,6 +26,7 @@ public final class RailCompat {
         this.railType = new RailTypeCompat(speedLimitKilometersPerHour, platform);
         this.syntheticLength = length;
         this.synthetic = true;
+        this.defaultReverse = false;
     }
 
     public static RailCompat synthetic(double length, long speedLimitKilometersPerHour, boolean platform) {
@@ -32,6 +34,11 @@ public final class RailCompat {
     }
 
     public RailCompat(Rail rail) {
+        this(rail, false);
+    }
+
+    public RailCompat(Rail rail, boolean defaultReverse) {
+        this.defaultReverse = defaultReverse;
         this.data = rail;
         this.railMath = rail.railMath;
         this.speedLimit1MetersPerMillisecond = rail.speedLimit1MetersPerMillisecond;
@@ -51,6 +58,10 @@ public final class RailCompat {
         RailTypeCompat(long speedLimitKilometersPerHour, boolean platform) {
             this.speedLimit = speedLimitKilometersPerHour;
             this.isSavedRail = platform;
+            this.hasSavedRail = platform;
+            this.maxBlocksPerTick = speedLimitKilometersPerHour / 72.0;
+            this.canAccelerate = true;
+            this.hasSignal = true;
             this.name = platform ? "PLATFORM" : "NORMAL";
         }
 
@@ -66,8 +77,19 @@ public final class RailCompat {
             }
             this.speedLimit = limit;
             this.isSavedRail = rail.isPlatform() || rail.isSiding();
-            this.name = this.isSavedRail ? (rail.isPlatform() ? "PLATFORM" : "SIDING") : "NORMAL";
+            this.hasSavedRail = this.isSavedRail;
+            this.maxBlocksPerTick = limit / 72.0;
+            this.canAccelerate = rail.canAccelerate();
+            this.hasSignal = true;
+            this.name = rail.canTurnBack() ? "TURN_BACK"
+                : this.isSavedRail ? (rail.isPlatform() ? "PLATFORM" : "SIDING") : "NORMAL";
         }
+
+        /** MTR 3 field aliases retained for scripts reading RailType directly. */
+        public final boolean hasSavedRail;
+        public final double maxBlocksPerTick;
+        public final boolean canAccelerate;
+        public final boolean hasSignal;
 
         public long getSpeedLimit() {
             return speedLimit;
@@ -84,7 +106,7 @@ public final class RailCompat {
     }
 
     public ScriptVector getPosition(double value) {
-        return getPosition(value, false);
+        return getPosition(value, defaultReverse);
     }
 
     public ScriptVector getPosition(double value, boolean reverse) {

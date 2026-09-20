@@ -36,7 +36,7 @@ dependencies {
 
     modCompileOnly "${rootProject.rteDeps.mtr}"
     modRuntimeOnly "${rootProject.rteDeps.mtr}"
-    modLocalRuntime files("../libs/MSD-fabric-1.20.1-4.0.5-1.4.5.jar")
+    modLocalRuntime files("../libs/${rootProject.rteDeps.msd}")
 
     modCompileOnly("com.terraformersmc:modmenu:7.2.2")
 
@@ -56,6 +56,10 @@ dependencies {
     shadowBundle("io.github.spair:imgui-java-natives-windows:1.86.12") { exclude group: 'org.lwjgl' }
     shadowBundle("io.github.spair:imgui-java-natives-linux:1.86.12") { exclude group: 'org.lwjgl' }
     shadowBundle("io.github.spair:imgui-java-natives-macos:1.86.12") { exclude group: 'org.lwjgl' }
+    implementation 'com.github.stuxuhai:jpinyin:1.1.8'
+    shadowBundle 'com.github.stuxuhai:jpinyin:1.1.8'
+    implementation 'org.msgpack:msgpack-core:0.9.3'
+    shadowBundle 'org.msgpack:msgpack-core:0.9.3'
 }
 
 repositories {
@@ -65,9 +69,10 @@ repositories {
 
 processResources {
     inputs.property 'version', project.version
+    inputs.property 'minecraft_version', rootProject.minecraft_version
 
     filesMatching('fabric.mod.json') {
-        expand version: project.version
+        expand version: project.version, minecraft_version: rootProject.minecraft_version
     }
 
     from(rootProject.file('LICENSE.txt')) {
@@ -113,7 +118,7 @@ def rteGenerateStamp = tasks.register('rteGenerateStamp') {
             "commit=${s.commit}",
             "branch=${s.branch}",
             "clean=${s.clean}",
-            "buildTime=${java.time.Instant.now().toString()}",
+            "buildTime=${s.time}",
             "platform=fabric"
         ].join(System.lineSeparator()) + System.lineSeparator()
     }

@@ -114,12 +114,16 @@ public class GraphicsTexture implements Closeable {
         ordered.sort(java.util.Comparator.comparingLong(t -> t.lastUploadMillis));
         final long now = System.currentTimeMillis();
         final boolean overCeiling = limit > 0 && ordered.size() > (long) limit * HARD_CEILING_FACTOR;
+        final Runtime runtime = Runtime.getRuntime();
+        final long usedHeap = runtime.totalMemory() - runtime.freeMemory();
+        final long headroom = runtime.maxMemory() - usedHeap;
+        final boolean memoryEmergency = headroom < Math.max(256L * 1024 * 1024, runtime.maxMemory() / 20);
         int excess = limit <= 0 ? 0 : ordered.size() - limit;
         for (GraphicsTexture texture : ordered) {
             final boolean stillOverBudget = budget > 0 && heapBytes > budget;
             if (excess <= 0 && !stillOverBudget) break;
             if (texture.isClosed) continue;
-            if (!overCeiling && now - texture.lastUploadMillis < EVICT_IDLE_MILLIS) {
+            if (!overCeiling && !memoryEmergency && now - texture.lastUploadMillis < EVICT_IDLE_MILLIS) {
                 skippedSinceLastLog++;
                 continue;
             }
@@ -183,6 +187,42 @@ public class GraphicsTexture implements Closeable {
         return LIVE.size();
     }
 
+    public static void disposeAll() {
+        for (final GraphicsTexture texture : new java.util.ArrayList<>(LIVE)) {
+            texture.disposeImmediately();
+        }
+        LIVE.clear();
+    }
+
+    private synchronized void disposeImmediately() {
+        if (released) {
+            return;
+        }
+        isClosed = true;
+        released = true;
+        closeRequestedMillis = 0;
+        LIVE.remove(this);
+        releaseCpuImage();
+        final DynamicTexture doomed = dynamicTexture;
+        final Runnable release = () -> {
+            try {
+                final DynamicTexture placeholder = new DynamicTexture(new NativeImage(1, 1, false));
+                Minecraft.getInstance().getTextureManager().register(identifier, placeholder);
+                dynamicTexture = placeholder;
+                if (doomed != null) {
+                    doomed.close();
+                }
+            } catch (Exception e) {
+                RTE.LOGGER.error("Failed to dispose GraphicsTexture {}", identifier, e);
+            }
+        };
+        if (RenderSystem.isOnRenderThread()) {
+            release.run();
+        } else {
+            Minecraft.getInstance().execute(release);
+        }
+    }
+
     public GraphicsTexture(int width, int height) {
         this(width, height, new ResourceLocation(RTE.MOD_ID,
             String.format("dynamic/graphics/%s", UUID.randomUUID().toString().replace("-", "_"))));
@@ -210,8 +250,13 @@ public class GraphicsTexture implements Closeable {
             final DynamicTexture revived = dynamicTexture;
             Minecraft.getInstance().execute(() ->
                 Minecraft.getInstance().getTextureManager().register(identifier, revived));
+            LIVE.add(this);
         }
         lastUploadMillis = System.currentTimeMillis();
+        enforceLiveLimit();
+        if (isClosed) {
+            return;
+        }
         if (image.getWidth() != width || image.getHeight() != height) {
             return;
         }

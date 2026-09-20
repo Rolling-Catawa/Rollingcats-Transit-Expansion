@@ -36,10 +36,10 @@ dependencies {
     forge "net.minecraftforge:forge:${rootProject.rteDeps.forge}"
 
     modImplementation "dev.architectury:architectury-forge:${rootProject.rteDeps.architectury}"
-    modCompileOnly 'local.mtr:MTR-forge:4.0.5'
-    modRuntimeOnly 'local.mtr:MTR-forge:4.0.5'
-    compileOnly files("../libs/MSD-forge-1.20.1-4.0.5-1.4.5.jar")
-    modLocalRuntime files("../libs/MSD-forge-1.20.1-4.0.5-1.4.5.jar")
+    modCompileOnly "${rootProject.rteDeps.mtrForge}"
+    modRuntimeOnly "${rootProject.rteDeps.mtrForge}"
+    compileOnly files("../libs/${rootProject.rteDeps.msdForge}")
+    modLocalRuntime files("../libs/${rootProject.rteDeps.msdForge}")
 
     common(project(path: ':common', configuration: 'namedElements')) { transitive false }
     shadowBundle project(path: ':common', configuration: 'transformProductionForge')
@@ -66,6 +66,10 @@ dependencies {
     shadowBundle("io.github.spair:imgui-java-natives-windows:1.86.12") { exclude group: 'org.lwjgl' }
     shadowBundle("io.github.spair:imgui-java-natives-linux:1.86.12") { exclude group: 'org.lwjgl' }
     shadowBundle("io.github.spair:imgui-java-natives-macos:1.86.12") { exclude group: 'org.lwjgl' }
+    implementation 'com.github.stuxuhai:jpinyin:1.1.8'
+    shadowBundle 'com.github.stuxuhai:jpinyin:1.1.8'
+    implementation 'org.msgpack:msgpack-core:0.9.3'
+    shadowBundle 'org.msgpack:msgpack-core:0.9.3'
 }
 
 repositories {
@@ -74,12 +78,13 @@ repositories {
 
 processResources {
     inputs.property 'version', project.version
+    inputs.property 'minecraft_version', rootProject.minecraft_version
 
     def rtePackFormat = rootProject.property('minecraft_version').toString() ==~ /1\.20\.[01]/ ? 15 : 22
     inputs.property 'pack_format', rtePackFormat
 
     filesMatching('META-INF/mods.toml') {
-        expand version: project.version
+        expand version: project.version, minecraft_version: rootProject.minecraft_version
     }
 
     filesMatching('pack.mcmeta') {
@@ -129,7 +134,7 @@ def rteGenerateStamp = tasks.register('rteGenerateStamp') {
             "commit=${s.commit}",
             "branch=${s.branch}",
             "clean=${s.clean}",
-            "buildTime=${java.time.Instant.now().toString()}",
+            "buildTime=${s.time}",
             "platform=forge"
         ].join(System.lineSeparator()) + System.lineSeparator()
     }

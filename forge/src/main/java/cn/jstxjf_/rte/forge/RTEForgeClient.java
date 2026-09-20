@@ -73,9 +73,13 @@ public final class RTEForgeClient {
     @SuppressWarnings("unchecked")
     public static void onRegisterRenderers(EntityRenderersEvent.RegisterRenderers event) {
         final BlockEntityType directNode = getBlockEntityType("DIRECT_NODE");
+        final BlockEntityType freeNode = getBlockEntityType("FREE_NODE");
         final BlockEntityType eyeCandy = getBlockEntityType("EYE_CANDY");
         if (directNode != null) {
             event.registerBlockEntityRenderer(directNode, ctx -> createRenderer("cn.jstxjf_.rte.render.block.BlockEntityDirectNodeRenderer", ctx));
+        }
+        if (freeNode != null) {
+            event.registerBlockEntityRenderer(freeNode, ctx -> createRenderer("cn.jstxjf_.rte.render.block.BlockEntityDirectNodeRenderer", ctx));
         }
         if (eyeCandy != null) {
             event.registerBlockEntityRenderer(eyeCandy, ctx -> createRenderer("cn.jstxjf_.rte.render.block.BlockEntityEyeCandyRenderer", ctx));

@@ -1,19 +1,20 @@
-name: JS 脚本问题 / Script issue
-description: 资源包脚本报错、渲染异常或 API 疑问 / Script errors, wrong rendering, or API questions
+name: JS 脚本问题
+description: 资源包脚本报错、渲染异常或 API 兼容问题
+title: "[Script] "
 labels: ["scripting"]
+assignees: []
 body:
   - type: input
     id: rte-version
     attributes:
-      label: RTE 版本 / RTE version
+      label: RTE 版本
     validations:
       required: true
 
   - type: dropdown
     id: engine
     attributes:
-      label: JS 引擎 / JS engine
-      description: 见 config/rte.json 的 scriptEngine 项。See `scriptEngine` in `config/rte.json`.
+      label: JS 引擎
       options:
         - rhino
         - graal
@@ -22,17 +23,16 @@ body:
       required: true
 
   - type: input
-    id: pack
+    id: resource-pack
     attributes:
-      label: 资源包 / Resource pack
-      description: 来源与版本；若为自制请说明。Source and version; say so if self-made.
+      label: 资源包名称与版本
     validations:
       required: true
 
   - type: textarea
-    id: snippet
+    id: script
     attributes:
-      label: 相关脚本片段 / Relevant script snippet
+      label: 相关脚本
       render: javascript
     validations:
       required: false
@@ -40,7 +40,7 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: 日志 / Log
-      description: 请附 `logs/latest.log`，脚本报错会带 `Error in RTE Resource Pack JavaScript`。Attach `logs/latest.log`; script errors are tagged `Error in RTE Resource Pack JavaScript`.
+      label: 完整日志
+      description: 请上传 logs/latest.log。
     validations:
       required: true

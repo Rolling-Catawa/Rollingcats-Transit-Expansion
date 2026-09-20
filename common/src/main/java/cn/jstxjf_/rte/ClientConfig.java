@@ -44,7 +44,7 @@ public class ClientConfig {
 
     private static int defaultTextureHeapBudgetMb() {
         final long maxHeapMb = Runtime.getRuntime().maxMemory() / (1024L * 1024L);
-        return (int) Math.max(512, Math.min(3072, maxHeapMb / 4));
+        return (int) Math.max(192, Math.min(384, maxHeapMb / 16));
     }
     public static boolean acceptLegacyPackFormats = true;
     public static boolean legacyDefaultTextureFallback = true;
@@ -59,16 +59,29 @@ public class ClientConfig {
     public static boolean enableRenderDiagnostics = false;
     public static boolean vanillaVehicleMode = false;
     public static boolean legacyVariationCarFilter = true;
-    public static String scriptEngine = "rhino";
+    // AUTO keeps old Nashorn/Rhino-style packs working while allowing modern
+    // JavaScript syntax (default parameters, classes, optional chaining, ...)
+    // to run on GraalJS. Forcing every pack onto Rhino breaks otherwise valid
+    // mixed resource-pack stacks.
+    public static String scriptEngine = "auto";
     public static boolean closeCouplingGap = false;
     public static boolean overrideMtrScreens = false;
     public static boolean compatAsked = false;
     public static boolean rteBrushEditing = true;
     public static boolean reportMissingResourcePacks = false;
-    public static double legacyCouplingGap = 1.0;
+    // MTR 4's legacy converter already changes an MTR 3 model length L to
+    // VehicleCar.length=L+1, exactly matching MTR 3's TrainType spacing.
+    // Any non-zero value here is therefore an *additional* visual gap.
+    public static double legacyCouplingGap = 0.0;
     public static boolean builtinGangway = true;
     public static boolean forceGangwayOnAllCars = true;
     public static boolean mirrorReversedDoorways = false;
+    /**
+     * Reconstruct doorway bounds for pre-MTR-4 vehicle models.  This is kept
+     * separate from legacyWalkways: doorway bounds drive platform-side door
+     * selection, while synthetic walkable floors can alter player collision.
+     */
+    public static boolean legacyDoorways = false;
     public static boolean legacyWalkways = false;
 
     public static final EyecandyScreenGroup eyecandyScreenGroup = new EyecandyScreenGroup();
@@ -105,7 +118,7 @@ public class ClientConfig {
             traceDoorSides = getOrDefault(configObject, "traceDoorSides", JsonElement::getAsBoolean, false);
             traceStationTiming = getOrDefault(configObject, "traceStationTiming", JsonElement::getAsBoolean, false);
             maxTextureSize = getOrDefault(configObject, "maxTextureSize", JsonElement::getAsInt, 2048);
-            scriptTextureHeapBudgetMb = clamp(getOrDefault(configObject, "scriptTextureHeapBudgetMb", JsonElement::getAsInt, defaultTextureHeapBudgetMb()), 128, 16384);
+            scriptTextureHeapBudgetMb = clamp(getOrDefault(configObject, "scriptTextureHeapBudgetMb", JsonElement::getAsInt, defaultTextureHeapBudgetMb()), 128, 4096);
             acceptLegacyPackFormats = getOrDefault(configObject, "acceptLegacyPackFormats", JsonElement::getAsBoolean, true);
             legacyDefaultTextureFallback = getOrDefault(configObject, "legacyDefaultTextureFallback", JsonElement::getAsBoolean, true);
             autoGangwayPolicy = getOrDefault(configObject, "autoGangwayPolicy", JsonElement::getAsBoolean, true);
@@ -127,6 +140,7 @@ public class ClientConfig {
                 }
             }
             cn.jstxjf_.rte.util.CompatArbiter.restore(compatOwners);
+            cn.jstxjf_.rte.util.CompatArbiter.adoptLegacyVehicleChoice();
             final java.util.Map<String, String> engineOverrides = new java.util.LinkedHashMap<>();
             if (configObject.has("scriptEngineOverrides") && configObject.get("scriptEngineOverrides").isJsonObject()) {
                 final JsonObject overrideObject = configObject.getAsJsonObject("scriptEngineOverrides");
@@ -140,15 +154,16 @@ public class ClientConfig {
             enableRenderDiagnostics = getOrDefault(configObject, "enableRenderDiagnostics", JsonElement::getAsBoolean, false);
             vanillaVehicleMode = getOrDefault(configObject, "vanillaVehicleMode", JsonElement::getAsBoolean, false);
             legacyVariationCarFilter = getOrDefault(configObject, "legacyVariationCarFilter", JsonElement::getAsBoolean, true);
-            scriptEngine = normalizeScriptEngine(getOrDefault(configObject, "scriptEngine", JsonElement::getAsString, "rhino"));
+            scriptEngine = normalizeScriptEngine(getOrDefault(configObject, "scriptEngine", JsonElement::getAsString, "auto"));
             closeCouplingGap = getOrDefault(configObject, "closeCouplingGap", JsonElement::getAsBoolean, false);
             overrideMtrScreens = getOrDefault(configObject, "overrideMtrScreens", JsonElement::getAsBoolean, false);
             rteBrushEditing = getOrDefault(configObject, "rteBrushEditing", JsonElement::getAsBoolean, true);
             reportMissingResourcePacks = getOrDefault(configObject, "reportMissingResourcePacks", JsonElement::getAsBoolean, false);
-            legacyCouplingGap = clamp(getOrDefault(configObject, "legacyCouplingGap", JsonElement::getAsDouble, 1.0), 0.0, 4.0);
+            legacyCouplingGap = clamp(getOrDefault(configObject, "legacyCouplingGap", JsonElement::getAsDouble, 0.0), 0.0, 4.0);
             builtinGangway = getOrDefault(configObject, "builtinGangway", JsonElement::getAsBoolean, true);
             forceGangwayOnAllCars = getOrDefault(configObject, "forceGangwayOnAllCars", JsonElement::getAsBoolean, true);
             mirrorReversedDoorways = getOrDefault(configObject, "mirrorReversedDoorways", JsonElement::getAsBoolean, false);
+            legacyDoorways = getOrDefault(configObject, "legacyDoorways", JsonElement::getAsBoolean, false);
             legacyWalkways = getOrDefault(configObject, "legacyWalkways", JsonElement::getAsBoolean, false);
 
             eyecandyScreenGroup.init(configObject);
@@ -165,6 +180,7 @@ public class ClientConfig {
                 builtinGangway = false;
                 forceGangwayOnAllCars = false;
                 mirrorReversedDoorways = false;
+                legacyDoorways = false;
                 closeCouplingGap = false;
                 legacyVariationCarFilter = false;
                 legacyWalkways = false;
@@ -204,7 +220,7 @@ public class ClientConfig {
 
     private static String normalizeScriptEngine(String value) {
         if (value == null) {
-            return "rhino";
+            return "auto";
         }
         final String normalized = value.trim().toLowerCase(java.util.Locale.ROOT);
         if (normalized.equals("graal") || normalized.equals("graaljs")) {
@@ -297,6 +313,7 @@ public class ClientConfig {
             configObject.addProperty("builtinGangway", builtinGangway);
             configObject.addProperty("forceGangwayOnAllCars", forceGangwayOnAllCars);
             configObject.addProperty("mirrorReversedDoorways", mirrorReversedDoorways);
+            configObject.addProperty("legacyDoorways", legacyDoorways);
             configObject.addProperty("legacyWalkways", legacyWalkways);
             eyecandyScreenGroup.save(configObject);
             directNodeScreenGroup.save(configObject);
@@ -322,9 +339,7 @@ public class ClientConfig {
     }
 
     public static void register(ConfigResponder responder) {
-        if (responder == null) return;
-        responder.init(customConfigs);
-        customResponders.put(responder.key(), responder);
+        ConfigResponder.registerInto(customConfigs, customResponders, responder);
     }
 
     public static String get(String key) {

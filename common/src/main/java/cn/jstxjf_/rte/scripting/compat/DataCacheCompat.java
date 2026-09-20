@@ -34,6 +34,17 @@ public class DataCacheCompat {
     public void refresh() {
         MinecraftClientData data = MinecraftClientData.getInstance();
 
+        // Match MTR 3 DataCache#sync: removed entries must not survive a
+        // world/data reload and resolve a train against stale metadata.
+        stationIdMap.clear();
+        platformIdMap.clear();
+        sidingIdMap.clear();
+        routeIdMap.clear();
+        platformIdToStation.clear();
+        sidingIdToDepot.clear();
+        stationIdToConnectingStations.clear();
+        stationIdToRoutes.clear();
+
         for (var entry : data.stationIdMap.long2ObjectEntrySet()) {
             stationIdMap.put(entry.getLongKey(), StationCompat.of(entry.getValue()));
         }

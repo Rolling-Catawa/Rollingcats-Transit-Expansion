@@ -49,10 +49,6 @@ dependencies {
     
     modCompileOnly "net.fabricmc.fabric-api:fabric-api:${rootProject.rteDeps.fabricApi}"
     modCompileOnly "${rootProject.rteDeps.mtr}"
-    modImplementation files('libs/Transport-Simulation-Core-0.0.1.jar')
-    compileOnly 'local.minecraft-mappings:Minecraft-Mappings-common:0.0.1'
-    modImplementation files('libs/Shadow-Libraries-util-0.0.1.jar')
-    modImplementation files('libs/Shadow-Libraries-net-0.0.1.jar')
     
     compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
     
@@ -60,7 +56,7 @@ dependencies {
     modImplementation "org.graalvm.sdk:graal-sdk:23.0.1"
     modImplementation "org.graalvm.js:js:23.0.1"
     modImplementation "org.mozilla:rhino:1.7.15"
-    compileOnly files("../libs/MSD-fabric-1.20.1-4.0.5-1.4.5.jar")
+    compileOnly files("../libs/${rootProject.rteDeps.msd}")
     modImplementation("io.github.spair:imgui-java-binding:1.86.12") { exclude group: 'org.lwjgl' }
     modImplementation("io.github.spair:imgui-java-lwjgl3:1.86.12") { exclude group: 'org.lwjgl' }
     modImplementation("io.github.spair:imgui-java-natives-windows:1.86.12") { exclude group: 'org.lwjgl' }

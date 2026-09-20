@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| 版本 | 1.0.0-beta.1 |
-| Minecraft | 1.20.1 |
+| 版本 | 1.0.0-beta.3 |
+| Minecraft | 1.20.1 / 1.20.4 |
 | 加载器 | Fabric / Forge(Architectury) |
 | 必需前置 | Minecraft Transit Railway 4.0.0+ |
 | 可选前置 | MSD(接触网功能需要) |
@@ -111,11 +111,10 @@ RTE 的数据以附加字段形式挂载于 MTR 轨道序列化结构之上,不�
 ## 构建
 
 ```bash
-./gradlew :fabric:remapJar
-./gradlew :forge:remapJar
+./gradlew clean build
 ```
 
-产物位于 `fabric/build/libs/` 与 `forge/build/libs/`。开发环境运行使用 `./gradlew :fabric:runClient`。
+该命令会自动准备构建依赖、运行兼容性测试，并生成 Minecraft 1.20.1 / 1.20.4 的 Fabric 与 Forge 四个发布包，同时校验构建元数据和 SHA-256。发布产物统一位于 `build/dist/`。开发环境运行使用 `./gradlew :fabric:runClient`。
 
 ---
 

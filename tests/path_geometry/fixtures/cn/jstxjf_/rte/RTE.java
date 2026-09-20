@@ -1,0 +1,1 @@
+package cn.jstxjf_.rte; public class RTE {public static final Log LOGGER=new Log(); public static class Log {public void debug(String s,Object...args){}}}

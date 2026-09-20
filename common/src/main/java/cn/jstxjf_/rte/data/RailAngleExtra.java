@@ -498,6 +498,27 @@ public class RailAngleExtra {
         }
     }
 
+    public static void ensureCarrierRailMath(Rail rail, double length, double rad1) {
+        if (unsafe == null || !Double.isFinite(length) || length <= 0 || !Double.isFinite(rad1)) return;
+        correctStraightRailMath(rail, rad1);
+        try {
+            final Object math = unsafe.getObject(rail, offsetRailMath);
+            if (!(math instanceof RailMath railMath) || railMath.getLength() > 1E-4) return;
+            final double tStart = unsafe.getDouble(math, offsetRailMathTStart1);
+            unsafe.putDouble(math, offsetRailMathTEnd1, tStart + Math.max(0.5, length));
+            unsafe.putBoolean(math, offsetRailMathReverseT1, false);
+            unsafe.putBoolean(math, offsetRailMathIsStraight1, true);
+            unsafe.putDouble(math, offsetRailMathH2, 0);
+            unsafe.putDouble(math, offsetRailMathK2, 0);
+            unsafe.putDouble(math, offsetRailMathR2, 0);
+            unsafe.putDouble(math, offsetRailMathTStart2, 0);
+            unsafe.putDouble(math, offsetRailMathTEnd2, 0);
+            unsafe.putBoolean(math, offsetRailMathReverseT2, false);
+            unsafe.putBoolean(math, offsetRailMathIsStraight2, true);
+        } catch (Exception ignored) {
+        }
+    }
+
     private static boolean isStraightRailMathApplicable(Rail rail, double rad1, double rad2) {
         if (!Double.isFinite(rad1) || !Double.isFinite(rad2)) return false;
         final RailAccessor accessor = (RailAccessor)(Object)rail;

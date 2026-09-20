@@ -3,15 +3,82 @@ package cn.jstxjf_.rte.data;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
-
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public interface ConfigResponder {
 
     String key();
     void init(Map<String, String> map);
+
+    /**
+     * Registers both ordinary responders and ANTE-style composite JavaScript
+     * responders.  Composite responders initialise several child keys but the
+     * old Cloth screen was the only code able to discover their nested widget
+     * definitions.  RTE keeps those child values visible/editable using safe
+     * text fallbacks instead of dropping the controls entirely.
+     */
+    static void registerInto(Map<String, String> configs, Map<String, ConfigResponder> responders,
+                             ConfigResponder responder) {
+        if (responder == null || configs == null || responders == null) {
+            return;
+        }
+        final InitTrackingMap trackingMap = new InitTrackingMap(configs);
+        responder.init(trackingMap);
+        final String rootKey = responder.key();
+        if (rootKey != null) {
+            responders.put(rootKey, responder);
+        }
+        for (final String childKey : trackingMap.touchedKeys) {
+            if (!Objects.equals(rootKey, childKey) && configs.containsKey(childKey)
+                    && !responders.containsKey(childKey)) {
+                responders.put(childKey,
+                    new TextField(childKey, Component.literal(childKey), configs.get(childKey)));
+            }
+        }
+    }
+
+    /**
+     * Records keys inspected while a responder installs defaults. This also
+     * discovers composite child responders when their values were already
+     * persisted, where comparing the map before/after init would miss them.
+     */
+    final class InitTrackingMap extends AbstractMap<String, String> {
+        private final Map<String, String> delegate;
+        private final Set<String> touchedKeys = new LinkedHashSet<>();
+
+        private InitTrackingMap(Map<String, String> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public boolean containsKey(Object key) {
+            record(key);
+            return delegate.containsKey(key);
+        }
+
+        @Override
+        public String get(Object key) {
+            record(key);
+            return delegate.get(key);
+        }
+
+        @Override
+        public String put(String key, String value) {
+            touchedKeys.add(key);
+            return delegate.put(key, value);
+        }
+
+        @Override
+        public Set<Entry<String, String>> entrySet() {
+            return delegate.entrySet();
+        }
+
+        private void record(Object key) {
+            if (key instanceof String stringKey) {
+                touchedKeys.add(stringKey);
+            }
+        }
+    }
 
     static class TextField implements ConfigResponder {
         public String key;

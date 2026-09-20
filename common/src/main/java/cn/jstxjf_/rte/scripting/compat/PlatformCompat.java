@@ -11,6 +11,12 @@ public class PlatformCompat {
     public final String name;
     public final int color;
     public final TransportMode transportMode;
+    /**
+     * MTR 3 exposes dwellTime as a public field in half-seconds.  It is not
+     * ticks and it is not seconds: the old UI divided it by two before
+     * displaying seconds and TrainServer multiplied it by ten to get ticks.
+     */
+    public final long dwellTime;
 
     private final Platform delegate;
 
@@ -21,6 +27,7 @@ public class PlatformCompat {
         this.name = delegate.getName();
         this.color = delegate.getColor();
         this.transportMode = delegate.getTransportMode();
+        this.dwellTime = Math.max(0, delegate.getDwellTime() / 500);
     }
 
     public PlatformCompat(long id) {
@@ -30,6 +37,7 @@ public class PlatformCompat {
         this.name = "";
         this.color = 0;
         this.transportMode = TransportMode.TRAIN;
+        this.dwellTime = 0;
     }
 
     public Platform getMtr4Platform() {
@@ -37,7 +45,7 @@ public class PlatformCompat {
     }
 
     public long getDwellTime() {
-        return getDwellTimeMillis() / 1000;
+        return dwellTime;
     }
 
     public long getDwellTimeMillis() {

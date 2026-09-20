@@ -42,6 +42,44 @@ public class ResourceUtil {
         return location;
     }
 
+    /**
+     * Canonicalises paths supplied by old OBJ/MTL resource packs before they
+     * reach {@link ResourceLocation}.  MTR 3's loaders tolerated duplicate
+     * slashes, leading slashes and Windows separators; modern Minecraft does
+     * not, and rejects the whole material instead of merely normalising it.
+     */
+    public static String normalizeResourcePath(String path) {
+        if (path == null) {
+            return "_";
+        }
+        final String cleaned = path.toLowerCase(Locale.ROOT)
+            .replace('\\', '/')
+            .replaceAll("[^a-z0-9/._-]", "_");
+        final Deque<String> segments = new ArrayDeque<>();
+        for (final String segment : cleaned.split("/+")) {
+            if (segment.isEmpty() || segment.equals(".")) {
+                continue;
+            }
+            if (segment.equals("..")) {
+                if (!segments.isEmpty()) {
+                    segments.removeLast();
+                }
+            } else {
+                segments.addLast(segment);
+            }
+        }
+        return segments.isEmpty() ? "_" : String.join("/", segments);
+    }
+
+    private static String normalizeNamespace(String namespace) {
+        if (namespace == null || namespace.isEmpty()) {
+            return "minecraft";
+        }
+        final String normalized = namespace.toLowerCase(Locale.ROOT)
+            .replaceAll("[^a-z0-9_.-]", "_");
+        return normalized.isEmpty() ? "minecraft" : normalized;
+    }
+
     private static ResourceLocation resolveQualifiedAgainstBase(ResourceLocation baseFile, ResourceLocation absolute) {
         if (baseFile == null || resourceExists(absolute)) {
             return null;
@@ -65,7 +103,7 @@ public class ResourceUtil {
         }
     }
 
-    private static boolean resourceExists(ResourceLocation location) {
+    public static boolean resourceExists(ResourceLocation location) {
         try {
             final net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getInstance();
             return minecraft != null && minecraft.getResourceManager().getResource(location).isPresent();
@@ -75,14 +113,16 @@ public class ResourceUtil {
     }
 
     public static ResourceLocation resolveRelativePath(ResourceLocation baseFile, String relative, String expectExtension) {
-        relative = relative.toLowerCase(Locale.ROOT).replace('\\', '/');
+        relative = relative == null ? "" : relative.toLowerCase(Locale.ROOT).replace('\\', '/');
 
-        if (relative.contains(":")) {
-            relative = relative.replaceAll("[^a-z0-9/.:_-]", "_");
-            if (expectExtension != null && !relative.endsWith(expectExtension)) {
-                relative += expectExtension;
+        final int namespaceSeparator = relative.indexOf(':');
+        if (namespaceSeparator >= 0) {
+            final String namespace = normalizeNamespace(relative.substring(0, namespaceSeparator));
+            String path = normalizeResourcePath(relative.substring(namespaceSeparator + 1));
+            if (expectExtension != null && !path.endsWith(expectExtension)) {
+                path += expectExtension;
             }
-            final ResourceLocation absolute = new ResourceLocation(relative);
+            final ResourceLocation absolute = new ResourceLocation(namespace, path);
             final ResourceLocation resolved = resolveQualifiedAgainstBase(baseFile, absolute);
             return resolved != null ? resolved : absolute;
         }
@@ -97,34 +137,33 @@ public class ResourceUtil {
             relative += expectExtension;
         }
 
-        String base = baseFile.getPath();
-        String[] baseParts = base.split("/");
-        String[] relativeParts = relative.split("/");
-        Deque<String> stack = new LinkedList<>();
-        for (String part : baseParts) {
-            if (part.isEmpty()) throw new IllegalArgumentException("Invalid base file path: " + base);
-            stack.push(part);
+        final String base = normalizeResourcePath(baseFile.getPath());
+        final String[] baseParts = base.split("/");
+        final String[] relativeParts = relative.split("/+", -1);
+        final Deque<String> stack = new ArrayDeque<>();
+        for (int i = 0; i < baseParts.length - 1; i++) {
+            if (!baseParts[i].isEmpty()) {
+                stack.addLast(baseParts[i]);
+            }
         }
-        stack.pop();
         for (String part : relativeParts) {
-            if (part.equals(".")) continue;
+            if (part.isEmpty() || part.equals(".")) continue;
             if (part.equals("..")) {
-                if (stack.isEmpty()) {
-                    throw new IllegalArgumentException("Out of range: " + relative + " relative to "   + base);
-                } else {
-                    stack.pop();
+                if (!stack.isEmpty()) {
+                    stack.removeLast();
                 }
                 continue;
             }
-            stack.push(part);
+            stack.addLast(part);
         }
-        StringBuilder sb = new StringBuilder();
-        while (!stack.isEmpty()) {
-            sb.append(stack.removeLast()).append("/");
-        }
-        String path = sb.toString();
-        if (path.endsWith("/")) path = path.substring(0, path.length() - 1);
+        final String path = stack.isEmpty() ? "_" : String.join("/", stack);
 
         return new ResourceLocation(baseFile.getNamespace(), path);
+    }
+
+    public static InputStream open(ResourceManager resourceManager, ResourceLocation location) throws IOException {
+        return getResource(resourceManager, location)
+            .orElseThrow(() -> new IOException("Resource not found: " + location))
+            .open();
     }
 }

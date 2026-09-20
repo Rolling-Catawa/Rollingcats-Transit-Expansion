@@ -113,8 +113,82 @@ public class TrainWrapper {
         rte$normalizePlatformDistances(allPlatforms);
         rte$normalizePlatformDistances(thisRoutePlatforms);
         rte$normalizePlatformDistances(nextRoutePlatforms);
+        rte$publishLegacySchedules();
         shouldRender = false;
         isInDetailDistance = false;
+    }
+
+    private long rte$lastScheduleFingerprint = Long.MIN_VALUE;
+
+    /**
+     * MTR 4 no longer exposes ClientData.SCHEDULES_FOR_PLATFORM.  Recreate
+     * the MTR 3 view from the vehicle's fixed siding departure and the same
+     * timetable function used by the simulator, rather than fabricating an
+     * ETA from the current speed.
+     */
+    private void rte$publishLegacySchedules() {
+        long fingerprint = train.getId();
+        final cn.jstxjf_.rte.mixin.VehicleAccessor accessor;
+        final long departureTime;
+        try {
+            accessor = (cn.jstxjf_.rte.mixin.VehicleAccessor) (Object) train;
+            departureTime = accessor.rte$getSidingDepartureTime();
+        } catch (Throwable ignored) {
+            cn.jstxjf_.rte.scripting.compat.ClientDataCompat.updateVehicleSchedules(
+                train.getId(), List.of(), List.of());
+            return;
+        }
+        fingerprint = 31 * fingerprint + departureTime;
+        fingerprint = 31 * fingerprint + accessor.rte$getDepartureIndex();
+        for (final PlatformInfo info : allPlatforms) {
+            fingerprint = 31 * fingerprint + (info.platform == null ? 0 : info.platform.idLong);
+            fingerprint = 31 * fingerprint + (info.routeId == null ? 0 : info.routeId);
+            fingerprint = 31 * fingerprint + Double.doubleToLongBits(info.distance);
+        }
+        if (fingerprint == rte$lastScheduleFingerprint) {
+            return;
+        }
+        rte$lastScheduleFingerprint = fingerprint;
+
+        final Siding siding;
+        try {
+            siding = MinecraftClientData.getInstance().sidingIdMap.get(train.vehicleExtraData.getSidingId());
+        } catch (Throwable ignored) {
+            cn.jstxjf_.rte.scripting.compat.ClientDataCompat.updateVehicleSchedules(
+                train.getId(), List.of(), List.of());
+            return;
+        }
+        if (departureTime < 0 || siding == null || allPlatforms.isEmpty()) {
+            cn.jstxjf_.rte.scripting.compat.ClientDataCompat.updateVehicleSchedules(
+                train.getId(), List.of(), List.of());
+            return;
+        }
+
+        final List<Long> platformIds = new ArrayList<>();
+        final List<cn.jstxjf_.rte.scripting.compat.ScheduleEntryCompat> schedules = new ArrayList<>();
+        final Map<Long, Integer> routeIndices = new java.util.HashMap<>();
+        for (final PlatformInfo info : allPlatforms) {
+            if (info.platform == null || info.routeId == null || info.routeId == 0) {
+                continue;
+            }
+            final double offset;
+            try {
+                offset = siding.getTimeAlongRoute(info.distance);
+            } catch (Throwable ignored) {
+                continue;
+            }
+            if (!Double.isFinite(offset) || offset < 0) {
+                continue;
+            }
+            final int sequentialIndex = routeIndices.getOrDefault(info.routeId, 0);
+            final int routeIndex = info.currentStationIndex >= 0 ? info.currentStationIndex : sequentialIndex;
+            routeIndices.put(info.routeId, Math.max(sequentialIndex + 1, routeIndex + 1));
+            platformIds.add(info.platform.idLong);
+            schedules.add(new cn.jstxjf_.rte.scripting.compat.ScheduleEntryCompat(
+                departureTime + Math.round(offset), trainCars(), info.routeId, routeIndex));
+        }
+        cn.jstxjf_.rte.scripting.compat.ClientDataCompat.updateVehicleSchedules(
+            train.getId(), platformIds, schedules);
     }
 
     private Map<Long, Double> rte$realPlatformDistances() {
@@ -469,7 +543,19 @@ public class TrainWrapper {
     }
 
     public String baseTrainType() {
-        return trainTypeId();
+        final List<VehicleCar> cars = train.vehicleExtraData.immutableVehicleCars;
+        if (cars.isEmpty()) {
+            return "";
+        }
+
+        // MTR 3 exposed the geometry descriptor (for example train_21_3), not
+        // the custom vehicle resource id.  MTR 4's legacy resource converter
+        // adds one block to the old spacing when it creates VehicleCar.length.
+        final VehicleCar car = cars.get(0);
+        final boolean convertedLegacy = cn.jstxjf_.rte.data.GangwayPolicy.isLegacyFormat(trainTypeId());
+        final int legacyLength = Math.max(1, (int) Math.round(car.getLength() - (convertedLegacy ? 1 : 0)));
+        final int legacyWidth = Math.max(1, (int) Math.round(car.getWidth()));
+        return transportMode().name().toLowerCase(Locale.ROOT) + "_" + legacyLength + "_" + legacyWidth;
     }
 
     public TransportMode transportMode() {
@@ -486,14 +572,18 @@ public class TrainWrapper {
             return length;
         }
         try {
-            if (cn.jstxjf_.rte.data.GangwayPolicy.isLegacyFormat(cars.get(0).getVehicleId())) {
-                return length + cn.jstxjf_.rte.ClientConfig.legacyCouplingGap;
-            }
             final cn.jstxjf_.rte.mixin.VehicleCarAccessor here =
                 (cn.jstxjf_.rte.mixin.VehicleCarAccessor) (Object) cars.get(0);
             final cn.jstxjf_.rte.mixin.VehicleCarAccessor next =
                 (cn.jstxjf_.rte.mixin.VehicleCarAccessor) (Object) cars.get(1);
-            return length + here.rte$getCouplingPadding2() + next.rte$getCouplingPadding1();
+            // This is the actual centre-to-centre distance used by MTR 4.
+            // In particular, do not add legacyCouplingGap a second time: the
+            // Vehicle mixin has already exposed it as both cars' coupling pads.
+            return length
+                + cn.jstxjf_.rte.data.CouplingPaddingPolicy.getEffectivePadding(
+                    cars.get(0), here.rte$getCouplingPadding2())
+                + cn.jstxjf_.rte.data.CouplingPaddingPolicy.getEffectivePadding(
+                    cars.get(1), next.rte$getCouplingPadding1());
         } catch (Exception e) {
             return length;
         }
@@ -520,11 +610,42 @@ public class TrainWrapper {
     }
 
     public int maxManualSpeed() {
-        return (int) Math.round(train.vehicleExtraData.getMaxManualSpeed());
+        // MTR 3 serialised this as the ordinal of WOODEN..DIAMOND, while MTR 4
+        // stores metres per millisecond.  Preserve the old script ABI.
+        final double speedKilometersPerHour = train.vehicleExtraData.getMaxManualSpeed() * 3600;
+        final int[] legacyLimits = {20, 40, 60, 80, 120, 160, 200, 300};
+        int closest = 0;
+        double closestDistance = Double.MAX_VALUE;
+        for (int i = 0; i < legacyLimits.length; i++) {
+            final double distance = Math.abs(speedKilometersPerHour - legacyLimits[i]);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closest = i;
+            }
+        }
+        return closest;
     }
 
     public int manualToAutomaticTime() {
         return (int) ((TrainExtraSupplier) train).getManualToAutomaticTime();
+    }
+
+    /** MTR 3/NTE name for the current manual power/brake controller level. */
+    public int manualNotch() {
+        try {
+            return train.vehicleExtraData.getPowerLevel();
+        } catch (Throwable ignored) {
+            return 0;
+        }
+    }
+
+    /** Exposes the ANTE roll sampler to packs which use it directly. */
+    public float getRollAngleAt(double railProgress) {
+        try {
+            return supplier.getRollAngleAt(railProgress);
+        } catch (Throwable ignored) {
+            return 0;
+        }
     }
 
     public Object path() {
@@ -536,17 +657,24 @@ public class TrainWrapper {
         if (live.isEmpty() && !rte$handedPath.isEmpty()) {
             return rte$handedPath;
         }
+        final Object source = live == rte$pathView ? train.vehicleExtraData.immutablePath : live;
         synchronized (rte$handedPath) {
-            if (live.size() != rte$handedSize || rte$handedPath.size() != rte$handedSize) {
+            if (source != rte$handedSource || live.size() != rte$handedSize
+                    || rte$handedPath.size() != rte$handedSize) {
                 if (rte$handedSize >= 0) {
                     rte$pathChangedSinceHandout = true;
                 }
                 rte$handedPath.clear();
                 rte$handedPath.addAll(live);
                 rte$handedSize = rte$handedPath.size();
+                rte$handedSource = source;
             }
         }
         return rte$handedPath;
+    }
+
+    public Object rte$getPathSource() {
+        return rte$handedSource;
     }
 
     public void rte$invalidatePathSnapshot() {
@@ -562,17 +690,17 @@ public class TrainWrapper {
         final int localSize = train.vehicleExtraData.immutablePath.size();
         final long vehicleId = train.getId();
         final List<cn.jstxjf_.rte.scripting.compat.PathDataCompat> serverPath =
-            cn.jstxjf_.rte.render.train.VehiclePathCache.get(vehicleId);
-        if (serverPath != null && serverPath.size() > localSize) {
-            return serverPath;
-        }
-        if (localSize < MIN_TRUSTED_PATH_SIZE) {
+            cn.jstxjf_.rte.render.train.VehiclePathCache.getGeometry(vehicleId);
+        // MTR 4 may expose the expected number of client path entries without
+        // the RailMath geometry NTE scripts sample. A segment-count heuristic
+        // therefore leaves connection scripts on a plausible but unusable path.
+        // Request the authoritative snapshot whenever there is no fresh,
+        // completely decoded geometry; requestIfDue rate-limits per vehicle.
+        if (serverPath == null) {
             cn.jstxjf_.rte.render.train.VehiclePathCache.requestIfDue(vehicleId);
         }
-        return rte$pathView;
+        return serverPath != null && serverPath.size() >= localSize ? serverPath : rte$pathView;
     }
-
-    private static final int MIN_TRUSTED_PATH_SIZE = 8;
 
     private final java.util.ArrayList<cn.jstxjf_.rte.scripting.compat.PathDataCompat> rte$handedPath =
         new java.util.ArrayList<>();
@@ -586,6 +714,7 @@ public class TrainWrapper {
     }
 
     private int rte$handedSize = -1;
+    private Object rte$handedSource;
 
     private java.util.List<cn.jstxjf_.rte.scripting.compat.PathDataCompat> rte$indexBasis() {
         return rte$sharedSnapshot();
@@ -636,6 +765,7 @@ public class TrainWrapper {
                 cn.jstxjf_.rte.RTE.LOGGER.info("[ConnProbe] {} path empty", train.getHexId());
                 return;
             }
+            final long syntheticSegments = path.stream().filter(segment -> segment.data == null).count();
             final double sp = spacing();
             final StringBuilder line = new StringBuilder();
             final double[] yaws = new double[cars];
@@ -657,9 +787,9 @@ public class TrainWrapper {
                 line.append(String.format(java.util.Locale.ROOT, "joint%d scriptYaw=%.1f  ",
                     c, Math.toDegrees(yaws[c + 1] - yaws[c])));
             }
-            cn.jstxjf_.rte.RTE.LOGGER.info("[ConnProbe] {} spacing={} pathSize={} {}",
+            cn.jstxjf_.rte.RTE.LOGGER.info("[ConnProbe] {} spacing={} pathSize={} metadataOnly={} reversed={} {}",
                 train.getHexId(), String.format(java.util.Locale.ROOT, "%.2f", sp),
-                path.size(), line.toString().trim());
+                path.size(), syntheticSegments, isReversed(), line.toString().trim());
         } catch (Throwable e) {
             cn.jstxjf_.rte.RTE.LOGGER.info("[ConnProbe] failed: {}", String.valueOf(e));
         }
@@ -706,35 +836,23 @@ public class TrainWrapper {
     }
 
     public float getRailSpeed(int railIndex) {
-        final var path = train.vehicleExtraData.immutablePath;
+        final List<cn.jstxjf_.rte.scripting.compat.PathDataCompat> path = rte$indexBasis();
         if (railIndex < 0 || railIndex >= path.size()) {
             return 0;
         }
-        final float direct = (float) path.get(railIndex).getSpeedLimitMetersPerMillisecond();
-        if (direct > 0) {
-            return direct;
+        final cn.jstxjf_.rte.scripting.compat.PathDataCompat current = path.get(railIndex);
+        if (current.rail.canAccelerate()) {
+            // MTR 3 uses blocks/tick; MTR 4 uses metres/millisecond.
+            return (float) (current.getSpeedLimitMetersPerMillisecond() * MILLIS_PER_TICK);
         }
-        final org.mtr.core.data.Rail rail = path.get(railIndex).getRail();
-        if (rail != null) {
-            final float reverse = (float) Math.max(
-                rail.getSpeedLimitMetersPerMillisecond(false),
-                rail.getSpeedLimitMetersPerMillisecond(true));
-            if (reverse > 0) {
-                return reverse;
-            }
-        }
-        for (int offset = 1; offset < path.size(); offset++) {
-            for (final int probe : new int[]{railIndex - offset, railIndex + offset}) {
-                if (probe < 0 || probe >= path.size()) {
-                    continue;
-                }
-                final float neighbour = (float) path.get(probe).getSpeedLimitMetersPerMillisecond();
-                if (neighbour > 0) {
-                    return neighbour;
-                }
-            }
-        }
-        return 0;
+
+        // Platform, siding and turn-back rails inherited the immediately
+        // preceding acceleratable limit in MTR 3.  Otherwise they used the
+        // transport mode's default, never slowing an already faster vehicle.
+        final float inherited = railIndex > 0 && path.get(railIndex - 1).rail.canAccelerate()
+            ? (float) (path.get(railIndex - 1).getSpeedLimitMetersPerMillisecond() * MILLIS_PER_TICK)
+            : (float) (transportMode().defaultSpeedMetersPerMillisecond * MILLIS_PER_TICK);
+        return Math.max(inherited, speed());
     }
 
     private static final double MILLIS_PER_TICK = 50;
@@ -804,8 +922,7 @@ public class TrainWrapper {
     }
 
     public void registerCustomConfig(ConfigResponder responder) {
-        responder.init(getCustomConfigs());
-        getCustomResponders().put(responder.key(), responder);
+        ConfigResponder.registerInto(getCustomConfigs(), getCustomResponders(), responder);
     }
 
     public void removeCustomConfig(String key) {
@@ -945,7 +1062,7 @@ public class TrainWrapper {
         final java.util.List<cn.jstxjf_.rte.scripting.compat.PathDataCompat> basis = rte$indexBasis();
         final int idx = getRailIndex(railProgress(), false);
         if (idx < 0 || idx >= basis.size()) return 0;
-        return (float) (basis.get(idx).data.getSpeedLimitMetersPerMillisecond() * 3600000.0);
+        return (float) (basis.get(idx).getSpeedLimitMetersPerMillisecond() * 3600000.0);
     }
 
     public String doorSide() {
@@ -1101,11 +1218,11 @@ public class TrainWrapper {
         long chosen = 0;
 
         final long thisRouteId = train.vehicleExtraData.getThisRouteId();
+        final long nextRouteId = train.vehicleExtraData.getNextRouteId();
         if (thisRouteId != 0 && rte$routeHasPlatforms(thisRouteId)) {
             chosen = thisRouteId;
         }
         if (chosen == 0) {
-            final long nextRouteId = train.vehicleExtraData.getNextRouteId();
             if (nextRouteId != 0 && rte$routeHasPlatforms(nextRouteId)) {
                 chosen = nextRouteId;
             }
@@ -1120,6 +1237,9 @@ public class TrainWrapper {
         }
         if (chosen != 0) {
             targetRouteIds.add(chosen);
+            if (nextRouteId != 0 && nextRouteId != chosen && rte$routeHasPlatforms(nextRouteId)) {
+                targetRouteIds.add(nextRouteId);
+            }
             if (confirmedByMtr) {
                 LAST_KNOWN_ROUTE_ID.put(vehicleId, chosen);
             }
@@ -1186,12 +1306,16 @@ public class TrainWrapper {
     }
 
     private static void rte$dedupePlatforms(List<PlatformInfo> platforms) {
-        final java.util.Set<Long> seen = new java.util.HashSet<>();
+        final java.util.Set<String> seen = new java.util.HashSet<>();
         final java.util.Iterator<PlatformInfo> iterator = platforms.iterator();
         while (iterator.hasNext()) {
             final PlatformInfo platformInfo = iterator.next();
             final long platformId = platformInfo.platform == null ? 0 : (long) platformInfo.platform.id;
-            if (platformId != 0 && !seen.add(platformId)) {
+            // A route may legitimately visit the same platform again.  Only
+            // collapse the shared route-boundary entry that points to the
+            // exact same physical stop along the vehicle path.
+            final String occurrence = platformId + "@" + Math.round(platformInfo.distance * 1000);
+            if (platformId != 0 && !seen.add(occurrence)) {
                 iterator.remove();
             }
         }
@@ -1211,6 +1335,14 @@ public class TrainWrapper {
     private static final java.util.Map<Long, List<PlatformInfo>> LAST_GOOD_ROUTE_PLATFORMS = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static volatile long rte$lastPruneMillis = 0;
+
+    public static void clearGlobalCaches() {
+        LAST_KNOWN_SIDING.clear();
+        LAST_KNOWN_ROUTE_ID.clear();
+        LAST_GOOD_ALL_PLATFORMS.clear();
+        LAST_GOOD_ROUTE_PLATFORMS.clear();
+        rte$lastPruneMillis = 0;
+    }
 
     private static void rte$pruneStaleCaches() {
         final long now = System.currentTimeMillis();
@@ -1232,6 +1364,7 @@ public class TrainWrapper {
         LAST_GOOD_ALL_PLATFORMS.keySet().retainAll(alive);
         LAST_GOOD_ROUTE_PLATFORMS.keySet().retainAll(alive);
         cn.jstxjf_.rte.render.train.VehiclePathCache.retainAll(alive);
+        cn.jstxjf_.rte.scripting.compat.ClientDataCompat.retainVehicleSchedules(alive);
     }
 
     private java.util.Set<Long> rte$pathPlatformIds() {
@@ -1458,6 +1591,8 @@ public class TrainWrapper {
         public final String destinationName;
         public double distance;
         public final boolean reverseAtPlatform;
+        /** MTR 3 schedule field; route-local, not global platform order. */
+        public final int currentStationIndex;
 
         public PlatformInfo(Long routeId, RouteCompat route, Station station, Platform platform,
                             Station destinationStation, String destinationName, double distance,
@@ -1477,6 +1612,8 @@ public class TrainWrapper {
             this.destinationName = destinationName;
             this.distance = distance;
             this.reverseAtPlatform = reverseAtPlatform;
+            this.currentStationIndex = route == null || platform == null
+                ? -1 : route.getPlatformIdIndex(platform.idLong);
         }
 
         public String stationName() {

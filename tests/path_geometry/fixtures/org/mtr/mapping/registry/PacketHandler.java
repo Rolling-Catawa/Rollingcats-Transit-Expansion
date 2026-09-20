@@ -1,0 +1,1 @@
+package org.mtr.mapping.registry; public abstract class PacketHandler { public abstract void write(org.mtr.mapping.tool.PacketBufferSender s);public void runClient(){} }

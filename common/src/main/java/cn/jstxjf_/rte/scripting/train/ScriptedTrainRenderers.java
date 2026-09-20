@@ -32,65 +32,15 @@ import java.util.Set;
 
 public final class ScriptedTrainRenderers {
 
+
     private static final Map<Long, TrainScriptContext> CONTEXTS = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<Long, CarFrameState> CAR_FRAME_STATES = new HashMap<>();
+    /** MTR 4 calls the connection renderer once per model layer and barrier. */
+    private static final Set<Long> CONNECTIONS_RENDERED_THIS_PASS = new java.util.HashSet<>();
     private static final Map<Long, DoorSideState> DOOR_SIDE_STATES = new HashMap<>();
     private static final ThreadLocal<ConnectionFrameState> CONNECTION_FRAME_STATE = new ThreadLocal<>();
     private static int currentRenderPass;
     private static final Set<String> RENDER_TRACE = java.util.concurrent.ConcurrentHashMap.newKeySet();
-
-    private static final java.util.Map<Long, FramePoses> RTE_FRAME_POSES = new java.util.concurrent.ConcurrentHashMap<>();
-
-    private static final class FramePoses {
-
-        private Matrix4f[] poses = new Matrix4f[8];
-        private long[] frames = new long[8];
-
-        private void ensure(int carIndex) {
-            if (carIndex >= poses.length) {
-                poses = java.util.Arrays.copyOf(poses, carIndex + 8);
-                frames = java.util.Arrays.copyOf(frames, carIndex + 8);
-            }
-        }
-    }
-
-    private static void rte$renderGangwayPair(long vehicleId, int frontCar, int backCar,
-                                              double spacing, double width) {
-        final Matrix4f frontPose = rte$framePose(vehicleId, frontCar);
-        final Matrix4f backPose = rte$framePose(vehicleId, backCar);
-        if (frontPose == null || backPose == null) {
-            return;
-        }
-        cn.jstxjf_.rte.render.train.BuiltinGangwayRenderer.render(frontPose, backPose, spacing, width);
-    }
-
-    private static void rte$storeFramePose(long vehicleId, int carIndex, Matrix4f carPose) {
-        if (carIndex < 0) {
-            return;
-        }
-        final FramePoses entry = RTE_FRAME_POSES.computeIfAbsent(vehicleId, ignored -> new FramePoses());
-        synchronized (entry) {
-            entry.ensure(carIndex);
-            entry.poses[carIndex] = carPose.copy();
-            entry.frames[carIndex] = rte$frameId;
-        }
-    }
-
-    private static Matrix4f rte$framePose(long vehicleId, int carIndex) {
-        if (carIndex < 0) {
-            return null;
-        }
-        final FramePoses entry = RTE_FRAME_POSES.get(vehicleId);
-        if (entry == null) {
-            return null;
-        }
-        synchronized (entry) {
-            if (carIndex >= entry.poses.length || entry.frames[carIndex] != rte$frameId) {
-                return null;
-            }
-            return entry.poses[carIndex];
-        }
-    }
 
     private static void trace(String vehicleId, String stage) {
         if (ClientConfig.enableRenderDiagnostics && RENDER_TRACE.add(vehicleId + '|' + stage)) {
@@ -101,12 +51,10 @@ public final class ScriptedTrainRenderers {
     private ScriptedTrainRenderers() {
     }
 
-    private static volatile long rte$frameId = 0;
-
     public static void beginFrame() {
         cn.jstxjf_.rte.util.JcmCompat.beginFrame();
-        rte$frameId++;
         currentRenderPass++;
+        CONNECTIONS_RENDERED_THIS_PASS.clear();
         if (currentRenderPass == Integer.MAX_VALUE) {
             currentRenderPass = 1;
             CAR_FRAME_STATES.clear();
@@ -116,10 +64,14 @@ public final class ScriptedTrainRenderers {
     public static void clear() {
         CONTEXTS.clear();
         CAR_FRAME_STATES.clear();
+        CONNECTIONS_RENDERED_THIS_PASS.clear();
         DOOR_SIDE_STATES.clear();
         CONNECTION_FRAME_STATE.remove();
         RENDER_TRACE.clear();
         currentRenderPass = 0;
+        TrainWrapper.clearGlobalCaches();
+        cn.jstxjf_.rte.render.train.VehiclePathCache.clear();
+        cn.jstxjf_.rte.scripting.compat.ClientDataCompat.clearVehicleSchedules();
     }
 
     public static void beginConnectionFrame(VehicleExtension vehicle, int carIndex) {
@@ -128,6 +80,38 @@ public final class ScriptedTrainRenderers {
 
     public static void endConnectionFrame() {
         CONNECTION_FRAME_STATE.remove();
+    }
+
+    /**
+     * MTR 3/NTE allowed a resource pack to select an empty native connector
+     * (usually {@code mtr:entity/air}) and draw its own OBJ from JavaScript.
+     * MTR 4 still calls RenderVehicles.renderConnection for that car pair.  It
+     * must be cancelled with the vehicle id captured by the enclosing render
+     * lambda; the old ThreadLocal "current car" lookup can point at another car
+     * when the queued connection is rendered and allowed the wrong MTR texture
+     * to cover the pack's model.
+     */
+    public static boolean shouldSuppressNativeConnection(boolean canHaveLight) {
+        // MTR routes gangways and safety barriers through the same private
+        // helper. NTE's scripted connector replaces only renderConnection;
+        // renderBarrier remains native and must not be deleted with it.
+        if (!canHaveLight) {
+            return false;
+        }
+        final ConnectionFrameState state = CONNECTION_FRAME_STATE.get();
+        if (state == null || state.vehicle == null || state.vehicle.vehicleExtraData == null) {
+            return false;
+        }
+        try {
+            final int car = Math.max(0, Math.min(state.carIndex,
+                state.vehicle.vehicleExtraData.immutableVehicleCars.size() - 1));
+            final String vehicleId = state.vehicle.vehicleExtraData.immutableVehicleCars
+                .get(car).getVehicleId();
+            return cn.jstxjf_.rte.ClientConfig.autoGangwayPolicy
+                && cn.jstxjf_.rte.data.GangwayPolicy.isSelfHandled(vehicleId);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     private static double rte$rollOf(VehicleExtension vehicle, int carIndex) {
@@ -166,6 +150,11 @@ public final class ScriptedTrainRenderers {
             return;
         }
 
+        final long connectionKey = getStateKey(connVehicle.getId(), frameState.carIndex - 1);
+        if (!CONNECTIONS_RENDERED_THIS_PASS.add(connectionKey)) {
+            return;
+        }
+
         final double halfLength = vehicleLength / 2;
         final double newOscillationAmount = -Math.toRadians(oscillationAmount);
         final Vector thisPos1 = positionAndRotation.transformForwards(new Vector(-width / 2, yOffset + IGui.SMALL_OFFSET, zOffset - halfLength).rotateZ(newOscillationAmount), Vector::rotateX, Vector::rotateY, Vector::add);
@@ -182,14 +171,79 @@ public final class ScriptedTrainRenderers {
         final int exteriorLight = LightmapTextureManager.pack(clientWorld.getLightLevel(LightType.getBlockMapped(), blockPosConnection), clientWorld.getLightLevel(LightType.getSkyMapped(), blockPosConnection));
         final int interiorLight = canHaveLight && isOnRoute ? org.mtr.mapping.mapper.GraphicsHolder.getDefaultLight() : exteriorLight;
         synchronized (context) {
+            // NTE commits drawConnModel from the real connection callback. The
+            // lower face edges contain MTR 4's exact car lengths,
+            // resource-defined offsets, pitch and body oscillation; deriving
+            // this pose from car centres is only an approximation and fails on
+            // mixed consists. The lower edge (rather than the face centroid)
+            // also preserves NTE's floor-level connector origin.
+            context.commitConn(frameState.carIndex - 1, RTEClient.drawScheduler,
+                rte$createConnectionPose(connVehicle, useOffset,
+                    prevPos1, prevPos4, thisPos1, thisPos4),
+                createViewPose(), exteriorLight);
             context.scriptResult.commitConnStretchTexture(frameState.carIndex - 1, useOffset, Vector3d.getZeroMapped(), exteriorLight, interiorLight, prevPos1, prevPos2, prevPos3, prevPos4, thisPos1, thisPos2, thisPos3, thisPos4);
-            cn.jstxjf_.rte.render.train.BuiltinGangwayRenderer.renderFromCorners(
-                prevPos1, prevPos2, prevPos3, prevPos4,
-                thisPos1, thisPos2, thisPos3, thisPos4,
-                vehicleLength, rte$rollOf(connVehicle, frameState.carIndex - 1),
-                rte$rollOf(connVehicle, frameState.carIndex),
-                useOffset, exteriorLight, interiorLight);
+            // A pack-owned connector is authoritative.  Do not consult the
+            // global CurrentVehicleTracker here: MTR queues connectors and the
+            // tracker may already point at another car by execution time.
+            if (!cn.jstxjf_.rte.data.GangwayPolicy.hasDeclaredConnection(connVehicleId)
+                    && (!cn.jstxjf_.rte.ClientConfig.autoGangwayPolicy
+                    || !cn.jstxjf_.rte.data.GangwayPolicy.isSelfHandled(connVehicleId))) {
+                cn.jstxjf_.rte.render.train.BuiltinGangwayRenderer.renderFromCorners(
+                    prevPos1, prevPos2, prevPos3, prevPos4,
+                    thisPos1, thisPos2, thisPos3, thisPos4,
+                    vehicleLength, rte$rollOf(connVehicle, frameState.carIndex - 1),
+                    rte$rollOf(connVehicle, frameState.carIndex),
+                    useOffset, exteriorLight, interiorLight);
+            }
         }
+    }
+
+    private static Matrix4f rte$createConnectionPose(VehicleExtension vehicle, boolean useOffset,
+                                                      Vector prevPos1, Vector prevPos4,
+                                                      Vector thisPos1, Vector thisPos4) {
+        // Positions 1 and 4 are the lower corners in MTR 4, just like ANTE's
+        // connectPos is calculated from the floor-level centre of each car end.
+        final double prevX = (prevPos1.x + prevPos4.x) * 0.5;
+        final double prevY = (prevPos1.y + prevPos4.y) * 0.5;
+        final double prevZ = (prevPos1.z + prevPos4.z) * 0.5;
+        final double thisX = (thisPos1.x + thisPos4.x) * 0.5;
+        final double thisY = (thisPos1.y + thisPos4.y) * 0.5;
+        final double thisZ = (thisPos1.z + thisPos4.z) * 0.5;
+
+        final Matrix4f pose;
+        if (useOffset) {
+            pose = createViewPose();
+        } else {
+            // Riding render coordinates are relative to MTR's render origin.
+            pose = new Matrix4f();
+            final Vector3d mtrOffset = RenderUtil.mtrRenderOffset;
+            if (mtrOffset != null) {
+                final net.minecraft.world.phys.Vec3 camera =
+                    net.minecraft.client.Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+                pose.translate(
+                    (float) (mtrOffset.getXMapped() - camera.x),
+                    (float) (mtrOffset.getYMapped() - camera.y),
+                    (float) (mtrOffset.getZMapped() - camera.z));
+            }
+        }
+
+        pose.translate((float) ((prevX + thisX) * 0.5),
+            (float) ((prevY + thisY) * 0.5),
+            (float) ((prevZ + thisZ) * 0.5));
+        final double dx = thisX - prevX;
+        final double dy = thisY - prevY;
+        final double dz = thisZ - prevZ;
+        final double horizontal = Math.hypot(dx, dz);
+        final double distance = Math.hypot(horizontal, dy);
+        if (distance > 1.0e-6 && Double.isFinite(distance)) {
+            pose.rotateY((float) (Math.PI + Math.atan2(dx, dz)));
+            final float pitch = (float) Math.atan2(dy, horizontal);
+            final boolean hasPitch = pitch < 0
+                ? vehicle.getTransportMode().hasPitchAscending
+                : vehicle.getTransportMode().hasPitchDescending;
+            pose.rotateX(hasPitch ? pitch : 0);
+        }
+        return pose;
     }
 
     private static final java.util.Set<String> RTE_DIAG_SEEN =
@@ -355,7 +409,6 @@ public final class ScriptedTrainRenderers {
         final boolean offsetMode = frameState != null && frameState.offsetVector != null && frameState.ridingCarPositionAndRotation != null;
         final Matrix4f carPose = createBasePose(vehicle, carIndex, positionAndRotation);
         final Matrix4f worldPose = createViewPose();
-        final Matrix4f gangwayPose = carPose;
         final Matrix4f basePose;
         if (offsetMode) {
             final PositionAndRotation renderPositionAndRotation = org.mtr.mod.render.RenderVehicles.getRenderPositionAndRotation(
@@ -400,7 +453,6 @@ public final class ScriptedTrainRenderers {
             currentWrapper.rte$probeConnAngles();
         }
         writingWrapper.lastWorldPose[carIndex] = carPose.copy();
-        rte$storeFramePose(vehicle.getId(), carIndex, gangwayPose);
         writingWrapper.lastCarPosition[carIndex] = carPose.getTranslationPart();
         writingWrapper.lastCarRotation[carIndex] = new Vector3f(0, (float) positionAndRotation.yaw, (float) positionAndRotation.pitch);
 
@@ -408,22 +460,6 @@ public final class ScriptedTrainRenderers {
             if (writingWrapper.shouldRender) {
                 trace(vehicleId, "commitCar");
                 context.commitCar(carIndex, RTEClient.drawScheduler, basePose, worldPose, light);
-
-                final Matrix4f neighbourPose = rte$framePose(vehicle.getId(), carIndex - 1);
-                if (carIndex > 0 && neighbourPose != null) {
-                    Matrix4f prevPose = neighbourPose;
-                    Matrix4f connPose = new Matrix4f();
-                    Vector3f prevTrans = prevPose.getTranslationPart();
-                    Vector3f thisTrans = carPose.getTranslationPart();
-                    connPose.translate(
-                        (prevTrans.x() + thisTrans.x()) * 0.5f,
-                        (prevTrans.y() + thisTrans.y()) * 0.5f,
-                        (prevTrans.z() + thisTrans.z()) * 0.5f
-                    );
-                    Matrix4f connRenderPose = worldPose.copy();
-                    connRenderPose.multiply(connPose);
-                    context.commitConn(carIndex - 1, RTEClient.drawScheduler, connRenderPose, worldPose, light);
-                }
             }
         }
 
@@ -606,8 +642,11 @@ public final class ScriptedTrainRenderers {
         }
 
         try {
-            final double halfLength = Math.max(1,
-                (vehicle.vehicleExtraData.immutableVehicleCars.get(carIndex).getLength() - 1) / 2);
+            // MTR 3 scans the full centre-to-centre spacing, not the visible
+            // body length.  This matters for the end-most metre of a platform
+            // and prevents a long train from reporting a patchwork of open and
+            // closed cars to scripts such as dlmtr_5/doorlight.js.
+            final double halfLength = Math.max(1, rte$doorScanSpacing(vehicle, carIndex) / 2);
             final double yaw = positionAndRotation.yaw;
             final double pitch = positionAndRotation.pitch;
             final double horizontal = Math.cos(pitch) * halfLength;
@@ -628,6 +667,33 @@ public final class ScriptedTrainRenderers {
         }
         state.nextScanNanos = now + 250_000_000L;
         return state;
+    }
+
+    private static double rte$doorScanSpacing(VehicleExtension vehicle, int carIndex) {
+        final java.util.List<VehicleCar> cars = vehicle.vehicleExtraData.immutableVehicleCars;
+        if (cars.isEmpty()) {
+            return 2;
+        }
+        final int current = Math.max(0, Math.min(carIndex, cars.size() - 1));
+        if (cars.size() == 1 || cn.jstxjf_.rte.ClientConfig.closeCouplingGap) {
+            return cars.get(current).getLength();
+        }
+        final int first = current + 1 < cars.size() ? current : current - 1;
+        final VehicleCar a = cars.get(first);
+        final VehicleCar b = cars.get(first + 1);
+        try {
+            final cn.jstxjf_.rte.mixin.VehicleCarAccessor aa =
+                (cn.jstxjf_.rte.mixin.VehicleCarAccessor) (Object) a;
+            final cn.jstxjf_.rte.mixin.VehicleCarAccessor bb =
+                (cn.jstxjf_.rte.mixin.VehicleCarAccessor) (Object) b;
+            return a.getLength() / 2 + b.getLength() / 2
+                + cn.jstxjf_.rte.data.CouplingPaddingPolicy.getEffectivePadding(
+                    a, aa.rte$getCouplingPadding2())
+                + cn.jstxjf_.rte.data.CouplingPaddingPolicy.getEffectivePadding(
+                    b, bb.rte$getCouplingPadding1());
+        } catch (Throwable ignored) {
+            return cars.get(current).getLength();
+        }
     }
 
     private static long rte$nextDoorTraceMillis = 0;

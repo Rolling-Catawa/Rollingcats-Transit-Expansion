@@ -92,17 +92,10 @@ public final class RawPackAliases {
         } catch (Exception e) {
             RTE.LOGGER.warn("[PathRecovery] failed to scan {}: {}", resourcePackDirectory, e.toString());
         }
-        RTE.LOGGER.info("[PathRecovery] scanned packs in {} ms, recovered {} resource(s), namespaces={}",
+        RTE.LOGGER.debug("[PathRecovery] scanned packs in {} ms, recovered {} resource(s), namespaces={}",
             (System.nanoTime() - startedAt) / 1000000L, ALIASES.size(), NAMESPACES);
         if (!COLLISIONS.isEmpty()) {
-            RTE.LOGGER.warn("[PathRecovery] {} alias collision(s); only the first entry is reachable", COLLISIONS.size());
-            int shown = 0;
-            for (final Map.Entry<ResourceLocation, String> entry : COLLISIONS.entrySet()) {
-                RTE.LOGGER.warn("[PathRecovery]   {} <- {}", entry.getKey(), entry.getValue());
-                if (++shown >= 10) {
-                    break;
-                }
-            }
+            RTE.LOGGER.warn("[PathRecovery] {} alias collision(s); first resource wins", COLLISIONS.size());
         }
     }
 
@@ -120,15 +113,45 @@ public final class RawPackAliases {
 
     private static void scanZip(Path zipPath) throws IOException {
         try (ZipFile zip = new ZipFile(zipPath.toFile())) {
+            final java.util.List<String> entryNames = new java.util.ArrayList<>();
+            boolean recoverWholePack = false;
             final java.util.Enumeration<? extends ZipEntry> entries = zip.entries();
             while (entries.hasMoreElements()) {
                 final ZipEntry entry = entries.nextElement();
                 if (entry.isDirectory() || entry.getSize() > MAX_ENTRY_BYTES) {
                     continue;
                 }
-                register(zipPath, true, entry.getName());
+                final String entryName = entry.getName();
+                entryNames.add(entryName);
+                recoverWholePack |= isLegacyAssetPath(entryName);
+            }
+
+            // A number of old MTR packs were produced by archivers which put
+            // mixed-case names in the local ZIP header and different, cleaned
+            // names in the central directory.  Minecraft can discover the
+            // mixed-case JSON index but then cannot resolve perfectly legal
+            // lower-case OBJ/PNG paths referenced by it.  If one legacy path
+            // proves that the archive needs recovery, expose every asset from
+            // that archive through the bottom-priority virtual pack.  Normal
+            // resources still win; these aliases are fallback-only.
+            for (final String entryName : entryNames) {
+                register(zipPath, true, entryName, recoverWholePack);
             }
         }
+    }
+
+    private static boolean isLegacyAssetPath(String entryName) {
+        if (entryName == null || !entryName.toLowerCase(Locale.ROOT).startsWith(ASSETS_PREFIX)) {
+            return false;
+        }
+        final String relative = entryName.substring(ASSETS_PREFIX.length());
+        final int slash = relative.indexOf('/');
+        if (slash <= 0) {
+            return true;
+        }
+        final String namespace = relative.substring(0, slash);
+        final String path = relative.substring(slash + 1);
+        return !entryName.startsWith(ASSETS_PREFIX) || !isLegal(namespace) || !isLegal(path);
     }
 
     private static void scanDirectory(Path root) throws IOException {
@@ -145,13 +168,13 @@ public final class RawPackAliases {
                 } catch (IOException ignored) {
                     return;
                 }
-                register(root, false, root.relativize(file).toString().replace('\\', '/'));
+                register(root, false, root.relativize(file).toString().replace('\\', '/'), false);
             });
         }
     }
 
-    private static synchronized void register(Path packFile, boolean zipped, String entryName) {
-        if (!entryName.startsWith(ASSETS_PREFIX)) {
+    private static synchronized void register(Path packFile, boolean zipped, String entryName, boolean force) {
+        if (entryName == null || !entryName.toLowerCase(Locale.ROOT).startsWith(ASSETS_PREFIX)) {
             return;
         }
         final String relative = entryName.substring(ASSETS_PREFIX.length());
@@ -164,7 +187,7 @@ public final class RawPackAliases {
         if (path.isEmpty() || isIgnored(path)) {
             return;
         }
-        if (isLegal(namespace) && isLegal(path)) {
+        if (!force && isLegal(namespace) && isLegal(path)) {
             return;
         }
         final String safeNamespace = sanitize(namespace);

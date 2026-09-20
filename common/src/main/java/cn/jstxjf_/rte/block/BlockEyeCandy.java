@@ -411,8 +411,7 @@ public class BlockEyeCandy extends BlockExtension implements BlockWithEntity, Di
         public Map<String, ConfigResponder> getCustomResponders() { return customResponders; }
         public String getCustomConfig(String key) { return customConfigs.get(key); }
         public void registerCustomConfig(ConfigResponder responder) {
-            responder.init(customConfigs);
-            customResponders.put(responder.key(), responder);
+            ConfigResponder.registerInto(customConfigs, customResponders, responder);
         }
         public void removeCustomConfig(String key) { customConfigs.remove(key); customResponders.remove(key); }
         public void putCustomConfig(String key, String value) { customConfigs.put(key, value); }

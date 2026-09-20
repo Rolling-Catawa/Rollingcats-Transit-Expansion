@@ -1,0 +1,1 @@
+package cn.jstxjf_.rte.data; public interface RailExtraSupplier {int getOpeningDirection();int getOpeningDirectionRaw();}

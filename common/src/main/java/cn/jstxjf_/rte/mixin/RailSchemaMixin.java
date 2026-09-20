@@ -74,6 +74,14 @@ public abstract class RailSchemaMixin {
         });
         reader.unpackInt("rte_opening_direction", self::setOpeningDirectionRaw);
         reader.unpackDouble("rte_rolling_offset", value -> self.setRollingOffset((float) value));
+        reader.unpackDouble("rte_node_x_offset_1", self::setNodeXOffset1);
+        reader.unpackDouble("rte_node_y_offset_1", self::setNodeYOffset1);
+        reader.unpackDouble("rte_node_z_offset_1", self::setNodeZOffset1);
+        reader.unpackDouble("rte_node_x_offset_2", self::setNodeXOffset2);
+        reader.unpackDouble("rte_node_y_offset_2", self::setNodeYOffset2);
+        reader.unpackDouble("rte_node_z_offset_2", self::setNodeZOffset2);
+        reader.unpackDouble("rte_node_pitch_1", self::setNodePitch1);
+        reader.unpackDouble("rte_node_pitch_2", self::setNodePitch2);
         reader.unpackInt("rte_path_mode", self::setPathModeRaw);
         reader.unpackChild("rte_bezier", value -> self.setBezier(new BezierCurve(value)));
 
@@ -95,7 +103,12 @@ public abstract class RailSchemaMixin {
         final boolean bezierMode = RailExtraSupplier.usesBezierCurve(self.getPathMode());
 
         if (bezierMode && newBezier != null) {
-            RailAngleExtra.rebuildRailMathFromBezier((Rail)(Object)this, newBezier);
+            final Rail thisRail = (Rail)(Object)this;
+            RailAngleExtra.rebuildRailMathFromBezier(thisRail, newBezier);
+            if (thisRail.railMath.getLength() <= 1E-4) {
+                RailAngleExtra.ensureCarrierRailMath(thisRail, newBezier.getLength(),
+                        Double.isFinite(a1[0]) ? a1[0] : 0);
+            }
             if (bezierChanged || pathModeChanged) {
                 rte$evictRender();
             }
@@ -176,6 +189,14 @@ public abstract class RailSchemaMixin {
         writer.writeString("rte_roll_angle_map", DoubleFloatMapSerializer.serializeToString(self.getRollAngleMap()));
         writer.writeInt("rte_opening_direction", self.getOpeningDirectionRaw());
         writer.writeDouble("rte_rolling_offset", self.getRollingOffset());
+        writer.writeDouble("rte_node_x_offset_1", self.getNodeXOffset1());
+        writer.writeDouble("rte_node_y_offset_1", self.getNodeYOffset1());
+        writer.writeDouble("rte_node_z_offset_1", self.getNodeZOffset1());
+        writer.writeDouble("rte_node_x_offset_2", self.getNodeXOffset2());
+        writer.writeDouble("rte_node_y_offset_2", self.getNodeYOffset2());
+        writer.writeDouble("rte_node_z_offset_2", self.getNodeZOffset2());
+        writer.writeDouble("rte_node_pitch_1", self.getNodePitch1());
+        writer.writeDouble("rte_node_pitch_2", self.getNodePitch2());
         writer.writeInt("rte_path_mode", self.getPathMode());
         BezierCurve bezier = self.getBezierCurve();
         if (bezier != null) {

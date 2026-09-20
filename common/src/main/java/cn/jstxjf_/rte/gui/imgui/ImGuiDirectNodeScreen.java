@@ -62,12 +62,11 @@ public class ImGuiDirectNodeScreen extends net.minecraft.client.gui.screens.Scre
         step(0.1f); ImGui.sameLine(); step(1f); ImGui.sameLine(); step(22.5f);
 
         if (ImGui.button(t("gui.rte.imgui.snap_45") + "###snap45")) {
-            applyAngle(Math.round(entity.getAngleDegrees() / 45.0) * 45f);
+            applyAngle(bound ? Math.round(entity.getAngleDegrees() / 45.0) * 45f : 0);
         }
         ImGui.sameLine();
         if (bound && ImGui.button(t("gui.rte.direct_node.unbind_button") + "###unbind")) {
             entity.unbind();
-            entity.sendUpdateC2S();
         }
         if (entity.isFittingNode()) {
             ImGui.sameLine();
@@ -75,6 +74,32 @@ public class ImGuiDirectNodeScreen extends net.minecraft.client.gui.screens.Scre
                 entity.setFittingNode(false);
                 entity.sendUpdateC2S();
             }
+        }
+
+        ImGui.separator();
+        drawOffsetAxis('x', "gui.rte.direct_node.x_offset", entity.getXOffset());
+        drawOffsetAxis('y', "gui.rte.direct_node.y_offset", entity.getYOffset());
+        drawOffsetAxis('z', "gui.rte.direct_node.z_offset", entity.getZOffset());
+        if (ImGui.button(t("gui.rte.direct_node.reset_position") + "###reset_position")) {
+            entity.setOffsetsLocal(0, 0, 0);
+            dirty = true;
+        }
+
+        ImGui.separator();
+        ImGui.text(String.format(Locale.ROOT, "%s: %+.3f°",
+                t("gui.rte.direct_node.pitch"), entity.getPitchDegrees()));
+        final float[] pitchSlider = {(float) entity.getPitchDegrees()};
+        if (ImGui.sliderFloat("##node_pitch_slider", pitchSlider, -180f, 180f, "%+.2f°")) {
+            applyPitch(pitchSlider[0]);
+        }
+        final float[] pitchInput = {(float) entity.getPitchDegrees()};
+        if (ImGui.dragFloat("##node_pitch", pitchInput, 0.05f, -180f, 180f, "%+.3f°")) {
+            applyPitch(pitchInput[0]);
+        }
+        pitchStep(-90f); ImGui.sameLine(); pitchStep(-15f); ImGui.sameLine(); pitchStep(-1f); ImGui.sameLine();
+        pitchStep(1f); ImGui.sameLine(); pitchStep(15f); ImGui.sameLine(); pitchStep(90f);
+        if (ImGui.button(t("gui.rte.direct_node.reset_pitch") + "###reset_pitch")) {
+            applyPitch(0);
         }
 
         ImGui.separator();
@@ -86,8 +111,8 @@ public class ImGuiDirectNodeScreen extends net.minecraft.client.gui.screens.Scre
     }
 
     private void step(float delta) {
-        if (ImGui.button(String.format(Locale.ROOT, "%+.1f###step_%s", delta, String.valueOf(delta)).replace("+22.5", "+22.5°").replace("-22.5", "-22.5°"))) {
-            applyAngle((float) (entity.getAngleDegrees() + delta));
+        if (ImGui.button(String.format(Locale.ROOT, "%+.1f°###step_%s", delta, String.valueOf(delta)))) {
+            applyAngle((float) ((entity.isBound() ? entity.getAngleDegrees() : 0) + delta));
         }
     }
 
@@ -96,15 +121,54 @@ public class ImGuiDirectNodeScreen extends net.minecraft.client.gui.screens.Scre
         if (normalized < 0) {
             normalized += 360;
         }
-        entity.bind(normalized);
+        entity.setAngleLocal(normalized);
         dirty = true;
-        if (onAngleChanged != null) {
-            onAngleChanged.run();
+    }
+
+    private void drawOffsetAxis(char axis, String translationKey, double value) {
+        ImGui.text(String.format(Locale.ROOT, "%s: %+.3f m", t(translationKey), value));
+        final float[] slider = {(float) value};
+        if (ImGui.sliderFloat("##node_" + axis + "_offset_slider", slider, -8f, 8f, "%+.2f m")) {
+            applyOffset(axis, slider[0]);
         }
+        final float[] input = {(float) value};
+        if (ImGui.dragFloat("##node_" + axis + "_offset", input, 0.01f, -64f, 64f, "%+.3f m")) {
+            applyOffset(axis, input[0]);
+        }
+        offsetStep(axis, -1f); ImGui.sameLine(); offsetStep(axis, -0.1f); ImGui.sameLine();
+        offsetStep(axis, 0.1f); ImGui.sameLine(); offsetStep(axis, 1f);
+    }
+
+    private void offsetStep(char axis, float delta) {
+        if (ImGui.button(String.format(Locale.ROOT, "%+.1f m###%sstep_%s", delta, axis, delta))) {
+            final double value = axis == 'x' ? entity.getXOffset() : axis == 'y' ? entity.getYOffset() : entity.getZOffset();
+            applyOffset(axis, (float) (value + delta));
+        }
+    }
+
+    private void applyOffset(char axis, float value) {
+        if (axis == 'x') entity.setXOffsetLocal(value);
+        else if (axis == 'y') entity.setYOffsetLocal(value);
+        else entity.setZOffsetLocal(value);
+        dirty = true;
+    }
+
+    private void pitchStep(float delta) {
+        if (ImGui.button(String.format(Locale.ROOT, "%+.0f°###pitch_step_%s", delta, delta))) {
+            applyPitch((float) (entity.getPitchDegrees() + delta));
+        }
+    }
+
+    private void applyPitch(float value) {
+        entity.setPitchLocal(value);
+        dirty = true;
     }
 
     private void flushIfReleased() {
         if (dirty && !ImGui.isAnyItemActive()) {
+            if (onAngleChanged != null) {
+                onAngleChanged.run();
+            }
             entity.sendUpdateC2S();
             dirty = false;
         }
@@ -120,6 +184,9 @@ public class ImGuiDirectNodeScreen extends net.minecraft.client.gui.screens.Scre
             return;
         }
         if (dirty) {
+            if (onAngleChanged != null) {
+                onAngleChanged.run();
+            }
             entity.sendUpdateC2S();
             dirty = false;
         }

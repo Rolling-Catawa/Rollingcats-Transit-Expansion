@@ -1,7 +1,6 @@
 package cn.jstxjf_.rte.item;
 
 import cn.jstxjf_.rte.data.RailExtraSupplier;
-import cn.jstxjf_.rte.gui.RoutePathCreatorScreen;
 import cn.jstxjf_.rte.network.PacketUpdateHoldingItem;
 import org.mtr.core.data.PathData;
 import org.mtr.core.data.Platform;
@@ -145,7 +144,7 @@ public class RoutePathCreator extends ItemExtension {
             return;
         }
 
-        RoutePathCreatorScreen.open(hand == Hand.MAIN_HAND);
+        ClientHandler.openScreen(hand == Hand.MAIN_HAND);
     }
 
     @Override
@@ -432,5 +431,13 @@ public class RoutePathCreator extends ItemExtension {
             pathData.getOrderedPosition1(),
             pathData.getOrderedPosition2()
         );
+    }
+
+    /** Avoid linking the GUI screen while this item is registered on a dedicated server. */
+    private static final class ClientHandler {
+
+        private static void openScreen(boolean mainHand) {
+            cn.jstxjf_.rte.gui.RoutePathCreatorScreen.open(mainHand);
+        }
     }
 }

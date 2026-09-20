@@ -16,6 +16,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(value = DynamicVehicleModel.class, remap = false)
 public class DynamicVehicleModelMixin {
+    @org.spongepowered.asm.mixin.Shadow
+    private org.mtr.mod.resource.ModelProperties modelProperties;
 
     @Inject(method = "render(Lorg/mtr/mod/render/StoredMatrixTransformations;Lorg/mtr/mod/data/VehicleExtension;I[IILorg/mtr/libraries/it/unimi/dsi/fastutil/objects/ObjectArrayList;Z)V", at = @At("HEAD"), cancellable = true)
     private void rte$renderCustomTrain(
@@ -31,6 +33,8 @@ public class DynamicVehicleModelMixin {
         if (fromResourcePackCreator || vehicle == null) {
             return;
         }
+        cn.jstxjf_.rte.util.LegacyVisualDoorAdapter.prepare(
+            modelProperties, vehicle, carNumber, (ObjectArrayList) openDoorways);
         if (RenderUtil.shouldSkipRenderTrain(vehicle)) {
             ci.cancel();
             return;

@@ -116,7 +116,30 @@ public class GraphicsTexture implements Closeable {
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         graphics.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         LIVE.add(this);
+        final cn.jstxjf_.rte.scripting.AbstractScriptContext owner = cn.jstxjf_.rte.scripting.ScriptHolderBase.currentContext();
+        if (owner != null) {
+            owner.rte$own(this::releaseIfIdle);
+        }
         enforceLiveLimit();
+    }
+
+    private static final long OWNED_RELEASE_DELAY_MILLIS = 5000;
+    private static final long OWNER_GONE_IDLE_MILLIS = 15000;
+
+    private void releaseIfIdle() {
+        if (isClosed) {
+            return;
+        }
+        final long markedAt = System.currentTimeMillis();
+        executor.schedule(() -> {
+            if (!isClosed && lastUploadMillis <= markedAt) {
+                close(0);
+            }
+        }, OWNER_GONE_IDLE_MILLIS, TimeUnit.MILLISECONDS);
+    }
+
+    public static void releaseOwnedLater(cn.jstxjf_.rte.scripting.AbstractScriptContext context) {
+        executor.schedule(context::rte$releaseOwned, OWNED_RELEASE_DELAY_MILLIS, TimeUnit.MILLISECONDS);
     }
 
     private static final long EVICT_LOG_INTERVAL_MILLIS = 10000;

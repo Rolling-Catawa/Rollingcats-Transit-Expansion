@@ -44,6 +44,11 @@ public abstract class ScriptHolderBase {
         new java.util.concurrent.atomic.AtomicBoolean();
     private static final long RTE_STALL_NANOS = 10_000_000_000L;
     private static final ThreadLocal<String> RTE_CURRENT_SCRIPT = new ThreadLocal<>();
+    private static final ThreadLocal<AbstractScriptContext> RTE_CURRENT_CONTEXT = new ThreadLocal<>();
+
+    public static AbstractScriptContext currentContext() {
+        return RTE_CURRENT_CONTEXT.get();
+    }
 
     public static String currentScriptName() {
         final String current = RTE_CURRENT_SCRIPT.get();
@@ -456,6 +461,7 @@ public abstract class ScriptHolderBase {
         rte$hangReported = false;
         long start = System.nanoTime();
         RTE_CURRENT_SCRIPT.set(name);
+        RTE_CURRENT_CONTEXT.set(scriptCtx);
         try {
             if ("client".equals(side)) {
                 ClientDataCompat.ensureFresh();
@@ -487,6 +493,7 @@ public abstract class ScriptHolderBase {
             RTE_EXEC_NANOS.addAndGet(scriptCtx.lastExecuteDuration);
             rte$runningThread = null;
             RTE_CURRENT_SCRIPT.remove();
+            RTE_CURRENT_CONTEXT.remove();
             rte$drainNext();
         }
     }
@@ -579,8 +586,10 @@ public abstract class ScriptHolderBase {
     }
 
     public void tryCallFunctionAsync(String function, AbstractScriptContext scriptCtx, Runnable callback, Object... args) {
-        RTE_ACTIVE_CONTEXTS.add(scriptCtx);
-        rte$reportThroughput();
+        if (cn.jstxjf_.rte.ClientConfig.enableRenderDiagnostics) {
+            RTE_ACTIVE_CONTEXTS.add(scriptCtx);
+            rte$reportThroughput();
+        }
         if (!(scriptCtx.scriptStatus == null || scriptCtx.scriptStatus.isDone())) {
             RTE_BUSY_SKIPPED.incrementAndGet();
             return;
@@ -619,8 +628,12 @@ public abstract class ScriptHolderBase {
     }
 
     public void tryCallDisposeFunctionAsync(AbstractScriptContext scriptCtx) {
-        tryCallFunctionAsync("dispose", scriptCtx, () -> scriptCtx.created = false, false);
+        tryCallFunctionAsync("dispose", scriptCtx, () -> {
+            scriptCtx.created = false;
+            scriptCtx.rte$releaseOwned();
+        }, false);
         scriptCtx.disposed = true;
+        cn.jstxjf_.rte.scripting.util.client.GraphicsTexture.releaseOwnedLater(scriptCtx);
     }
 
     public void tryCallUseFunctionAsync(AbstractScriptContext scriptCtx, Player player) {

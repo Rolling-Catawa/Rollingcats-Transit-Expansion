@@ -19,6 +19,24 @@ public abstract class AbstractScriptContext {
 
     public final java.util.Map<String, ScriptUseBox> useBoxes = new java.util.concurrent.ConcurrentHashMap<>();
 
+    private final java.util.Set<AutoCloseable> rte$ownedResources = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public void rte$own(AutoCloseable resource) {
+        if (resource != null) {
+            rte$ownedResources.add(resource);
+        }
+    }
+
+    public void rte$releaseOwned() {
+        for (final AutoCloseable resource : new ArrayList<>(rte$ownedResources)) {
+            try {
+                resource.close();
+            } catch (Exception ignored) {
+            }
+        }
+        rte$ownedResources.clear();
+    }
+
     public void addUseBox(String id, double x1, double y1, double z1, double x2, double y2, double z2) {
         addUseBox(id, 0, x1, y1, z1, x2, y2, z2);
     }

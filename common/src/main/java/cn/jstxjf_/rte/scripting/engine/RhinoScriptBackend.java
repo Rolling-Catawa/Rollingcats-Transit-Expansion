@@ -16,8 +16,10 @@ public class RhinoScriptBackend implements ScriptBackend {
     private final ContextFactory contextFactory;
     private final ScriptableObject scope;
 
+    private static final java.util.Set<String> RHINO_TOP_PACKAGES = java.util.Set.of("java", "javax", "org", "com", "edu", "net", "android");
+
     public RhinoScriptBackend(Predicate<String> classFilter) {
-        final Predicate<String> shutterFilter = className ->
+        final Predicate<String> shutterFilter = className -> !RHINO_TOP_PACKAGES.contains(className) && (
             classFilter.test(className)
                 || className.startsWith("cn.jstxjf_.rte.")
                 || className.startsWith("org.mtr.")
@@ -28,7 +30,7 @@ public class RhinoScriptBackend implements ScriptBackend {
                 || className.startsWith("sun.java2d.")
                 || className.startsWith("sun.awt.")
                 || className.startsWith("sun.font.")
-                || className.startsWith("javax.imageio.");
+                || className.startsWith("javax.imageio."));
         contextFactory = new ContextFactory() {
             @Override
             protected Context makeContext() {

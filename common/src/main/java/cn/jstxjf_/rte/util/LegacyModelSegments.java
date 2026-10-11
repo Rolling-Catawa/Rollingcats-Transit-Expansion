@@ -9,12 +9,14 @@ import java.util.ArrayDeque;
 public final class LegacyModelSegments {
 
     private static final ThreadLocal<State> STATE = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> OBJ_CAR = new ThreadLocal<>();
 
     private LegacyModelSegments() {
     }
 
     public static void begin(String model, int currentCar, int totalCars) {
         STATE.remove();
+        OBJ_CAR.set(model != null && model.toLowerCase(java.util.Locale.ROOT).contains(".obj"));
         if (model == null || model.indexOf('|') < 0) {
             return;
         }
@@ -37,6 +39,11 @@ public final class LegacyModelSegments {
 
     public static void end() {
         STATE.remove();
+        OBJ_CAR.remove();
+    }
+
+    public static boolean isObjCar() {
+        return Boolean.TRUE.equals(OBJ_CAR.get());
     }
 
     public static JsonObject nextPositionDefinitions(JsonObject positionDefinitionsObject) {

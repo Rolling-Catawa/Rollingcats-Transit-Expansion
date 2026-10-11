@@ -16,10 +16,12 @@ public class RhinoScriptBackend implements ScriptBackend {
     private final ContextFactory contextFactory;
     private final ScriptableObject scope;
 
-    private static final java.util.Set<String> RHINO_TOP_PACKAGES = java.util.Set.of("java", "javax", "org", "com", "edu", "net", "android");
+    private static boolean isObfuscatedDefaultPackageName(String className) {
+        return className.indexOf('.') < 0 && !className.isEmpty() && Character.isLowerCase(className.charAt(0));
+    }
 
     public RhinoScriptBackend(Predicate<String> classFilter) {
-        final Predicate<String> shutterFilter = className -> !RHINO_TOP_PACKAGES.contains(className) && (
+        final Predicate<String> shutterFilter = className -> !isObfuscatedDefaultPackageName(className) && (
             classFilter.test(className)
                 || className.startsWith("cn.jstxjf_.rte.")
                 || className.startsWith("org.mtr.")

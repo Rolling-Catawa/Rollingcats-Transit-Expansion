@@ -13,14 +13,14 @@ public class MinecraftAttackGuardMixin {
 
     @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
     private void rte$blockStartAttack(CallbackInfoReturnable<Boolean> cir) {
-        if (DepotRailMarking.isActive()) {
+        if (DepotRailMarking.isActive() || cn.jstxjf_.rte.render.FreeNodeEditor.suppressesAttack()) {
             cir.setReturnValue(false);
         }
     }
 
     @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
     private void rte$blockContinueAttack(boolean breaking, CallbackInfo ci) {
-        if (DepotRailMarking.isActive()) {
+        if (DepotRailMarking.isActive() || cn.jstxjf_.rte.render.FreeNodeEditor.suppressesAttack()) {
             ci.cancel();
         }
     }

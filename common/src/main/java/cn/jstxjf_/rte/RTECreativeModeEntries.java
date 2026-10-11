@@ -13,15 +13,11 @@ public final class RTECreativeModeEntries {
     private static final String[] TOOLS_AND_UTILITIES_ITEM_IDS = {
         "direct_node",
         "free_node",
-        "bridge_creator_1",
-        "bridge_creator_2",
-        "bridge_creator_3",
         "compound_creator",
         "displacement_tool",
         "rail_path_editor",
         "route_path_creator",
-        "eye_candy",
-        "statistic_turnstile"
+        "eye_candy"
     };
 
     private RTECreativeModeEntries() {

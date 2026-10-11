@@ -41,7 +41,7 @@ public class RTEClient {
     public static final RailRenderDispatcher railRenderDispatcher = new RailRenderDispatcher();
     private static boolean renderersRegistered;
     private static boolean itemPredicatesRegistered;
-    private static boolean lifecycleEventsRegistered;
+    private static boolean wasConnected;
     private static boolean graphicsCapabilitiesLogged;
     private static boolean resourcesLoaded;
     private static boolean workbenchAutoloadPending;
@@ -62,32 +62,19 @@ public class RTEClient {
         }
         if (!itemPredicatesRegistered) {
             final Identifier selectedPredicate = new Identifier("mtr", "selected");
-            InitClient.REGISTRY_CLIENT.registerItemModelPredicate(RTEItems.BRIDGE_CREATOR_1, selectedPredicate,
-                (itemStack, clientWorld, livingEntity) -> itemStack.getOrCreateTag().contains(ItemBlockClickingBase.TAG_POS) ? 1 : 0);
-            InitClient.REGISTRY_CLIENT.registerItemModelPredicate(RTEItems.BRIDGE_CREATOR_2, selectedPredicate,
-                (itemStack, clientWorld, livingEntity) -> itemStack.getOrCreateTag().contains(ItemBlockClickingBase.TAG_POS) ? 1 : 0);
-            InitClient.REGISTRY_CLIENT.registerItemModelPredicate(RTEItems.BRIDGE_CREATOR_3, selectedPredicate,
-                (itemStack, clientWorld, livingEntity) -> itemStack.getOrCreateTag().contains(ItemBlockClickingBase.TAG_POS) ? 1 : 0);
             InitClient.REGISTRY_CLIENT.registerItemModelPredicate(RTEItems.COMPOUND_CREATOR, selectedPredicate,
                 (itemStack, clientWorld, livingEntity) -> itemStack.getOrCreateTag().contains(ItemBlockClickingBase.TAG_POS) ? 1 : 0);
             itemPredicatesRegistered = true;
-        }
-        if (!lifecycleEventsRegistered) {
-            InitClient.REGISTRY_CLIENT.eventRegistryClient.registerClientJoin(RTEClient::onClientJoin);
-            InitClient.REGISTRY_CLIENT.eventRegistryClient.registerClientDisconnect(RTEClient::onClientDisconnect);
-            InitClient.REGISTRY_CLIENT.eventRegistryClient.registerResourceReloadEvent(() -> {
-                final Minecraft client = getMinecraft();
-                if (client != null) {
-                    reloadResources(client.getResourceManager());
-                }
-            });
-            lifecycleEventsRegistered = true;
         }
         ClientConfig.load();
     }
 
     public static void tick() {
+        tickConnectionState();
+        cn.jstxjf_.rte.scripting.util.client.GraphicsTexture.flushPendingUploads();
         tickWelcomeMessage();
+        cn.jstxjf_.rte.render.FreeNodeEditor.tick();
+        cn.jstxjf_.rte.render.train.VehicleWarmup.tick();
         if (cn.jstxjf_.rte.render.RailChainHandles.isActive()
             && !cn.jstxjf_.rte.data.RailChainSelection.isManual()) {
             cn.jstxjf_.rte.render.RailChainHandles.exit();
@@ -96,15 +83,13 @@ public class RTEClient {
             && !(getMinecraft() != null && getMinecraft().screen instanceof cn.jstxjf_.rte.gui.imgui.ImGuiWorkspace.Panel)) {
             cn.jstxjf_.rte.gui.imgui.ImGuiWorkspace.closeAll();
         }
-        if (!resourcesLoaded) {
+        final Minecraft fallbackClient = getMinecraft();
+        if (!resourcesLoaded && fallbackClient != null && fallbackClient.level != null) {
             resourcesLoaded = true;
-            final Minecraft client = getMinecraft();
-            if (client != null) {
-                try {
-                    reloadResources(client.getResourceManager());
-                } catch (Exception e) {
-                    RTE.LOGGER.error("[RTE] Tick fallback resource load failed", e);
-                }
+            try {
+                reloadResources(fallbackClient.getResourceManager());
+            } catch (Exception e) {
+                RTE.LOGGER.error("[RTE] Tick fallback resource load failed", e);
             }
         }
 
@@ -222,6 +207,10 @@ public class RTEClient {
         reloadResources(resourceManager, false);
     }
 
+    public static void reloadResourcesAfterMtr(ResourceManager resourceManager) {
+        reloadResources(resourceManager, true);
+    }
+
     private static void reloadResources(ResourceManager resourceManager, boolean force) {
         if (resourcesReloading) {
             return;
@@ -236,6 +225,7 @@ public class RTEClient {
             return;
         }
         resourcesReloading = true;
+        RTE.LOGGER.info("[RTE] Reloading client resources ({} packs)", resourceManager.listPacks().count());
         cn.jstxjf_.rte.util.JcmCompat.reset();
         boolean completed = false;
         try {
@@ -265,16 +255,31 @@ public class RTEClient {
             }
             atlasManager.clear();
             modelManager.clear();
+            cn.jstxjf_.rte.gfxext.reuse.ModelPrefetcher.prefetch(resourceManager, modelManager, atlasManager);
             GlStateTracker.capture();
             try {
                 BlockEntityDirectNodeRenderer.initGLModel(resourceManager);
+                long phase = System.nanoTime();
                 cn.jstxjf_.rte.data.RailModelRegistry.reload(resourceManager);
                 railRenderDispatcher.clearRail();
+                final long rails = System.nanoTime() - phase;
+                phase = System.nanoTime();
                 cn.jstxjf_.rte.data.EyeCandyRegistry.reload(resourceManager);
+                final long eyeCandies = System.nanoTime() - phase;
+                phase = System.nanoTime();
                 ScriptResourceUtilClient.init(resourceManager);
+                final long scriptResources = System.nanoTime() - phase;
+                phase = System.nanoTime();
                 cn.jstxjf_.rte.data.ScriptedCustomTrains.init(resourceManager);
                 ScriptedTrainRenderers.clear();
+                final long trainScripts = System.nanoTime() - phase;
+                phase = System.nanoTime();
                 BuiltinTrainRenderers.reload(resourceManager);
+                RTE.LOGGER.info("[RTE] Reload phases: rails={} ms eyeCandies={} ms scriptResources={} ms trainScripts={} ms builtinTrains={} ms",
+                    rails / 1_000_000L, eyeCandies / 1_000_000L, scriptResources / 1_000_000L,
+                    trainScripts / 1_000_000L, (System.nanoTime() - phase) / 1_000_000L);
+                final int releasedRawModels = modelManager.releaseLoadedRawModels();
+                RTE.LOGGER.info("[RTE] Released {} cached raw models after reload", releasedRawModels);
             } finally {
                 GlStateTracker.restore();
             }
@@ -348,6 +353,20 @@ public class RTEClient {
         ScriptContextManager.disposeAllContexts();
         railRenderDispatcher.clearRail();
         cn.jstxjf_.rte.render.DashboardMapCache.flushAndClear();
+    }
+
+    private static void tickConnectionState() {
+        final Minecraft client = getMinecraft();
+        final boolean connected = client != null && client.getConnection() != null && client.level != null;
+        if (connected == wasConnected) {
+            return;
+        }
+        wasConnected = connected;
+        if (connected) {
+            onClientJoin();
+        } else {
+            onClientDisconnect();
+        }
     }
 
     private static void onClientJoin() {

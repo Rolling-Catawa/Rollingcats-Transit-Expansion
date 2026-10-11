@@ -371,24 +371,26 @@ public final class ScriptedTrainRenderers {
             trace(vehicleId, "no script holder");
             return;
         }
-        rte$probeDoor(vehicle, vehicleId);
-        rte$diagOnce(vehicleId, "RTE will render; engine=" + holder.engineType
-            + " functions=" + holder.functions.keySet()
-            + (holder.failException != null ? " parseOrRunFailure=" + holder.failException : " noFailureRecorded"));
-        try {
-            final org.mtr.core.data.VehicleCar c0 = vehicle.vehicleExtraData.immutableVehicleCars.get(0);
-            final StringBuilder lens = new StringBuilder();
-            for (final org.mtr.core.data.VehicleCar c : vehicle.vehicleExtraData.immutableVehicleCars) {
-                lens.append(String.format(java.util.Locale.ROOT, "%.2f ", c.getLength()));
+        if (ClientConfig.enableRenderDiagnostics) {
+            rte$probeDoor(vehicle, vehicleId);
+            rte$diagOnce(vehicleId, "RTE will render; engine=" + holder.engineType
+                + " functions=" + holder.functions.keySet()
+                + (holder.failException != null ? " parseOrRunFailure=" + holder.failException : " noFailureRecorded"));
+            try {
+                final org.mtr.core.data.VehicleCar c0 = vehicle.vehicleExtraData.immutableVehicleCars.get(0);
+                final StringBuilder lens = new StringBuilder();
+                for (final org.mtr.core.data.VehicleCar c : vehicle.vehicleExtraData.immutableVehicleCars) {
+                    lens.append(String.format(java.util.Locale.ROOT, "%.2f ", c.getLength()));
+                }
+                trace(vehicleId, String.format(java.util.Locale.ROOT,
+                    "cars=%d car0Len=%.2f width=%.2f lens=[%s]",
+                    vehicle.vehicleExtraData.immutableVehicleCars.size(), c0.getLength(), c0.getWidth(), lens.toString().trim()));
+            } catch (Exception ignored) {
             }
-            trace(vehicleId, String.format(java.util.Locale.ROOT,
-                "cars=%d car0Len=%.2f width=%.2f lens=[%s]",
-                vehicle.vehicleExtraData.immutableVehicleCars.size(), c0.getLength(), c0.getWidth(), lens.toString().trim()));
-        } catch (Exception ignored) {
+            trace(vehicleId, "holder engine=" + holder.engineType
+                + " functions=" + holder.functions.keySet()
+                + (holder.failException != null ? " FAILED=" + holder.failException : ""));
         }
-        trace(vehicleId, "holder engine=" + holder.engineType
-            + " functions=" + holder.functions.keySet()
-            + (holder.failException != null ? " FAILED=" + holder.failException : ""));
 
         final CarFrameState carFrameState = CAR_FRAME_STATES.computeIfAbsent(getStateKey(vehicle.getId(), carIndex), ignored -> new CarFrameState());
         if (carFrameState.renderPass == currentRenderPass) {
@@ -396,7 +398,13 @@ public final class ScriptedTrainRenderers {
         }
         carFrameState.renderPass = currentRenderPass;
 
-        final TrainScriptContext context = CONTEXTS.computeIfAbsent(contextKey(vehicle.getId(), vehicleId), ignored -> new TrainScriptContext(vehicle));
+        final long scriptContextKey = contextKey(vehicle.getId(), vehicleId);
+        TrainScriptContext context = CONTEXTS.computeIfAbsent(scriptContextKey, ignored -> new TrainScriptContext(vehicle));
+        if (context.disposed) {
+            context.releaseResources();
+            context = new TrainScriptContext(vehicle);
+            CONTEXTS.put(scriptContextKey, context);
+        }
         context.rebind(vehicle);
         final PositionAndRotation positionAndRotation = frameState != null && frameState.absolutePositionAndRotation != null
             ? frameState.absolutePositionAndRotation
@@ -505,16 +513,20 @@ public final class ScriptedTrainRenderers {
                 if (context == null) {
                     return true;
                 }
-                try {
-                    if (context.isBearerAlive()) {
-                        context.rte$deadPasses = 0;
+                if (context.disposed) {
+                    if (context.scriptStatus != null && !context.scriptStatus.isDone()) {
                         return false;
                     }
-                } catch (Exception e) {
-                    return false;
-                }
-                if (++context.rte$deadPasses < 3) {
-                    return false;
+                } else {
+                    final boolean alive;
+                    try {
+                        alive = context.isBearerAlive();
+                    } catch (Exception e) {
+                        return false;
+                    }
+                    if (!context.rte$deadFor(cn.jstxjf_.rte.scripting.ScriptContextManager.DISPOSE_GRACE_NANOS * 2, alive, System.nanoTime())) {
+                        return false;
+                    }
                 }
                 try {
                     context.releaseResources();
@@ -540,17 +552,6 @@ public final class ScriptedTrainRenderers {
         pose.rotateY((float) (Math.PI + positionAndRotation.yaw));
         final boolean hasPitch = positionAndRotation.pitch < 0 ? vehicle.getTransportMode().hasPitchAscending : vehicle.getTransportMode().hasPitchDescending;
         pose.rotateX(hasPitch ? (float) positionAndRotation.pitch : 0);
-        double oscillationAmount = 0;
-        if (RenderUtil.bodyOscillationValid) {
-            oscillationAmount = RenderUtil.bodyOscillation;
-        } else {
-            try {
-                oscillationAmount = vehicle.persistentVehicleData.getOscillation(carIndex).getAmount()
-                    * org.mtr.mod.config.Config.getClient().getVehicleOscillationMultiplier();
-            } catch (Exception ignored) {
-            }
-        }
-        pose.rotateZ((float) -Math.toRadians(oscillationAmount));
         final float roll = TrainExtraSupplier.getRollAngleAt(vehicle, carIndex);
         final boolean reversed = ((TrainExtraSupplier) vehicle).getVehicleReversed();
         pose.translate(0, -1, 0);
@@ -696,7 +697,7 @@ public final class ScriptedTrainRenderers {
         }
     }
 
-    private static long rte$nextDoorTraceMillis = 0;
+    private static final java.util.Map<Long, Long> RTE_DOOR_TRACE_NEXT = new java.util.concurrent.ConcurrentHashMap<>();
     private static final java.util.Set<String> rte$tracedSpacing = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private static final java.util.Map<Long, String> rte$lastCarPos = new java.util.concurrent.ConcurrentHashMap<>();
@@ -751,13 +752,16 @@ public final class ScriptedTrainRenderers {
                                            float doorValue, DoorSideState state) {
         if (!cn.jstxjf_.rte.ClientConfig.traceDoorSides) return;
         final long now = System.currentTimeMillis();
-        if (now < rte$nextDoorTraceMillis) return;
-        rte$nextDoorTraceMillis = now + 1000;
+        final long traceKey = getStateKey(vehicle.getId(), carIndex);
+        final Long next = RTE_DOOR_TRACE_NEXT.get(traceKey);
+        if (next != null && now < next) return;
+        RTE_DOOR_TRACE_NEXT.put(traceKey, now + 1000);
         try {
             final int multiplier = vehicle.persistentVehicleData
                     .getAdjustedDoorMultiplier(vehicle.vehicleExtraData);
             cn.jstxjf_.rte.RTE.LOGGER.info(
-                    "[DoorSide] car={} doorValue={} scanLeft={} scanRight={} mtrMultiplier={} yaw={}",
+                    "[DoorSide] vehicle={} type={} car={} doorValue={} scanLeft={} scanRight={} mtrMultiplier={} yaw={}",
+                    vehicle.getId(), vehicle.vehicleExtraData.immutableVehicleCars.get(carIndex).getVehicleId(),
                     carIndex, doorValue, state.leftOpen, state.rightOpen,
                     multiplier, (float) positionAndRotation.yaw);
         } catch (Throwable ignored) {

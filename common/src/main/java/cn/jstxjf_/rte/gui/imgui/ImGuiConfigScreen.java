@@ -43,6 +43,8 @@ public class ImGuiConfigScreen extends ImGuiScreenBase {
 
         if (!ShadersModHandler.canDrawWithBuffer()) {
             ImGui.textColored(0.95f, 0.85f, 0.3f, 1f, t("gui.rte.config.client.shaderactive"));
+        } else if (ShadersModHandler.isShaderPackGpuPathActive()) {
+            ImGui.textColored(0.5f, 0.85f, 0.5f, 1f, t("gui.rte.config.client.shaderactive_gpu"));
         }
 
         if (ImGui.checkbox(t("gui.rte.config.client.rail3d") + "###cfg_rail3d", ClientConfig.enableRail3D)) {
@@ -82,9 +84,15 @@ public class ImGuiConfigScreen extends ImGuiScreenBase {
             client.execute(client::reloadResourcePacks);
         }
         ImGui.textDisabled(t("gui.rte.config.client.preloadbbmodel.description"));
+        dirty |= toggle("gui.rte.config.client.mesh_disk_cache", "cfg_mesh_disk_cache", ClientConfig.vehicleMeshDiskCache, v -> ClientConfig.vehicleMeshDiskCache = v);
+        ImGui.textDisabled(t("gui.rte.config.client.mesh_disk_cache.description"));
         dirty |= toggle("gui.rte.config.client.slider", "cfg_slider", ClientConfig.useEditBoxSetRailRolling, v -> ClientConfig.useEditBoxSetRailRolling = v);
         dirty |= toggle("gui.rte.config.client.renderdiag", "cfg_renderdiag", ClientConfig.enableRenderDiagnostics, v -> ClientConfig.enableRenderDiagnostics = v);
         dirty |= toggle("gui.rte.config.client.gpu_translucent", "cfg_gpu_translucent", ClientConfig.gpuTranslucentRendering, v -> ClientConfig.gpuTranslucentRendering = v);
+        dirty |= toggle("gui.rte.config.client.shaderpack_gpu", "cfg_shaderpack_gpu", ClientConfig.shaderPackGpuRendering, v -> ClientConfig.shaderPackGpuRendering = v);
+        ImGui.textDisabled(t("gui.rte.config.client.shaderpack_gpu.description"));
+        dirty |= toggle("gui.rte.config.client.instanced_vehicle", "cfg_instanced_vehicle", ClientConfig.instancedVehicleRendering, v -> ClientConfig.instancedVehicleRendering = v);
+        ImGui.textDisabled(t("gui.rte.config.client.instanced_vehicle.description"));
 
         ImGui.separator();
         ImGui.text(t("gui.rte.config.client.category.misc"));

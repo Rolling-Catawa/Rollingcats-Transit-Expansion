@@ -651,7 +651,9 @@ public final class ResourceWorkbench {
 
     public static int textureGlId(String textureResource) {
         try {
-            final String normalized = textureResource.contains(":") ? textureResource : "minecraft:" + textureResource;
+            final String namespaced = textureResource.contains(":") ? textureResource : "minecraft:" + textureResource;
+            final String fileName = namespaced.substring(namespaced.lastIndexOf('/') + 1);
+            final String normalized = fileName.contains(".") ? namespaced : namespaced + ".png";
             final net.minecraft.client.renderer.texture.AbstractTexture texture =
                 Minecraft.getInstance().getTextureManager().getTexture(new ResourceLocation(normalized));
             return texture == null ? -1 : texture.getId();

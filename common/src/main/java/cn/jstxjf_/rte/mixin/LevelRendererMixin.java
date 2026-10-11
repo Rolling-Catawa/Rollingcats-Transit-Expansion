@@ -30,7 +30,19 @@ public class LevelRendererMixin {
 
     @Inject(method = "renderLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/LevelRenderer;renderChunkLayer(Lnet/minecraft/client/renderer/RenderType;Lcom/mojang/blaze3d/vertex/PoseStack;DDDLorg/joml/Matrix4f;)V", ordinal = 2, shift = At.Shift.AFTER))
     private void afterRenderChunkLayer(PoseStack poseStack, float partialTick, long finishNanoTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture, org.joml.Matrix4f projectionMatrix, CallbackInfo ci) {
+        rte$worldDrawnEarly = false;
+        if (!cn.jstxjf_.rte.render.ShadersModHandler.isShaderPackGpuPathActive()) {
+            return;
+        }
+        final Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
+            return;
+        }
+        rte$drawWorldContent(client, poseStack, camera);
+        rte$worldDrawnEarly = true;
     }
+
+    private boolean rte$worldDrawnEarly;
 
     @Inject(method = "renderLevel", at = @At("TAIL"))
     private void renderLevelTail(PoseStack poseStack, float partialTick, long finishNanoTime, boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture, org.joml.Matrix4f projectionMatrix, CallbackInfo ci) {
@@ -38,9 +50,20 @@ public class LevelRendererMixin {
          Minecraft client = Minecraft.getInstance();
          if (client.level == null) return;
          MultiBufferSource.BufferSource bufferSource = client.renderBuffers().bufferSource();
+         net.minecraft.world.phys.Vec3 camPos3 = camera.getPosition();
+         if (!rte$worldDrawnEarly) {
+             rte$drawWorldContent(client, poseStack, camera);
+         }
+         rte$worldDrawnEarly = false;
+         rte$drawOverlays(client, poseStack, camera, bufferSource, camPos3);
+    }
+
+    private void rte$drawWorldContent(Minecraft client, PoseStack poseStack, Camera camera) {
+         MultiBufferSource.BufferSource bufferSource = client.renderBuffers().bufferSource();
 
          BlockEntityDirectNodeRenderer.exchange();
          BlockEntityEyeCandyRenderer.exchange();
+         cn.jstxjf_.rte.scripting.util.client.GraphicsTexture.flushPendingUploads();
 
          RenderUtil.commonVertexConsumers = bufferSource;
          RenderUtil.commonPoseStack = poseStack;
@@ -78,7 +101,6 @@ public class LevelRendererMixin {
                 poseStack.popPose();
             }
 
-            RTEClient.railRenderDispatcher.drawRailNodes(worldWrapper, RTEClient.drawScheduler, viewMatrix);
         }
 
         RTEClient.drawContext.drawWithBlaze = !ClientConfig.useRenderOptimization();
@@ -91,10 +113,17 @@ public class LevelRendererMixin {
         BlockEntityDirectNodeRenderer.commit(poseStack, bufferSource);
         BlockEntityEyeCandyRenderer.commit(poseStack, bufferSource);
 
+        poseStack.pushPose();
+        poseStack.translate(-camPos3.x, -camPos3.y, -camPos3.z);
+        cn.jstxjf_.rte.render.FreeNodeEditor.render(poseStack);
+        poseStack.popPose();
+
         vertexConsumersProxy = new BufferSourceProxy(bufferSource);
         RTEClient.drawScheduler.commit(vertexConsumersProxy, RTEClient.drawContext);
         vertexConsumersProxy.commit();
+    }
 
+    private void rte$drawOverlays(Minecraft client, PoseStack poseStack, Camera camera, MultiBufferSource.BufferSource bufferSource, net.minecraft.world.phys.Vec3 camPos3) {
         if (client.player != null && RailRenderDispatcher.isHoldingBrush) {
             RailPicker.pick();
             net.minecraft.world.phys.Vec3 camPos = camera.getPosition();
@@ -102,9 +131,17 @@ public class LevelRendererMixin {
             poseStack.translate(-camPos.x, -camPos.y, -camPos.z);
             RailPicker.render(poseStack, bufferSource);
             RailDistanceRenderer.render(poseStack, bufferSource);
+            cn.jstxjf_.rte.render.RailCollisionPreviewRenderer.render(poseStack, bufferSource);
             poseStack.popPose();
         } else {
             RailPicker.pickedRail = null;
+        }
+
+        if (client.getEntityRenderDispatcher().shouldRenderHitBoxes() && !client.showOnlyReducedInfo()) {
+            poseStack.pushPose();
+            poseStack.translate(-camPos3.x, -camPos3.y, -camPos3.z);
+            cn.jstxjf_.rte.render.RailCollisionPreviewRenderer.renderDebug(client.level, poseStack, bufferSource, camPos3);
+            poseStack.popPose();
         }
 
         if (cn.jstxjf_.rte.render.SliceGhostRenderer.isActive()) {

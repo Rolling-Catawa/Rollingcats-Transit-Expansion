@@ -163,12 +163,14 @@ public class ShaderManager {
             ShaderInstance shaderInstance = currentBatchShaderInstance != null ? currentBatchShaderInstance : RenderSystem.getShader();
             if (shaderInstance != null && shaderInstance.MODEL_VIEW_MATRIX != null) {
                 shaderInstance.MODEL_VIEW_MATRIX.set(RenderSystem.getModelViewMatrix());
-                if (ShadersModHandler.canUseCustomShader()) {
-                    shaderInstance.MODEL_VIEW_MATRIX.upload();
-                } else {
-                    shaderInstance.apply();
-                }
+                shaderInstance.apply();
             }
+            if (shaderInstance != null) {
+                shaderInstance.clear();
+            }
+            materialProp.getBlazeRenderType().clearRenderState();
+            currentBatchShaderInstance = null;
+            currentBatchCameraMatrix = null;
         }
     }
 

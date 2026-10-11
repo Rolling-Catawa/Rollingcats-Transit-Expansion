@@ -41,6 +41,8 @@ public abstract class ImGuiScreenBase extends Screen implements ImGuiWorkspace.P
             super.render(graphics, mouseX, mouseY, partialTick);
             return;
         }
+        graphics.fill(0, 0, width, height, minecraft.level == null ? 0xFF101318 : 0x90000000);
+        graphics.flush();
         RteImGuiHost.beginFrame();
         ImGuiWorkspace.drawAll();
         RteImGuiHost.endFrame();

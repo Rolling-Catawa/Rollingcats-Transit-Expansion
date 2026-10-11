@@ -13,6 +13,7 @@ public class RTEPackets {
         Init.REGISTRY.registerPacket(PacketRoutePathColors.class, PacketRoutePathColors::new);
         Init.REGISTRY.registerPacket(PacketOpenCompoundCreator.class, PacketOpenCompoundCreator::new);
         Init.REGISTRY.registerPacket(PacketUpdateBlockEntity.class, PacketUpdateBlockEntity::new);
+        Init.REGISTRY.registerPacket(PacketFreeNodeAction.class, PacketFreeNodeAction::new);
         Init.REGISTRY.registerPacket(PacketUpdateHoldingItem.class, PacketUpdateHoldingItem::new);
         Init.REGISTRY.registerPacket(PacketUpdateTrainCustomConfigs.class, PacketUpdateTrainCustomConfigs::new);
         Init.REGISTRY.registerPacket(PacketReplaceRailNode.class, PacketReplaceRailNode::new);
@@ -29,7 +30,7 @@ public class RTEPackets {
         Init.REGISTRY.registerPacket(PacketVehiclePath.class, PacketVehiclePath::new);
         Init.REGISTRY.registerPacket(PacketRequestAllRails.class, PacketRequestAllRails::new);
         Init.REGISTRY.registerPacket(PacketAllRails.class, PacketAllRails::new);
-        Init.REGISTRY.eventRegistry.registerPlayerJoin((minecraftServer, serverPlayerEntity) -> PacketVersionCheck.sendVersionCheckS2C(serverPlayerEntity));
+        cn.jstxjf_.rte.RTE.REGISTRY.eventRegistry.registerPlayerJoin((minecraftServer, serverPlayerEntity) -> PacketVersionCheck.sendVersionCheckS2C(serverPlayerEntity));
     }
     
     public static void sendOpenCompoundCreatorScreen(ServerPlayerEntity player, Hand hand) {

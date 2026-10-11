@@ -177,6 +177,18 @@ public final class RailCompat {
         return !synthetic && data.closeTo(position, radius);
     }
 
+    public boolean setCollisionColumns(String columns) {
+        return !synthetic && RailCollisionScriptApi.setColumns(this, columns);
+    }
+
+    public boolean setCollisionLayout(String layout) {
+        return !synthetic && RailCollisionScriptApi.setLayout(this, layout);
+    }
+
+    public boolean clearCollisionLayout() {
+        return !synthetic && RailCollisionScriptApi.clearLayout(this);
+    }
+
     @Override
     public String toString() {
         return synthetic ? "SyntheticRail" : data.toString();

@@ -8,6 +8,7 @@ import cn.jstxjf_.rte.gui.RailPathEditorScreen;
 import cn.jstxjf_.rte.network.PacketReplaceRailNode;
 import cn.jstxjf_.rte.network.PacketUpdateRail;
 import cn.jstxjf_.rte.util.RailBrushHelper;
+import cn.jstxjf_.rte.util.RailCollisionManager;
 import cn.jstxjf_.rte.util.RailRebuildHelper;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
@@ -42,6 +43,13 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
     private final ImString railType = new ImString(64);
     private final ImFloat verticalCurveRadius = new ImFloat(0);
     private final ImInt speedLimitKph = new ImInt(0);
+    private final ImFloat collisionWidth = new ImFloat(3F);
+    private final ImFloat collisionHeight = new ImFloat(0.25F);
+    private final ImFloat collisionLength = new ImFloat(0.75F);
+    private final ImFloat collisionSpacing = new ImFloat(0.5F);
+    private final ImFloat collisionYOffset = new ImFloat(-0.25F);
+    private final ImFloat collisionSideOffset = new ImFloat(0F);
+    private final ImString collisionColumns = new ImString(256);
     private final java.util.List<float[]> rollNodes = new java.util.ArrayList<>();
     private final float[] rollOffset = new float[1];
     private int rollSelected = -1;
@@ -59,6 +67,13 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         railType.set(brushTag.contains("RailType") ? brushTag.getString("RailType") : RailRebuildHelper.getStoredOrInferredRailTypeName(pickedRail));
         verticalCurveRadius.set(brushTag.contains("VerticalCurveRadius") ? brushTag.getFloat("VerticalCurveRadius") : (railExtra != null ? railExtra.getVerticalCurveRadius() : 0f));
         speedLimitKph.set(brushTag.contains("SpeedLimitKph") ? brushTag.getInt("SpeedLimitKph") : RailRebuildHelper.getStoredOrCurrentSpeedLimitKph(pickedRail));
+        collisionWidth.set(brushTag.contains("CollisionWidth") ? brushTag.getFloat("CollisionWidth") : railExtra != null ? railExtra.getCollisionWidth() : 3F);
+        collisionHeight.set(brushTag.contains("CollisionHeight") ? brushTag.getFloat("CollisionHeight") : railExtra != null ? railExtra.getCollisionHeight() : 0.25F);
+        collisionLength.set(brushTag.contains("CollisionLength") ? brushTag.getFloat("CollisionLength") : railExtra != null ? railExtra.getCollisionLength() : 0.75F);
+        collisionSpacing.set(brushTag.contains("CollisionSpacing") ? brushTag.getFloat("CollisionSpacing") : railExtra != null ? railExtra.getCollisionSpacing() : 0.5F);
+        collisionYOffset.set(brushTag.contains("CollisionYOffset") ? brushTag.getFloat("CollisionYOffset") : railExtra != null ? railExtra.getCollisionYOffset() : -0.25F);
+        collisionSideOffset.set(brushTag.contains("CollisionSideOffset") ? brushTag.getFloat("CollisionSideOffset") : railExtra != null ? railExtra.getCollisionSideOffset() : 0F);
+        collisionColumns.set(brushTag.contains("CollisionColumns") ? brushTag.getString("CollisionColumns") : RailCollisionManager.getColumns(railExtra));
     }
 
     private static CompoundTag brushTag() {
@@ -107,8 +122,10 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         ImGui.sameLine();
         if (ImGui.button(t("gui.rte.brush_edit_rail.clear_brush") + "###brush_clear")) {
             RailBrushHelper.updateBrushTag(tag -> {
-                for (final String key : new String[]{"ModelKey", "VerticalCurveRadius", "RollAngleMap",
-                    "RollingOffset", "RailType", "SpeedLimitKph", "OpeningDirection", "RenderReversed"}) {
+                for (final String key : new String[]{"ModelKey", "ModelKeys", "VerticalCurveRadius", "RollAngleMap",
+                    "RollingOffset", "RailType", "SpeedLimitKph", "OpeningDirection", "RenderReversed",
+                    "CollisionEnabled", "CollisionWidth", "CollisionHeight", "CollisionLength", "CollisionSpacing",
+                    "CollisionYOffset", "CollisionSideOffset", "CollisionColumns"}) {
                     tag.remove(key);
                 }
             });
@@ -241,16 +258,24 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
             }
         }
 
-        final boolean modelKeyEnabled = brushTag.contains("ModelKey");
+        final boolean modelKeyEnabled = brushTag.contains("ModelKey") || brushTag.contains("ModelKeys");
         final String modelKey = normalizeModelKey(railExtra != null ? railExtra.getModelKey() : "");
         if (ImGui.checkbox(t("gui.rte.brush_edit_rail.enable_model_key") + "###brush_mk_toggle", modelKeyEnabled)) {
-            RailBrushHelper.updateBrushTag(tag -> {
-                if (!modelKeyEnabled) {
-                    tag.putString("ModelKey", modelKey);
-                } else {
-                    tag.remove("ModelKey");
+            if (!modelKeyEnabled) {
+                final java.util.List<String> railKeys = railExtra != null ? new java.util.ArrayList<>(railExtra.getModelKeys()) : new java.util.ArrayList<>();
+                if (railKeys.isEmpty() && !modelKey.isEmpty()) {
+                    railKeys.add(modelKey);
                 }
-            });
+                RailBrushHelper.updateBrushTag(tag -> {
+                    tag.putString("ModelKeys", RailBrushHelper.joinModelKeys(railKeys));
+                    tag.putString("ModelKey", railKeys.isEmpty() ? "" : railKeys.get(0));
+                });
+            } else {
+                RailBrushHelper.updateBrushTag(tag -> {
+                    tag.remove("ModelKey");
+                    tag.remove("ModelKeys");
+                });
+            }
         }
         if (modelKeyEnabled) {
             final java.util.List<String> stored = rte$brushModelKeys(brushTag);
@@ -322,6 +347,8 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
                 }
             }
 
+            drawCollisionEditor(brushTag);
+
             final boolean rollEnabled = brushTag.contains("RollAngleMap");
             if (ImGui.checkbox(t("gui.rte.brush_edit_rail.enable_roll_angle") + "###brush_ra_toggle", rollEnabled)) {
                 RailBrushHelper.updateBrushTag(tag -> {
@@ -366,6 +393,73 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         }
         ImGui.separator();
         ImGuiWidgets.drawResponders("brush_custom", customConfigs, responders);
+    }
+
+    private void drawCollisionEditor(CompoundTag brushTag) {
+        final boolean apply = brushTag.contains("CollisionEnabled");
+        if (ImGui.checkbox(t("gui.rte.brush_edit_rail.enable_collision") + "###brush_collision_apply", apply)) {
+            RailBrushHelper.updateBrushTag(tag -> {
+                if (apply) {
+                    for (final String key : new String[]{"CollisionEnabled", "CollisionWidth", "CollisionHeight",
+                        "CollisionLength", "CollisionSpacing", "CollisionYOffset", "CollisionSideOffset", "CollisionColumns"}) {
+                        tag.remove(key);
+                    }
+                } else {
+                    tag.putBoolean("CollisionEnabled", railExtra.isCollisionEnabled());
+                    tag.putFloat("CollisionWidth", collisionWidth.get());
+                    tag.putFloat("CollisionHeight", collisionHeight.get());
+                    tag.putFloat("CollisionLength", collisionLength.get());
+                    tag.putFloat("CollisionSpacing", collisionSpacing.get());
+                    tag.putFloat("CollisionYOffset", collisionYOffset.get());
+                    tag.putFloat("CollisionSideOffset", collisionSideOffset.get());
+                    tag.putString("CollisionColumns", collisionColumns.get());
+                }
+            });
+        }
+        if (!apply) {
+            return;
+        }
+
+        final boolean enabled = brushTag.getBoolean("CollisionEnabled");
+        if (ImGui.checkbox(t("gui.rte.brush_edit_rail.collision_enabled") + "###brush_collision_enabled", enabled)) {
+            RailBrushHelper.updateBrushTag(tag -> tag.putBoolean("CollisionEnabled", !enabled));
+        }
+        if (!enabled) {
+            return;
+        }
+
+        if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_width") + "###brush_collision_width", collisionWidth)) {
+            collisionWidth.set(clamp(collisionWidth.get(), 0.05F, 32F));
+            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionWidth", collisionWidth.get()));
+        }
+        if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_height") + "###brush_collision_height", collisionHeight)) {
+            collisionHeight.set(clamp(collisionHeight.get(), 0.05F, 16F));
+            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionHeight", collisionHeight.get()));
+        }
+        if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_length") + "###brush_collision_length", collisionLength)) {
+            collisionLength.set(clamp(collisionLength.get(), 0.05F, 16F));
+            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionLength", collisionLength.get()));
+        }
+        if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_spacing") + "###brush_collision_spacing", collisionSpacing)) {
+            collisionSpacing.set(clamp(collisionSpacing.get(), 0.05F, 16F));
+            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionSpacing", collisionSpacing.get()));
+        }
+        if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_y_offset") + "###brush_collision_y", collisionYOffset)) {
+            collisionYOffset.set(clamp(collisionYOffset.get(), -32F, 32F));
+            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionYOffset", collisionYOffset.get()));
+        }
+        if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_side_offset") + "###brush_collision_side", collisionSideOffset)) {
+            collisionSideOffset.set(clamp(collisionSideOffset.get(), -32F, 32F));
+            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionSideOffset", collisionSideOffset.get()));
+        }
+        if (ImGui.inputText(t("gui.rte.brush_edit_rail.collision_columns") + "###brush_collision_columns", collisionColumns)) {
+            RailBrushHelper.updateBrushTag(tag -> tag.putString("CollisionColumns", collisionColumns.get()));
+        }
+        ImGui.textDisabled(t("gui.rte.brush_edit_rail.collision_hint"));
+    }
+
+    private static float clamp(float value, float min, float max) {
+        return Float.isFinite(value) ? Math.max(min, Math.min(max, value)) : min;
     }
 
     private String[] verticalValueLines(float verticalRadius) {
@@ -614,16 +708,26 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         }
         RailBrushHelper.updateBrushTag(tag -> {
             try {
-                final String modelKey = source.getModelKey();
-                if (modelKey == null || modelKey.isEmpty()) {
+                final java.util.List<String> modelKeys = source.getModelKeys();
+                if (modelKeys.isEmpty()) {
                     tag.remove("ModelKey");
+                    tag.remove("ModelKeys");
                 } else {
-                    tag.putString("ModelKey", modelKey);
+                    tag.putString("ModelKey", modelKeys.get(0));
+                    tag.putString("ModelKeys", RailBrushHelper.joinModelKeys(modelKeys));
                 }
                 tag.putFloat("VerticalCurveRadius", source.getVerticalCurveRadius());
                 tag.putFloat("RollingOffset", source.getRollingOffset());
                 tag.putInt("OpeningDirection", source.getOpeningDirection());
                 tag.putInt("SpeedLimitKph", source.getSpeedLimitKph());
+                tag.putBoolean("CollisionEnabled", source.isCollisionEnabled());
+                tag.putFloat("CollisionWidth", source.getCollisionWidth());
+                tag.putFloat("CollisionHeight", source.getCollisionHeight());
+                tag.putFloat("CollisionLength", source.getCollisionLength());
+                tag.putFloat("CollisionSpacing", source.getCollisionSpacing());
+                tag.putFloat("CollisionYOffset", source.getCollisionYOffset());
+                tag.putFloat("CollisionSideOffset", source.getCollisionSideOffset());
+                tag.putString("CollisionColumns", RailCollisionManager.getColumns(source));
                 final String railType = source.getRailType();
                 if (railType == null || railType.isEmpty()) {
                     tag.remove("RailType");

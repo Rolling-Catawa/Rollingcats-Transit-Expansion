@@ -1,7 +1,7 @@
 package cn.jstxjf_.rte.block;
 
 import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.Block;
+import org.mtr.mapping.holder.BlockRenderType;
 import org.mtr.mapping.holder.BlockView;
 import org.mtr.mapping.holder.BlockState;
 import org.mtr.mapping.holder.Direction;
@@ -11,6 +11,7 @@ import org.mtr.mapping.holder.LivingEntity;
 import org.mtr.mapping.holder.ShapeContext;
 import org.mtr.mapping.holder.Vector3d;
 import org.mtr.mapping.holder.VoxelShape;
+import org.mtr.mapping.holder.VoxelShapes;
 import org.mtr.mapping.holder.World;
 import org.mtr.mapping.mapper.BlockEntityExtension;
 
@@ -19,15 +20,20 @@ public class BlockFreeNode extends BlockDirectNode {
     private static final ThreadLocal<PlacementData> PLACEMENT_DATA = new ThreadLocal<>();
 
     @Override
+    public BlockRenderType getRenderType2(BlockState state) {
+        return BlockRenderType.getEntityblockAnimatedMapped();
+    }
+
+    @Override
     public BlockState getPlacementState2(ItemPlacementContext context) {
         final BlockPos blockPos = context.getBlockPos();
         final Vector3d hitPos = context.getHitPos();
         final Direction side = context.getSide();
         PLACEMENT_DATA.set(new PlacementData(
                 hitPos.getXMapped() - blockPos.getX() - 0.5,
-                hitPos.getYMapped() - blockPos.getY(),
+                hitPos.getYMapped() - blockPos.getY() - 0.125,
                 hitPos.getZMapped() - blockPos.getZ() - 0.5,
-                side == Direction.UP ? 0 : side == Direction.DOWN ? 180 : 90,
+                side == Direction.UP ? 0 : side == Direction.DOWN ? 180 : -90,
                 side.getId()
         ));
         return super.getPlacementState2(context);
@@ -55,28 +61,7 @@ public class BlockFreeNode extends BlockDirectNode {
 
     @Override
     public VoxelShape getCollisionShape2(BlockState state, BlockView world, BlockPos pos, ShapeContext context) {
-        return getNodeShape(world, pos);
-    }
-
-    public static VoxelShape getNodeShape(BlockView world, BlockPos pos) {
-        double centerX = 0.5;
-        double centerY = 0.125;
-        double centerZ = 0.5;
-        final org.mtr.mapping.holder.BlockEntity blockEntity = world.getBlockEntity(pos);
-        if (blockEntity != null && blockEntity.data instanceof BlockEntityFreeNode freeNode) {
-            centerX += freeNode.getXOffset();
-            centerY += freeNode.getYOffset();
-            centerZ += freeNode.getZOffset();
-        }
-        final double radius = 0.1875;
-        return Block.createCuboidShape(
-                (centerX - radius) * 16,
-                (centerY - radius) * 16,
-                (centerZ - radius) * 16,
-                (centerX + radius) * 16,
-                (centerY + radius) * 16,
-                (centerZ + radius) * 16
-        );
+        return VoxelShapes.empty();
     }
 
     private record PlacementData(double x, double y, double z, double pitch, int face) {

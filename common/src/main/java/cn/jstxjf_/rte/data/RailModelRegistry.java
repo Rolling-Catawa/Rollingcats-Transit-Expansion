@@ -3,7 +3,6 @@ package cn.jstxjf_.rte.data;
 import cn.jstxjf_.rte.RTE;
 import cn.jstxjf_.rte.RTEClient;
 import cn.jstxjf_.rte.render.integration.MtrModelRegistryUtil;
-import cn.jstxjf_.rte.gfxext.model.ModelCluster;
 import cn.jstxjf_.rte.gfxext.model.RawModel;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -35,8 +34,6 @@ public class RailModelRegistry {
     public static final Map<String, RailModelProperties> PATH_MAP = new HashMap<>();
     public static Tree.Root<RailModelProperties> TREE = new Tree.Root<>("rail.rte.type");
 
-    public static ModelCluster railNodeModel;
-
     public static void register(String key, RailModelProperties properties) {
         if (properties == null) return;
         ELEMENTS.put(key, properties);
@@ -54,15 +51,6 @@ public class RailModelRegistry {
         register("rte_builtin_depot", new RailModelProperties("rte_builtin_depot", (MutableComponent) Component.literal("Depot"), null, 1f, 0f, null, "group.rte.builtin"));
 
         if (resourceManager != null) {
-            try {
-                RawModel railNodeRawModel = RTEClient.modelManager.loadRawModel(resourceManager,
-                        new ResourceLocation("rte:models/rail_node.csv"), RTEClient.atlasManager);
-                railNodeModel = RTEClient.modelManager.uploadVertArrays(railNodeRawModel);
-            } catch (Exception ex) {
-                RTE.LOGGER.error("Failed loading rail node model", ex);
-                MtrModelRegistryUtil.recordLoadingError("Failed loading rail node model", ex);
-            }
-
             for (String namespace : resourceManager.getNamespaces().stream().sorted().toList()) {
                 List<com.mojang.datafixers.util.Pair<ResourceLocation, Resource>> resourceList = MtrModelRegistryUtil.listResources(resourceManager, namespace, "rails", ".json");
                 for (com.mojang.datafixers.util.Pair<ResourceLocation, Resource> pair : resourceList) {

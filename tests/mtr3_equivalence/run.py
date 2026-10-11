@@ -120,8 +120,31 @@ check("supplier.hasNodeOffset()" in path_source, "vehicle path consumes XYZ-offs
 check('KEY_Y_OFFSET = "y_offset"' in node_source, "direct-node Y offset persists")
 
 free_node_source = (root / "common/src/main/java/cn/jstxjf_/rte/block/BlockFreeNode.java").read_text(encoding="utf-8")
+free_node_editor_source = (root / "common/src/main/java/cn/jstxjf_/rte/render/FreeNodeEditor.java").read_text(encoding="utf-8")
+free_node_packet_source = (root / "common/src/main/java/cn/jstxjf_/rte/network/PacketFreeNodeAction.java").read_text(encoding="utf-8")
+direct_node_renderer_source = (root / "common/src/main/java/cn/jstxjf_/rte/render/block/BlockEntityDirectNodeRenderer.java").read_text(encoding="utf-8")
+imgui_host_source = (root / "common/src/main/java/cn/jstxjf_/rte/gui/imgui/RteImGuiHost.java").read_text(encoding="utf-8")
+imgui_screen_source = (root / "common/src/main/java/cn/jstxjf_/rte/gui/imgui/ImGuiScreenBase.java").read_text(encoding="utf-8")
+train_wrapper_source = (root / "common/src/main/java/cn/jstxjf_/rte/scripting/train/TrainWrapper.java").read_text(encoding="utf-8")
 check("context.getHitPos()" in free_node_source, "free-node placement uses the exact hit point")
-check("side == Direction.DOWN ? 180 : 90" in free_node_source, "free-node wall and ceiling pitch")
+check("side == Direction.UP ? 0 : side == Direction.DOWN ? 180 : -90" in free_node_source,
+      "free-node mirrored wall and ceiling pitch")
+check("PacketFreeNodeAction.USE_CONNECTOR" in free_node_editor_source and ".useOn(context)" in free_node_packet_source,
+      "free-node connector hit is resolved server-side")
+check("Handle.XY" in free_node_editor_source and "Handle.XZ" in free_node_editor_source
+      and "Handle.YZ" in free_node_editor_source, "free-node gizmo has Axiom-style plane handles")
+check("Handle.YAW" in free_node_editor_source and "Handle.PITCH" in free_node_editor_source,
+      "free-node gizmo exposes applicable Axiom-style rotation rings")
+check("GLFW_KEY_V" in free_node_editor_source and "GLFW_KEY_Z" in free_node_editor_source
+      and "GLFW_KEY_Y" in free_node_editor_source, "free-node gizmo supports clipboard and history shortcuts")
+check("0.0625" in free_node_editor_source and "0.0001" in free_node_editor_source,
+      "free-node gizmo uses Axiom-style snapping precision")
+check("rail_node_vertical" not in direct_node_renderer_source, "legacy node marker bar removed")
+check("/assets/mtr/font/noto-sans-cjk-tc-medium.otf" in imgui_host_source,
+      "ImGui ships a Linux-independent CJK font")
+check("graphics.flush()" in imgui_screen_source, "ImGui background is submitted before direct GL rendering")
+check("public float doorValue() {\n        return currentDoorValue;\n    }" in train_wrapper_source,
+      "script door value uses the published render snapshot")
 check("RailSpatialContext.apply(this)" in rail_source, "free-node geometry exists before MTR validation")
 check("rte$copyStyleExtras" in rail_source, "MTR style copies preserve free-node geometry")
 check("ensureCarrierRailMath" in angle_source, "vertical rails receive a valid MTR carrier")

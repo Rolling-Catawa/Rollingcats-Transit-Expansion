@@ -39,14 +39,16 @@ public class ImGuiDirectNodeScreen extends net.minecraft.client.gui.screens.Scre
     @Override
     public void drawPanel() {
         ImGui.setNextWindowSize(460, 0, ImGuiCond.FirstUseEver);
-        ImGui.begin(t("gui.rte.direct_node.title") + "###rte_direct_node");
+        final boolean freeNode = entity instanceof cn.jstxjf_.rte.block.BlockFreeNode.BlockEntityFreeNode;
+        ImGui.begin(t(freeNode ? "gui.rte.free_node.title" : "gui.rte.direct_node.title") + "###rte_direct_node");
 
         final boolean bound = entity.isBound();
         if (bound) {
             ImGui.textColored(0.35f, 0.9f, 0.4f, 1f, String.format(Locale.ROOT, "%s: %.3f°", t("gui.rte.imgui.node_angle"), entity.getAngleDegrees()));
         } else {
-            ImGui.textColored(0.95f, 0.85f, 0.3f, 1f, t("gui.rte.direct_node.unbound"));
+            ImGui.textColored(0.95f, 0.85f, 0.3f, 1f, t(freeNode ? "gui.rte.free_node.unbound" : "gui.rte.direct_node.unbound"));
         }
+        ImGui.textDisabled(t("gui.rte.imgui.node_angle_hint"));
 
         final float[] sliderHolder = {(float) (bound ? entity.getAngleDegrees() : 0)};
         if (ImGui.sliderFloat("##node_angle_slider", sliderHolder, 0f, 360f, "%.2f°")) {
@@ -88,6 +90,7 @@ public class ImGuiDirectNodeScreen extends net.minecraft.client.gui.screens.Scre
         ImGui.separator();
         ImGui.text(String.format(Locale.ROOT, "%s: %+.3f°",
                 t("gui.rte.direct_node.pitch"), entity.getPitchDegrees()));
+        ImGui.textDisabled(t("gui.rte.direct_node.pitch_hint"));
         final float[] pitchSlider = {(float) entity.getPitchDegrees()};
         if (ImGui.sliderFloat("##node_pitch_slider", pitchSlider, -180f, 180f, "%+.2f°")) {
             applyPitch(pitchSlider[0]);

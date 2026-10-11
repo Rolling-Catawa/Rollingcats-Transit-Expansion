@@ -12,6 +12,7 @@ public abstract class AbstractScriptContext {
     public double lastExecuteTime = 0;
     public boolean disposed = false;
     public int rte$deadPasses = 0;
+    public long rte$deadSinceNanos = 0;
     public long lastExecuteDuration = 0;
     public long nextRenderNanos = 0;
     public OrderedMap<String, Object> debugInfo = new OrderedMap<>();
@@ -41,6 +42,17 @@ public abstract class AbstractScriptContext {
 
     public int useBoxCount() {
         return useBoxes.size();
+    }
+
+    public boolean rte$deadFor(long graceNanos, boolean alive, long now) {
+        if (alive) {
+            rte$deadSinceNanos = 0;
+            return false;
+        }
+        if (rte$deadSinceNanos == 0) {
+            rte$deadSinceNanos = now;
+        }
+        return now - rte$deadSinceNanos >= graceNanos;
     }
 
     public void releaseResources() {

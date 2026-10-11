@@ -77,6 +77,34 @@ public interface RailExtraSupplier {
 
     int getSpeedLimitKph();
 
+    boolean isCollisionEnabled();
+
+    void setCollisionEnabled(boolean value);
+
+    float getCollisionWidth();
+
+    void setCollisionWidth(float value);
+
+    float getCollisionHeight();
+
+    void setCollisionHeight(float value);
+
+    float getCollisionLength();
+
+    void setCollisionLength(float value);
+
+    float getCollisionSpacing();
+
+    void setCollisionSpacing(float value);
+
+    float getCollisionYOffset();
+
+    void setCollisionYOffset(float value);
+
+    float getCollisionSideOffset();
+
+    void setCollisionSideOffset(float value);
+
     void partialCopyFrom(Object other);
 
     void setRollingOffset(float rollingOffset);

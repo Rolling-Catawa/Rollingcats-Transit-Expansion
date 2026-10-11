@@ -12,6 +12,7 @@ import org.mtr.mapping.holder.Vector3d;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -35,7 +36,7 @@ public abstract class PathDataMixin {
         require = 1
     )
     private Vector rte$redirectGetPosition(RailMath railMath, double value, boolean reverse) {
-        final Rail rail = rte$resolveGeometryCarrier(getRail());
+        final Rail rail = rte$cachedGeometryCarrier();
         final boolean useExtendedGeometry = rail != null && ((Object) rail) instanceof RailExtraSupplier supplier
                 && ((RailExtraSupplier.usesBezierCurve(supplier.getPathMode())
                 && supplier.getBezierCurve() != null) || supplier.hasNodeOffset());
@@ -43,6 +44,25 @@ public abstract class PathDataMixin {
         final Vector result = rte$sample(railMath, rail, useExtendedGeometry, value, reverse);
 
         return result;
+    }
+
+    @Unique
+    private static final long RTE_CARRIER_REFRESH_MILLIS = 1000;
+
+    @Unique
+    private volatile Object[] rte$carrierCache;
+
+    @Unique
+    private Rail rte$cachedGeometryCarrier() {
+        final Rail source = getRail();
+        final long now = System.currentTimeMillis();
+        final Object[] cache = rte$carrierCache;
+        if (cache != null && cache[0] == source && now < (long) cache[2]) {
+            return (Rail) cache[1];
+        }
+        final Rail carrier = rte$resolveGeometryCarrier(source);
+        rte$carrierCache = new Object[]{source, carrier, now + RTE_CARRIER_REFRESH_MILLIS};
+        return carrier;
     }
 
     private static Rail rte$resolveGeometryCarrier(Rail rail) {
@@ -85,7 +105,7 @@ public abstract class PathDataMixin {
         at = @At(value = "INVOKE", target = "Lorg/mtr/core/data/RailMath;getLength()D")
     )
     private double rte$redirectGetLength(RailMath railMath) {
-        final Rail rail = rte$resolveGeometryCarrier(getRail());
+        final Rail rail = rte$cachedGeometryCarrier();
         if (rail != null && ((Object) rail) instanceof RailExtraSupplier supplier
                 && ((RailExtraSupplier.usesBezierCurve(supplier.getPathMode())
                 && supplier.getBezierCurve() != null) || supplier.hasNodeOffset())) {

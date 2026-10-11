@@ -8,7 +8,6 @@ import cn.jstxjf_.rte.item.BlockItemEyeCandy;
 import org.mtr.mapping.holder.Block;
 import org.mtr.mapping.holder.Identifier;
 import org.mtr.mapping.registry.BlockRegistryObject;
-import org.mtr.mod.block.BlockTicketBarrier;
 
 public class RTEBlocks {
     public static final BlockRegistryObject DIRECT_NODE = RTE.REGISTRY.registerBlockWithBlockItem(
@@ -30,12 +29,6 @@ public class RTEBlocks {
         () -> new Block(new BlockEyeCandy()),
         BlockItemEyeCandy::new,
         RTECreativeModeTabs.EYE_CANDY
-    );
-
-    public static final BlockRegistryObject STATISTIC_TURNSTILE = RTE.REGISTRY.registerBlockWithBlockItem(
-        new Identifier(RTE.MOD_ID, "statistic_turnstile"),
-        () -> new Block(new BlockTicketBarrier(true)),
-        RTECreativeModeTabs.CORE
     );
 
     public static void init() {}

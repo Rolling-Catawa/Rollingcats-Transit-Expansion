@@ -110,6 +110,8 @@ public class EyeCandyRegistry {
                                     try {
                                         register(key, loadFromJson(resourceManager, key, obj, baseGroup, namespace));
                                     } catch (MissingDependencyException ignored) {
+                                    } catch (java.io.IOException missingFile) {
+                                        RTE.LOGGER.warn("[EyeCandy] skipped {} in {}: {}", key, entryKey, missingFile.getMessage());
                                     } catch (Exception entryEx) {
                                         RTE.LOGGER.error("Failed loading eye-candy entry " + key + " in " + entryKey, entryEx);
                                         MtrModelRegistryUtil.recordLoadingError(
@@ -267,7 +269,23 @@ public class EyeCandyRegistry {
     private static final Pattern RTE_LOCATION_PATTERN =
         Pattern.compile("\"([a-z0-9_.-]+:[a-z0-9_./-]+)\"");
 
+    private static final String[][] RTE_KEY_ALIASES = {
+        {"textureResource", "textureId"},
+        {"flipTextureV", "flipV"},
+        {"Shape", "shape"},
+        {"CollisionShape", "collisionShape"}
+    };
+
+    private static void rte$normalizeKeys(JsonObject obj) {
+        for (final String[] alias : RTE_KEY_ALIASES) {
+            if (obj.has(alias[0]) && !obj.has(alias[1])) {
+                obj.add(alias[1], obj.get(alias[0]));
+            }
+        }
+    }
+
     private static EyeCandyProperties loadFromJson(ResourceManager resourceManager, String key, JsonObject obj, String group, String scriptNamespace) throws Exception {
+        rte$normalizeKeys(obj);
         final String rteMissingNamespace = rte$missingNamespace(resourceManager, obj);
         if (rteMissingNamespace != null) {
             rte$reportMissingDependency(rteMissingNamespace, key);

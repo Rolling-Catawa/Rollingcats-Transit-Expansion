@@ -34,6 +34,9 @@ public class CustomResourceLoaderMixin {
     @Inject(method = "reload", at = @At("HEAD"))
     private static void rte$reloadHead(CallbackInfo ci) {
         cn.jstxjf_.rte.render.PreloadBudget.reset();
+        cn.jstxjf_.rte.render.train.AsyncVehicleModelLoader.clear();
+        cn.jstxjf_.rte.render.train.VehicleWarmup.clear();
+        cn.jstxjf_.rte.render.train.VehicleMeshDiskCache.clearFingerprints();
         final Minecraft client = Minecraft.getInstance();
         if (client != null) {
             MtrModelRegistryUtil.resourceManager = client.getResourceManager();
@@ -44,8 +47,22 @@ public class CustomResourceLoaderMixin {
     private static void rte$reloadTail(CallbackInfo ci) {
         final Minecraft client = Minecraft.getInstance();
         if (client != null) {
-            rte$loadLegacyVehicleResources(client);
-            RTEClient.reloadResources(client.getResourceManager());
+            try {
+                rte$loadLegacyVehicleResources(client);
+            } catch (Throwable e) {
+                cn.jstxjf_.rte.RTE.LOGGER.error("[RTE] Failed loading legacy vehicle resources after MTR reload", e);
+            }
+            RTEClient.reloadResourcesAfterMtr(client.getResourceManager());
+            rte$scheduleWarmup();
+        }
+    }
+
+    private static void rte$scheduleWarmup() {
+        final java.util.List<VehicleResource> vehicleResources = new java.util.ArrayList<>();
+        rte$getVehiclesCache().values().forEach(vehicles -> vehicles.values().forEach(pair -> vehicleResources.add(pair.left())));
+        cn.jstxjf_.rte.render.train.VehicleWarmup.schedule(vehicleResources);
+        if (cn.jstxjf_.rte.render.train.VehicleMeshDiskCache.isEnabled()) {
+            java.util.concurrent.CompletableFuture.runAsync(cn.jstxjf_.rte.render.train.VehicleMeshDiskCache::prune);
         }
     }
 
@@ -65,7 +82,7 @@ public class CustomResourceLoaderMixin {
         final ResourceLocation location = new ResourceLocation(namespace, path);
         for (Resource resource : client.getResourceManager().getResourceStack(location)) {
             try (InputStream inputStream = resource.open()) {
-                rte$registerLegacyResources(location, CustomResourcesConverter.convert(rte$normalizeLegacyCustomResources(Config.readResource(inputStream).getAsJsonObject()), CustomResourceLoaderMixin::rte$invokeReadResource));
+                rte$registerLegacyResources(location, CustomResourcesConverter.convert(rte$normalizeLegacyCustomResources(Config.readResource(inputStream).getAsJsonObject()), CustomResourceLoaderMixin::rte$readLegacyResource));
             } catch (Exception e) {
                 org.mtr.mod.Init.LOGGER.error("Failed loading legacy vehicle resources from " + location, e);
             }
@@ -80,6 +97,7 @@ public class CustomResourceLoaderMixin {
                     if (train.has("base_type") && !train.has("base_train_type")) {
                         train.add("base_train_type", train.get("base_type"));
                     }
+                    rte$attachScriptOnlyBody(train);
                     // MTR 3 accepted mixed-case BVE sound base names, while
                     // MTR 4 feeds the value directly into ResourceLocation.
                     // Resource locations have required lowercase paths since
@@ -93,6 +111,45 @@ public class CustomResourceLoaderMixin {
             });
         }
         return root;
+    }
+
+    private static final double RTE_LEGACY_CAR_SPACING_EXTRA = 1;
+    private static final String RTE_SCRIPT_BODY_PREFIX = "legacy_script_body/";
+    private static final String RTE_SCRIPT_BODY_MODEL = "rte:models/legacy_script_empty.obj";
+    private static final java.util.regex.Pattern RTE_GENERIC_BASE = java.util.regex.Pattern.compile("(?:train|base)_(\\d+(?:\\.\\d+)?)_(\\d+(?:\\.\\d+)?)(?:_.*)?");
+
+    private static boolean rte$isBlank(JsonObject train, String key) {
+        return !train.has(key) || !train.get(key).isJsonPrimitive() || train.get(key).getAsString().isEmpty();
+    }
+
+    private static void rte$attachScriptOnlyBody(JsonObject train) {
+        if (!rte$isBlank(train, "model") || !rte$isBlank(train, "model_properties") || rte$isBlank(train, "base_train_type")) {
+            return;
+        }
+        if (!train.has("script_files") && !train.has("script_texts")) {
+            return;
+        }
+        final java.util.regex.Matcher matcher = RTE_GENERIC_BASE.matcher(train.get("base_train_type").getAsString().toLowerCase(java.util.Locale.ROOT));
+        if (!matcher.matches()) {
+            return;
+        }
+        train.addProperty("model", RTE_SCRIPT_BODY_MODEL);
+        train.addProperty("model_properties", "rte:" + RTE_SCRIPT_BODY_PREFIX + matcher.group(1) + "_" + matcher.group(2) + ".json");
+    }
+
+    private static String rte$readLegacyResource(Identifier identifier) {
+        if ("rte".equals(identifier.getNamespace()) && identifier.getPath().startsWith(RTE_SCRIPT_BODY_PREFIX)) {
+            final String[] size = identifier.getPath().substring(RTE_SCRIPT_BODY_PREFIX.length()).replace(".json", "").split("_");
+            if (size.length == 2) {
+                final JsonObject body = new JsonObject();
+                body.addProperty("transport_mode", "TRAIN");
+                body.addProperty("length", Double.parseDouble(size[0]) + RTE_LEGACY_CAR_SPACING_EXTRA);
+                body.addProperty("width", Double.parseDouble(size[1]));
+                body.addProperty("door_max", 0);
+                return body.toString();
+            }
+        }
+        return rte$invokeReadResource(identifier);
     }
 
     private static final double RTE_PRELOAD_HEAP_LIMIT = 0.6;

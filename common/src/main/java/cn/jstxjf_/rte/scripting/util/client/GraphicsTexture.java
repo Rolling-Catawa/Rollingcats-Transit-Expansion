@@ -56,17 +56,61 @@ public class GraphicsTexture implements Closeable {
     private volatile long lastUploadMillis = System.currentTimeMillis();
     private volatile long closeRequestedMillis = 0;
     private volatile boolean released = false;
+    private boolean forceUpload = true;
+    private final java.util.concurrent.atomic.AtomicBoolean uploadQueued = new java.util.concurrent.atomic.AtomicBoolean();
+    private int dirtyMinRow = Integer.MAX_VALUE;
+    private int dirtyMaxRow = -1;
+    private volatile long lastGpuUploadNanos;
     private static final long RELEASE_GRACE_MILLIS = 60000;
     private static final java.util.Set<GraphicsTexture> LIVE =
         java.util.Collections.newSetFromMap(new java.util.concurrent.ConcurrentHashMap<>());
 
+    private static final java.util.Map<String, java.util.concurrent.atomic.AtomicInteger> CREATIONS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static volatile long nextCreationReportMillis = 0;
+    private static final long CREATION_REPORT_INTERVAL_MILLIS = 10000;
+    private static final int CREATION_REPORT_THRESHOLD = 20;
+    private static final int RUNAWAY_CREATION_LIMIT = 2048;
+
+    private static void recordCreation() {
+        final long now = System.currentTimeMillis();
+        if (nextCreationReportMillis == 0) {
+            nextCreationReportMillis = now + CREATION_REPORT_INTERVAL_MILLIS;
+        } else if (now >= nextCreationReportMillis) {
+            nextCreationReportMillis = now + CREATION_REPORT_INTERVAL_MILLIS;
+            reportCreations();
+        }
+        final String script = cn.jstxjf_.rte.scripting.ScriptHolderBase.currentScriptName();
+        final int created = CREATIONS.computeIfAbsent(script, k -> new java.util.concurrent.atomic.AtomicInteger()).incrementAndGet();
+        if (created > RUNAWAY_CREATION_LIMIT && !"?".equals(script)) {
+            throw new IllegalStateException("Script " + script + " created more than " + RUNAWAY_CREATION_LIMIT
+                + " GraphicsTexture objects within " + CREATION_REPORT_INTERVAL_MILLIS / 1000 + " s; refusing further creation (likely an endless loop in the script)");
+        }
+    }
+
+    private static void reportCreations() {
+        final java.util.Map<String, Integer> snapshot = new java.util.TreeMap<>();
+        int total = 0;
+        for (final java.util.Map.Entry<String, java.util.concurrent.atomic.AtomicInteger> entry : CREATIONS.entrySet()) {
+            final int count = entry.getValue().getAndSet(0);
+            if (count > 0) {
+                snapshot.put(entry.getKey(), count);
+                total += count;
+            }
+        }
+        if (total > CREATION_REPORT_THRESHOLD) {
+            RTE.LOGGER.warn("[GraphicsTexture] {} textures created in the last {} s: {}", total, CREATION_REPORT_INTERVAL_MILLIS / 1000, snapshot);
+        }
+    }
+
     public GraphicsTexture(int width, int height, ResourceLocation path) {
+        recordCreation();
         this.width = width;
         this.height = height;
         dynamicTexture = new DynamicTexture(new NativeImage(width, height, false));
         identifier = path;
-        Minecraft.getInstance().execute(() ->
-            Minecraft.getInstance().getTextureManager().register(identifier, dynamicTexture));
+        final DynamicTexture created = dynamicTexture;
+        RenderSystem.recordRenderCall(() ->
+            Minecraft.getInstance().getTextureManager().register(identifier, created));
         bufferedImage = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         graphics = bufferedImage.createGraphics();
         graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
@@ -75,12 +119,8 @@ public class GraphicsTexture implements Closeable {
         enforceLiveLimit();
     }
 
-    private static final long EVICT_IDLE_MILLIS = 60000;
-    private static final int HARD_CEILING_FACTOR = 4;
     private static final long EVICT_LOG_INTERVAL_MILLIS = 10000;
     private static long nextEvictLogMillis = 0;
-    private static long evictedSinceLastLog = 0;
-    private static long skippedSinceLastLog = 0;
 
     public long heapBytes() {
         return (long) width * height * 4L;
@@ -103,53 +143,18 @@ public class GraphicsTexture implements Closeable {
     }
 
     private static void enforceLiveLimit() {
-        final int limit = cn.jstxjf_.rte.ClientConfig.scriptTextureLimit;
-        final long budget = (long) cn.jstxjf_.rte.ClientConfig.scriptTextureHeapBudgetMb * 1024L * 1024L;
-        long heapBytes = liveHeapBytes();
-        final boolean overBudget = budget > 0 && heapBytes > budget;
-        if (!overBudget && (limit <= 0 || LIVE.size() <= limit)) {
+        final long now = System.currentTimeMillis();
+        if (now < nextEvictLogMillis) {
             return;
         }
-        final java.util.List<GraphicsTexture> ordered = new java.util.ArrayList<>(LIVE);
-        ordered.sort(java.util.Comparator.comparingLong(t -> t.lastUploadMillis));
-        final long now = System.currentTimeMillis();
-        final boolean overCeiling = limit > 0 && ordered.size() > (long) limit * HARD_CEILING_FACTOR;
-        final Runtime runtime = Runtime.getRuntime();
-        final long usedHeap = runtime.totalMemory() - runtime.freeMemory();
-        final long headroom = runtime.maxMemory() - usedHeap;
-        final boolean memoryEmergency = headroom < Math.max(256L * 1024 * 1024, runtime.maxMemory() / 20);
-        int excess = limit <= 0 ? 0 : ordered.size() - limit;
-        for (GraphicsTexture texture : ordered) {
-            final boolean stillOverBudget = budget > 0 && heapBytes > budget;
-            if (excess <= 0 && !stillOverBudget) break;
-            if (texture.isClosed) continue;
-            if (!overCeiling && !memoryEmergency && now - texture.lastUploadMillis < EVICT_IDLE_MILLIS) {
-                skippedSinceLastLog++;
-                continue;
-            }
-            if (now - texture.lastUploadMillis < EVICT_IDLE_MILLIS) {
-                evictedInUse++;
-            }
-            heapBytes -= texture.heapBytes();
-            excess--;
-            evictedSinceLastLog++;
-            texture.close(0);
-        }
-        if (budget > 0 && heapBytes > budget && evictedSinceLastLog == 0 && now >= nextEvictLogMillis) {
-            RTE.LOGGER.warn("[GraphicsTexture] {}MB of script textures exceeds the {}MB budget but all are in use; "
-                    + "lower maxTextureSize or raise scriptTextureHeapBudgetMb",
-                    heapBytes / (1024L * 1024L), cn.jstxjf_.rte.ClientConfig.scriptTextureHeapBudgetMb);
-        }
-        if (now >= nextEvictLogMillis) {
-            nextEvictLogMillis = now + EVICT_LOG_INTERVAL_MILLIS;
-            if (evictedSinceLastLog > 0 || skippedSinceLastLog > 0) {
-                RTE.LOGGER.warn("[GraphicsTexture] live={} limit={} heap={}MB budget={}MB, evicted {}, kept {} in-use",
-                        LIVE.size(), limit, liveHeapBytes() / (1024L * 1024L),
-                        cn.jstxjf_.rte.ClientConfig.scriptTextureHeapBudgetMb,
-                        evictedSinceLastLog, skippedSinceLastLog);
-            }
-            evictedSinceLastLog = 0;
-            skippedSinceLastLog = 0;
+        nextEvictLogMillis = now + EVICT_LOG_INTERVAL_MILLIS;
+        final int limit = cn.jstxjf_.rte.ClientConfig.scriptTextureLimit;
+        final long budget = (long) cn.jstxjf_.rte.ClientConfig.scriptTextureHeapBudgetMb * 1024L * 1024L;
+        final long heapBytes = liveHeapBytes();
+        if ((budget > 0 && heapBytes > budget) || (limit > 0 && LIVE.size() > limit)) {
+            RTE.LOGGER.warn("[GraphicsTexture] {} live textures use {}MB (limit {}, budget {}MB); in-use textures are never evicted, "
+                    + "lower maxTextureSize if memory is tight",
+                    LIVE.size(), heapBytes / (1024L * 1024L), limit, cn.jstxjf_.rte.ClientConfig.scriptTextureHeapBudgetMb);
         }
     }
 
@@ -216,11 +221,7 @@ public class GraphicsTexture implements Closeable {
                 RTE.LOGGER.error("Failed to dispose GraphicsTexture {}", identifier, e);
             }
         };
-        if (RenderSystem.isOnRenderThread()) {
-            release.run();
-        } else {
-            Minecraft.getInstance().execute(release);
-        }
+        RenderSystem.recordRenderCall(release::run);
     }
 
     public GraphicsTexture(int width, int height) {
@@ -247,8 +248,9 @@ public class GraphicsTexture implements Closeable {
             released = false;
             closeRequestedMillis = 0;
             dynamicTexture = new DynamicTexture(new NativeImage(width, height, false));
+            forceUpload = true;
             final DynamicTexture revived = dynamicTexture;
-            Minecraft.getInstance().execute(() ->
+            RenderSystem.recordRenderCall(() ->
                 Minecraft.getInstance().getTextureManager().register(identifier, revived));
             LIVE.add(this);
         }
@@ -267,7 +269,11 @@ public class GraphicsTexture implements Closeable {
             return;
         }
 
-        IntBuffer imgData = IntBuffer.wrap(((DataBufferInt) dataBuffer).getData());
+        final int[] source = ((DataBufferInt) dataBuffer).getData();
+        final int pixelCount = width * height;
+        if (source.length < pixelCount) {
+            return;
+        }
         NativeImage nativeImage = dynamicTexture.getPixels();
         if (nativeImage == null) {
             return;
@@ -282,35 +288,33 @@ public class GraphicsTexture implements Closeable {
                 return;
             }
 
-            ByteBuffer target = MemoryUtil.memByteBuffer(pixelAddr, width * height * 4);
-            if (target == null) {
+            int changedMinRow = forceUpload ? 0 : Integer.MAX_VALUE;
+            int changedMaxRow = forceUpload ? height - 1 : -1;
+            for (int row = 0; row < height; row++) {
+                final int rowStart = row * width;
+                boolean rowChanged = false;
+                for (int i = rowStart; i < rowStart + width; i++) {
+                    final int pixel = source[i];
+                    final int abgr = (pixel & 0xFF00FF00) | ((pixel >>> 16) & 0xFF) | ((pixel & 0xFF) << 16);
+                    final long address = pixelAddr + ((long) i << 2);
+                    if (MemoryUtil.memGetInt(address) != abgr) {
+                        MemoryUtil.memPutInt(address, abgr);
+                        rowChanged = true;
+                    }
+                }
+                if (rowChanged) {
+                    changedMinRow = Math.min(changedMinRow, row);
+                    changedMaxRow = Math.max(changedMaxRow, row);
+                }
+            }
+            if (changedMaxRow < changedMinRow) {
                 return;
             }
-
-            int nonTransparent = 0;
-            for (int i = 0; i < width * height; i++) {
-                int pixel = imgData.get();
-                if ((pixel >>> 24) != 0) nonTransparent++;
-                target.put((byte) ((pixel >> 16) & 0xFF));
-                target.put((byte) ((pixel >> 8) & 0xFF));
-                target.put((byte) (pixel & 0xFF));
-                target.put((byte) ((pixel >> 24) & 0xFF));
-            }
-
-            if (!RenderSystem.isOnRenderThread()) {
-                RenderSystem.recordRenderCall(() -> {
-                    try {
-                        dynamicTexture.upload();
-                    } catch (Exception e) {
-                        RTE.LOGGER.error("Failed uploading DynamicTexture {}", identifier, e);
-                    }
-                });
-            } else {
-                try {
-                    dynamicTexture.upload();
-                } catch (Exception e) {
-                    RTE.LOGGER.error("Failed uploading DynamicTexture {}", identifier, e);
-                }
+            forceUpload = false;
+            dirtyMinRow = Math.min(dirtyMinRow, changedMinRow);
+            dirtyMaxRow = Math.max(dirtyMaxRow, changedMaxRow);
+            if (uploadQueued.compareAndSet(false, true)) {
+                PENDING_UPLOADS.add(this);
             }
         } catch (Exception e) {
             RTE.LOGGER.error("Failed to upload GraphicsTexture", e);
@@ -318,6 +322,52 @@ public class GraphicsTexture implements Closeable {
     }
 
 
+
+    private static final long GPU_UPLOAD_INTERVAL_NANOS = 33_000_000L;
+    private static final java.util.Set<GraphicsTexture> PENDING_UPLOADS =
+        java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public static void flushPendingUploads() {
+        if (PENDING_UPLOADS.isEmpty()) {
+            return;
+        }
+        final long now = System.nanoTime();
+        for (final GraphicsTexture texture : PENDING_UPLOADS) {
+            if (now - texture.lastGpuUploadNanos < GPU_UPLOAD_INTERVAL_NANOS) {
+                continue;
+            }
+            PENDING_UPLOADS.remove(texture);
+            texture.uploadDirtyRows(now);
+        }
+    }
+
+    private void uploadDirtyRows(long now) {
+        final int minRow;
+        final int maxRow;
+        final DynamicTexture texture;
+        synchronized (this) {
+            minRow = dirtyMinRow;
+            maxRow = dirtyMaxRow;
+            dirtyMinRow = Integer.MAX_VALUE;
+            dirtyMaxRow = -1;
+            uploadQueued.set(false);
+            texture = dynamicTexture;
+        }
+        if (maxRow < minRow || texture == null) {
+            return;
+        }
+        final NativeImage pixels = texture.getPixels();
+        if (pixels == null || pixels.getWidth() != width || pixels.getHeight() != height) {
+            return;
+        }
+        lastGpuUploadNanos = now;
+        try {
+            texture.bind();
+            pixels.upload(0, 0, minRow, 0, minRow, width, maxRow - minRow + 1, false, false);
+        } catch (Exception e) {
+            RTE.LOGGER.error("Failed uploading DynamicTexture {}", identifier, e);
+        }
+    }
 
     public boolean isClosed() { return isClosed; }
 
@@ -360,7 +410,7 @@ public class GraphicsTexture implements Closeable {
             executor.schedule(this::releaseIfUnused, RELEASE_GRACE_MILLIS, TimeUnit.MILLISECONDS);
             return;
         }
-        Minecraft.getInstance().execute(() -> {
+        RenderSystem.recordRenderCall(() -> {
             synchronized (this) {
                 if (!isClosed || lastUploadMillis > closeRequestedMillis) {
                     return;

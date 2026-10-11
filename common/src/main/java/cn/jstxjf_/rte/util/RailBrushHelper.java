@@ -129,6 +129,13 @@ public final class RailBrushHelper {
             }
             propertyUpdated = true;
         }
+        if (railBrushProp.contains("CollisionEnabled")) {
+            applyCollision(pickedExtra, railBrushProp, false);
+            if (((Object) antiRail) instanceof RailExtraSupplier antiExtra) {
+                applyCollision(antiExtra, railBrushProp, true);
+            }
+            propertyUpdated = true;
+        }
 
         if (railBrushProp.contains("RenderReversed")) {
             final boolean value = railBrushProp.getBoolean("RenderReversed");
@@ -277,6 +284,22 @@ public final class RailBrushHelper {
 
     public static final String BRUSH_TAG = "RteRailBrush";
     public static final String LEGACY_BRUSH_TAG = "NTERailBrush";
+
+    private static void applyCollision(RailExtraSupplier extra, CompoundTag tag, boolean reverse) {
+        extra.setCollisionEnabled(tag.getBoolean("CollisionEnabled"));
+        extra.setCollisionWidth(tag.contains("CollisionWidth") ? tag.getFloat("CollisionWidth") : 3F);
+        extra.setCollisionHeight(tag.contains("CollisionHeight") ? tag.getFloat("CollisionHeight") : 0.25F);
+        extra.setCollisionLength(tag.contains("CollisionLength") ? tag.getFloat("CollisionLength") : 0.75F);
+        extra.setCollisionSpacing(tag.contains("CollisionSpacing") ? tag.getFloat("CollisionSpacing") : 0.5F);
+        extra.setCollisionYOffset(tag.contains("CollisionYOffset") ? tag.getFloat("CollisionYOffset") : -0.25F);
+        final float sideOffset = tag.contains("CollisionSideOffset") ? tag.getFloat("CollisionSideOffset") : 0F;
+        extra.setCollisionSideOffset(reverse ? -sideOffset : sideOffset);
+        final String columns = tag.contains("CollisionColumns") ? tag.getString("CollisionColumns") : "0";
+        extra.getCustomConfigs().put(RailCollisionManager.CONFIG_COLUMNS,
+            reverse ? RailCollisionManager.mirrorColumns(columns) : RailCollisionManager.normalizeColumns(columns));
+        extra.getCustomConfigs().remove(RailCollisionManager.CONFIG_LAYOUT);
+        RailCollisionManager.markDirty();
+    }
 
     private static CompoundTag getTagElement(ItemStack stack, String key) {
         final CompoundTag root = stack.getTag();

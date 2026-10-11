@@ -6,6 +6,7 @@ import cn.jstxjf_.rte.ClientConfig;
 import cn.jstxjf_.rte.data.ConfigResponder;
 import cn.jstxjf_.rte.data.ShapeSerializer;
 import cn.jstxjf_.rte.scripting.compat.ClientDataCompat;
+import cn.jstxjf_.rte.scripting.compat.RailCollisionScriptApi;
 import cn.jstxjf_.rte.scripting.util.*;
 import cn.jstxjf_.rte.scripting.util.client.*;
 import cn.jstxjf_.rte.gfx.math.Matrices;
@@ -55,6 +56,7 @@ public class ScriptHolderClient extends ScriptHolderBase {
         inject(DynamicModelHolder.class, "DynamicModelHolder");
 
         inject(ClientDataCompat.class, "MTRClientData");
+        inject(RailCollisionScriptApi.class, "RailCollision");
         inject(MinecraftClientData.class, "MTRClientData4");
         inject(IBlock.class, "IBlock");
         inject(MinecraftClientHelper.class, "UtilitiesClient");

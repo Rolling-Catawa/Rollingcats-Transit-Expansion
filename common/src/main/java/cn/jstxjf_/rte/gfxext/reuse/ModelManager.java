@@ -50,6 +50,12 @@ public class ModelManager {
         loadedRawModels.clear();
     }
 
+    public int releaseLoadedRawModels() {
+        final int released = loadedRawModels.size();
+        loadedRawModels.clear();
+        return released;
+    }
+
     public void clearNamespace(String namespace) {
         uploadedVertArrays.entrySet().stream()
                 .filter(k -> k.getKey().getNamespace().equals(namespace))

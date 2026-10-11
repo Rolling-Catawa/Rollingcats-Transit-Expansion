@@ -489,6 +489,17 @@ public final class RailRebuildHelper {
             targetExtra.setNodeZOffset2(sourceExtra.getNodeZOffset1());
             targetExtra.setNodePitch1(sourceExtra.getNodePitch2());
             targetExtra.setNodePitch2(sourceExtra.getNodePitch1());
+            targetExtra.setCollisionSideOffset(-sourceExtra.getCollisionSideOffset());
+            final java.util.Map<String, String> configs = new java.util.HashMap<>(targetExtra.getCustomConfigs());
+            if (configs.containsKey(RailCollisionManager.CONFIG_COLUMNS)) {
+                configs.put(RailCollisionManager.CONFIG_COLUMNS,
+                    RailCollisionManager.mirrorColumns(configs.get(RailCollisionManager.CONFIG_COLUMNS)));
+            }
+            if (configs.containsKey(RailCollisionManager.CONFIG_LAYOUT)) {
+                configs.put(RailCollisionManager.CONFIG_LAYOUT,
+                    RailCollisionManager.mirrorLayout(configs.get(RailCollisionManager.CONFIG_LAYOUT), sourceExtra.getLength()));
+            }
+            targetExtra.setCustomConfigs(configs);
         }
 
         final RailAccessor srcAcc = (RailAccessor)(Object) source;

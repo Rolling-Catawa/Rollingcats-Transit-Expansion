@@ -64,10 +64,14 @@ public class LegacyVehicleResourceMixin {
                 aliases.add(base + "@definition@" + suffix);
                 if (base.endsWith("_small")) {
                     aliases.add(base.substring(0, base.length() - 6) + "@definition@" + suffix);
+                    aliases.add(base.substring(0, base.length() - 6) + suffix);
                 }
                 if (base.endsWith("_mini")) {
                     aliases.add(base.substring(0, base.length() - 5) + "@definition@" + suffix);
+                    aliases.add(base.substring(0, base.length() - 5) + "_small" + suffix);
+                    aliases.add(base.substring(0, base.length() - 5) + suffix);
                 }
+                aliases.add(base);
             }
         }
         return aliases;

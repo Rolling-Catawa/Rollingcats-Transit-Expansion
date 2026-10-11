@@ -69,9 +69,50 @@ public class TrainWrapper {
         reset();
     }
 
+    private static final long RTE_PLATFORM_REBUILD_INTERVAL_MILLIS = 1000;
+    private long rte$platformFingerprint = Long.MIN_VALUE;
+    private long rte$platformBuildMillis = 0;
+    private boolean rte$platformsUseRealDistances = false;
+
+    private long rte$computePlatformFingerprint() {
+        long fingerprint = train.getId();
+        fingerprint = 31 * fingerprint + train.vehicleExtraData.getThisRouteId();
+        fingerprint = 31 * fingerprint + train.vehicleExtraData.getNextRouteId();
+        fingerprint = 31 * fingerprint + train.vehicleExtraData.getThisPlatformId();
+        fingerprint = 31 * fingerprint + train.vehicleExtraData.getNextPlatformId();
+        fingerprint = 31 * fingerprint + train.vehicleExtraData.getSidingId();
+        fingerprint = 31 * fingerprint + System.identityHashCode(train.vehicleExtraData.immutablePath);
+        fingerprint = 31 * fingerprint + train.vehicleExtraData.immutablePath.size();
+        fingerprint = 31 * fingerprint + System.identityHashCode(cn.jstxjf_.rte.render.train.VehiclePathCache.get(train.getId()));
+        return fingerprint;
+    }
+
     public void reset() {
         rte$pruneStaleCaches();
         rte$scriptRailProgress = ((TrainExtraSupplier) train).getVehicleRailProgress();
+        final long platformFingerprint = rte$computePlatformFingerprint();
+        final long now = System.currentTimeMillis();
+        final boolean rebuildPlatforms = platformFingerprint != rte$platformFingerprint
+            || now - rte$platformBuildMillis >= RTE_PLATFORM_REBUILD_INTERVAL_MILLIS;
+        if (rebuildPlatforms) {
+            rte$rebuildPlatforms();
+            rte$platformFingerprint = platformFingerprint;
+            rte$platformBuildMillis = now;
+        }
+        previousDoorValue = currentDoorValue;
+        currentDoorValue = (float) train.persistentVehicleData.getDoorValue();
+        if (rebuildPlatforms || !rte$platformsUseRealDistances) {
+            final boolean allReal = rte$normalizePlatformDistances(allPlatforms, rebuildPlatforms);
+            final boolean thisReal = rte$normalizePlatformDistances(thisRoutePlatforms, rebuildPlatforms);
+            final boolean nextReal = rte$normalizePlatformDistances(nextRoutePlatforms, rebuildPlatforms);
+            rte$platformsUseRealDistances = allReal && thisReal && nextReal;
+            rte$publishLegacySchedules();
+        }
+        shouldRender = false;
+        isInDetailDistance = false;
+    }
+
+    private void rte$rebuildPlatforms() {
         final List<PlatformInfo> schedulePlatforms = buildSchedulePlatforms();
         long effectiveThisRouteId = train.vehicleExtraData.getThisRouteId();
         if (effectiveThisRouteId == 0 && !schedulePlatforms.isEmpty()) {
@@ -108,14 +149,6 @@ public class TrainWrapper {
             }
         }
         rte$canonicalizePlatforms();
-        previousDoorValue = currentDoorValue;
-        currentDoorValue = (float) train.persistentVehicleData.getDoorValue();
-        rte$normalizePlatformDistances(allPlatforms);
-        rte$normalizePlatformDistances(thisRoutePlatforms);
-        rte$normalizePlatformDistances(nextRoutePlatforms);
-        rte$publishLegacySchedules();
-        shouldRender = false;
-        isInDetailDistance = false;
     }
 
     private long rte$lastScheduleFingerprint = Long.MIN_VALUE;
@@ -236,12 +269,12 @@ public class TrainWrapper {
         return matched == platforms.size();
     }
 
-    private void rte$normalizePlatformDistances(List<PlatformInfo> platforms) {
+    private boolean rte$normalizePlatformDistances(List<PlatformInfo> platforms, boolean tryRealDistances) {
         if (platforms.isEmpty()) {
-            return;
+            return true;
         }
-        if (rte$applyRealDistances(platforms)) {
-            return;
+        if (tryRealDistances && rte$applyRealDistances(platforms)) {
+            return true;
         }
         final double realProgress = rte$scriptRailProgress;
         final boolean dwelling = currentDoorValue > 0;
@@ -284,6 +317,7 @@ public class TrainWrapper {
         for (int i = 0; i < platforms.size(); i++) {
             platforms.get(i).distance = anchorDistance + (i - anchorIndex) * step;
         }
+        return false;
     }
 
     private int rte$lastAnchorIndex = -1;
@@ -870,7 +904,7 @@ public class TrainWrapper {
     }
 
     public float doorValue() {
-        return (float) train.persistentVehicleData.getDoorValue();
+        return currentDoorValue;
     }
 
     public boolean isCurrentlyManual() {

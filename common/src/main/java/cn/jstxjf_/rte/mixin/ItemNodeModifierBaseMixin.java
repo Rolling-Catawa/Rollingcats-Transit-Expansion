@@ -44,6 +44,10 @@ public abstract class ItemNodeModifierBaseMixin {
 
         final BlockEntityDirectNode beStart = getBlockEntity(world, posStart);
         final BlockEntityDirectNode beEnd = getBlockEntity(world, posEnd);
+        final double startX = posStart.getX() + (beStart == null ? 0 : beStart.getXOffset());
+        final double startZ = posStart.getZ() + (beStart == null ? 0 : beStart.getZOffset());
+        final double endX = posEnd.getX() + (beEnd == null ? 0 : beEnd.getXOffset());
+        final double endZ = posEnd.getZ() + (beEnd == null ? 0 : beEnd.getZOffset());
         final boolean anyDirectBlock =
             world.getBlockState(posStart).getBlock().data instanceof BlockDirectNode
                 || world.getBlockState(posEnd).getBlock().data instanceof BlockDirectNode;
@@ -77,7 +81,7 @@ public abstract class ItemNodeModifierBaseMixin {
             }
 
             final float angleDifference = (float) Math.toDegrees(Math.atan2(
-                posEnd.getZ() - posStart.getZ(), posEnd.getX() - posStart.getX()));
+                endZ - startZ, endX - startX));
 
             if (beStart != null && beEnd != null) {
                 if (!beStart.isBound() && !beEnd.isBound()) {
@@ -104,7 +108,7 @@ public abstract class ItemNodeModifierBaseMixin {
 
             if (s1 && !s2) {
                 Double deg = RailCalculator.calculateMaxRadiusAngle(
-                    posStart.getX(), posStart.getZ(), posEnd.getX(), posEnd.getZ(),
+                    startX, startZ, endX, endZ,
                     radStart);
                 if (deg == null) {
                     deg = (double) angleDifference;
@@ -117,7 +121,7 @@ public abstract class ItemNodeModifierBaseMixin {
                 serverPlayer.sendMessage(new Text(TextHelper.translatable("gui.rte.direct_node.success_bind").data), true);
             } else if (s2 && !s1) {
                 Double deg = RailCalculator.calculateMaxRadiusAngle(
-                    posEnd.getX(), posEnd.getZ(), posStart.getX(), posStart.getZ(),
+                    endX, endZ, startX, startZ,
                     radEnd);
                 if (deg == null) {
                     deg = (double) angleDifference + 180;
@@ -146,11 +150,11 @@ public abstract class ItemNodeModifierBaseMixin {
             }
 
             if (s1 && s2) {
-                radStart = faceToward(posStart, posEnd, radStart);
-                radEnd = faceToward(posStart, posEnd, radEnd);
+                radStart = faceToward(startX, startZ, endX, endZ, radStart);
+                radEnd = faceToward(startX, startZ, endX, endZ, radEnd);
 
                 final double chordDist = Math.sqrt(
-                    Math.pow(posEnd.getX() - posStart.getX(), 2) + Math.pow(posEnd.getZ() - posStart.getZ(), 2));
+                    Math.pow(endX - startX, 2) + Math.pow(endZ - startZ, 2));
                 final double maxReasonableLength = chordDist * 4 + 32;
                 double bestStart = radStart;
                 double bestEnd = radEnd;
@@ -297,14 +301,9 @@ public abstract class ItemNodeModifierBaseMixin {
         return length[0];
     }
 
-    private double faceToward(BlockPos from, BlockPos to, double radians) {
-        final float direction = (float) Math.toDegrees(Math.atan2(to.getZ() - from.getZ(), to.getX() - from.getX()));
+    private double faceToward(double fromX, double fromZ, double toX, double toZ, double radians) {
+        final float direction = (float) Math.toDegrees(Math.atan2(toZ - fromZ, toX - fromX));
         return normalizeRadians(similarFacing(direction, (float) Math.toDegrees(radians)) ? radians : radians + Math.PI);
-    }
-
-    private double faceAway(BlockPos from, BlockPos to, double radians) {
-        final float direction = (float) Math.toDegrees(Math.atan2(to.getZ() - from.getZ(), to.getX() - from.getX()));
-        return normalizeRadians(similarFacing(direction, (float) Math.toDegrees(radians)) ? radians + Math.PI : radians);
     }
 
     private boolean similarFacing(float angle1, float angle2) {

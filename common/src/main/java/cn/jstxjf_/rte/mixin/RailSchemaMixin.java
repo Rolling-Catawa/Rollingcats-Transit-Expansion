@@ -64,6 +64,13 @@ public abstract class RailSchemaMixin {
         reader.unpackDouble("rte_vertical_curve_radius", value -> self.setVerticalCurveRadius((float) value));
         reader.unpackString("rte_rail_type", self::setRailType);
         reader.unpackInt("rte_speed_limit_kph", self::setSpeedLimitKph);
+        reader.unpackBoolean("rte_collision_enabled", self::setCollisionEnabled);
+        reader.unpackDouble("rte_collision_width", value -> self.setCollisionWidth((float) value));
+        reader.unpackDouble("rte_collision_height", value -> self.setCollisionHeight((float) value));
+        reader.unpackDouble("rte_collision_length", value -> self.setCollisionLength((float) value));
+        reader.unpackDouble("rte_collision_spacing", value -> self.setCollisionSpacing((float) value));
+        reader.unpackDouble("rte_collision_y_offset", value -> self.setCollisionYOffset((float) value));
+        reader.unpackDouble("rte_collision_side_offset", value -> self.setCollisionSideOffset((float) value));
         reader.unpackString("rte_custom_configs", value -> {
             try { self.setCustomConfigs(StringMapSerializer.deserialize(value)); }
             catch (Exception e) { self.setCustomConfigs(new HashMap<>()); }
@@ -185,6 +192,13 @@ public abstract class RailSchemaMixin {
         writer.writeDouble("rte_vertical_curve_radius", self.getVerticalCurveRadius());
         writer.writeString("rte_rail_type", self.getRailType());
         writer.writeInt("rte_speed_limit_kph", self.getSpeedLimitKph());
+        writer.writeBoolean("rte_collision_enabled", self.isCollisionEnabled());
+        writer.writeDouble("rte_collision_width", self.getCollisionWidth());
+        writer.writeDouble("rte_collision_height", self.getCollisionHeight());
+        writer.writeDouble("rte_collision_length", self.getCollisionLength());
+        writer.writeDouble("rte_collision_spacing", self.getCollisionSpacing());
+        writer.writeDouble("rte_collision_y_offset", self.getCollisionYOffset());
+        writer.writeDouble("rte_collision_side_offset", self.getCollisionSideOffset());
         writer.writeString("rte_custom_configs", StringMapSerializer.serializeToString(self.getCustomConfigs()));
         writer.writeString("rte_roll_angle_map", DoubleFloatMapSerializer.serializeToString(self.getRollAngleMap()));
         writer.writeInt("rte_opening_direction", self.getOpeningDirectionRaw());

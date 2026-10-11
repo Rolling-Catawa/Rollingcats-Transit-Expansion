@@ -24,7 +24,6 @@ import org.mtr.mod.data.RailType;
 import org.mtr.mod.Items;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.client.renderer.culling.Frustum;
 import org.mtr.mapping.holder.*;
@@ -42,6 +41,7 @@ public class RailRenderDispatcher {
     private final HashMap<String, Rail> railByHexId = new HashMap<>();
     private final HashMap<String, HashMap<Long, RailChunkBase>> railChunkMap = new HashMap<>();
     private final List<RailChunkBase> railChunkList = new ArrayList<>();
+    private final HashMap<Long, List<RailChunkBase>> railChunksById = new HashMap<>();
     private static final boolean REPLAY_MOD_LOADED = isClassPresent("com.replaymod.replay.ReplayModReplay");
     private boolean isInstanced;
     private static String rte$probeCacheGate() {
@@ -115,6 +115,7 @@ public class RailRenderDispatcher {
     private void processPendingEvictions() {
         String hexId;
         while ((hexId = pendingEvictionHexIds.poll()) != null) {
+            rte$forceRailScan = true;
             final Rail rail = railByHexId.get(hexId);
             if (rail != null) {
                 removeRail(rail);
@@ -155,6 +156,7 @@ public class RailRenderDispatcher {
                     newChunk.addRail(bakedRail);
                     chunkMap.put(chunkId, newChunk);
                     railChunkList.add(newChunk);
+                    railChunksById.computeIfAbsent(chunkId, k -> new ArrayList<>(2)).add(newChunk);
                 }
             }
         }
@@ -189,6 +191,7 @@ public class RailRenderDispatcher {
 
     public void clearRail() {
         currentFrameRails.clear();
+        rte$forceRailScan = true;
         for (java.util.List<BakedRail> bakedRails : railRefMap.values()) {
             for (BakedRail rail : bakedRails) {
                 rail.dispose();
@@ -204,6 +207,7 @@ public class RailRenderDispatcher {
         }
         railChunkMap.clear();
         railChunkList.clear();
+        railChunksById.clear();
         for (String key : RailModelRegistry.ELEMENTS.keySet()) {
             railChunkMap.put(key, new HashMap<>());
         }
@@ -212,9 +216,12 @@ public class RailRenderDispatcher {
     public void registerLightUpdate(int x, int yMin, int yMax, int z) {
         long chunkId = BakedRail.chunkIdFromSectPos(x, z);
         final long now = System.currentTimeMillis();
-        for (HashMap<Long, RailChunkBase> chunkMap : railChunkMap.values()) {
-            RailChunkBase chunk = chunkMap.get(chunkId);
-            if (chunk != null && chunk.containsYSection(yMin, yMax)) {
+        final List<RailChunkBase> chunks = railChunksById.get(chunkId);
+        if (chunks == null) {
+            return;
+        }
+        for (final RailChunkBase chunk : chunks) {
+            if (chunk.containsYSection(yMin, yMax)) {
                 if (now < chunk.nextLightDirtyAllowedMillis) continue;
                 chunk.nextLightDirtyAllowedMillis = now + RailChunkBase.LIGHT_DIRTY_COOLDOWN_MILLIS;
                 chunk.isDirty = true;
@@ -294,9 +301,87 @@ public class RailRenderDispatcher {
                 String.format("%.1f", viewMatrix.getTranslationPart().z()));
         }
 
-        int renderDistEarly = Minecraft.getInstance().options.renderDistance().get();
-        int maxRailDistanceEarly = (renderDistEarly + 3) * 16;
-        Vec3 cameraPosEarly = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        final Vec3 cameraPosEarly = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        if (rte$shouldScanRails(cameraPosEarly)) {
+            rte$scanRails(drawScheduler, cameraPosEarly, (Minecraft.getInstance().options.renderDistance().get() + 3) * 16);
+        } else {
+            currentFrameRails.clear();
+        }
+
+        Vec3 cameraBlockPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
+        final org.mtr.mapping.holder.Vector3d cameraVector = new org.mtr.mapping.holder.Vector3d(cameraBlockPos.x, cameraBlockPos.y, cameraBlockPos.z);
+        for (final RailChunkBase chunk : railChunkList) {
+            chunk.getCameraDistManhattanXZ(cameraVector);
+        }
+        railChunkList.sort(Comparator.comparingDouble(chunk -> chunk.cameraDistManhattanXZ));
+
+        Frustum cullingFrustum = null;
+        try {
+            cullingFrustum = ((LevelRendererAccessor)Minecraft.getInstance().levelRenderer).getCullingFrustum();
+        } catch (Exception e) { RTE.LOGGER.debug("Frustum not available", e); }
+        ShaderProp shaderProp = new ShaderProp().setViewMatrix(viewMatrix);
+
+        int renderDist = Minecraft.getInstance().options.renderDistance().get();
+        int maxRailDistance = REPLAY_MOD_LOADED ? 64 * 16 : (renderDist + 3) * 16;
+        boolean isOutsideRenderDistance = false;
+
+        RailChunkBase.upload();
+
+        for (Iterator<RailChunkBase> it = railChunkList.iterator(); it.hasNext(); ) {
+            RailChunkBase chunk = it.next();
+            if (chunk.containingRails.isEmpty() && chunk.containingRailsWriting.isEmpty()) {
+                chunk.close();
+                it.remove();
+                railChunkMap.get(chunk.modelKey).remove(chunk.chunkId);
+                final List<RailChunkBase> sameId = railChunksById.get(chunk.chunkId);
+                if (sameId != null) {
+                    sameId.remove(chunk);
+                    if (sameId.isEmpty()) {
+                        railChunksById.remove(chunk.chunkId);
+                    }
+                }
+                continue;
+            }
+            if (isOutsideRenderDistance) continue;
+            if (chunk.cameraDistManhattanXZ > maxRailDistance) {
+                isOutsideRenderDistance = true;
+                continue;
+            }
+            if (!chunk.bufferBuilding && (chunk.isDirty || !chunk.bufferBuilt)) {
+                final long now = System.currentTimeMillis();
+                if (!chunk.bufferBuilt || now >= chunk.nextRebuildAllowedMillis) {
+                    chunk.nextRebuildAllowedMillis = now + RailChunkBase.REBUILD_COOLDOWN_MILLIS;
+                    chunk.rebuildBuffer(level);
+                }
+            }
+            if (chunk.bufferBuilt && (cullingFrustum == null || cullingFrustum.isVisible(chunk.boundingBox))) {
+                chunk.enqueue(batchManager, shaderProp);
+            }
+        }
+    }
+
+    private static final long RAIL_SCAN_INTERVAL_MILLIS = 250;
+    private static final double RAIL_SCAN_MOVE_THRESHOLD = 8;
+    private long rte$nextRailScanMillis;
+    private double rte$lastScanX = Double.NaN;
+    private double rte$lastScanZ = Double.NaN;
+    private boolean rte$pendingRailAdds;
+    private boolean rte$forceRailScan = true;
+
+    private boolean rte$shouldScanRails(Vec3 cameraPos) {
+        final long now = System.currentTimeMillis();
+        if (!rte$forceRailScan && !rte$pendingRailAdds && now < rte$nextRailScanMillis
+                && Math.abs(cameraPos.x - rte$lastScanX) + Math.abs(cameraPos.z - rte$lastScanZ) <= RAIL_SCAN_MOVE_THRESHOLD) {
+            return false;
+        }
+        rte$forceRailScan = false;
+        rte$nextRailScanMillis = now + RAIL_SCAN_INTERVAL_MILLIS;
+        rte$lastScanX = cameraPos.x;
+        rte$lastScanZ = cameraPos.z;
+        return true;
+    }
+
+    private void rte$scanRails(DrawScheduler drawScheduler, Vec3 cameraPosEarly, int maxRailDistanceEarly) {
         if (drawScheduler.shaderManager != null && drawScheduler.shaderManager.isReady()) {
             try {
                 HashSet<String> seenThisFrame = new HashSet<>();
@@ -336,126 +421,11 @@ public class RailRenderDispatcher {
             addRail(rail);
             addedThisFrame++;
         }
+        rte$pendingRailAdds = railsToAdd.size() > addedThisFrame;
         Set<Rail> railsToRemove = new HashSet<>(railRefMap.keySet());
         railsToRemove.removeAll(currentFrameRails);
         for (Rail rail : railsToRemove) removeRail(rail);
         currentFrameRails.clear();
-
-        Vec3 cameraBlockPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-        railChunkList.sort(Comparator.comparingDouble(chunk -> chunk.getCameraDistManhattanXZ(new org.mtr.mapping.holder.Vector3d(cameraBlockPos.x, cameraBlockPos.y, cameraBlockPos.z))));
-
-        Frustum cullingFrustum = null;
-        try {
-            cullingFrustum = ((LevelRendererAccessor)Minecraft.getInstance().levelRenderer).getCullingFrustum();
-        } catch (Exception e) { RTE.LOGGER.debug("Frustum not available", e); }
-        ShaderProp shaderProp = new ShaderProp().setViewMatrix(viewMatrix);
-
-        int renderDist = Minecraft.getInstance().options.renderDistance().get();
-        int maxRailDistance = REPLAY_MOD_LOADED ? 64 * 16 : (renderDist + 3) * 16;
-        boolean isOutsideRenderDistance = false;
-
-        RailChunkBase.upload();
-
-        for (Iterator<RailChunkBase> it = railChunkList.iterator(); it.hasNext(); ) {
-            RailChunkBase chunk = it.next();
-            if (chunk.containingRails.isEmpty() && chunk.containingRailsWriting.isEmpty()) {
-                chunk.close();
-                it.remove();
-                railChunkMap.get(chunk.modelKey).remove(chunk.chunkId);
-                continue;
-            }
-            if (isOutsideRenderDistance) continue;
-            if (chunk.cameraDistManhattanXZ > maxRailDistance) {
-                isOutsideRenderDistance = true;
-                continue;
-            }
-            if (!chunk.bufferBuilding && (chunk.isDirty || !chunk.bufferBuilt)) {
-                final long now = System.currentTimeMillis();
-                if (!chunk.bufferBuilt || now >= chunk.nextRebuildAllowedMillis) {
-                    chunk.nextRebuildAllowedMillis = now + RailChunkBase.REBUILD_COOLDOWN_MILLIS;
-                    chunk.rebuildBuffer(level);
-                }
-            }
-            if (chunk.bufferBuilt && (cullingFrustum == null || cullingFrustum.isVisible(chunk.boundingBox))) {
-                chunk.enqueue(batchManager, shaderProp);
-            }
-        }
-    }
-
-    public void drawRailNodes(World level, DrawScheduler drawScheduler, Matrix4f viewMatrix) {
-        if (isHoldingRailItemOrBrush && RailModelRegistry.railNodeModel != null) {
-            HashSet<Position> drawnNodes = new HashSet<>();
-            var rails = MinecraftClientData.getInstance().positionsToRail;
-            if (rails == null) return;
-            for (var entryStart : rails.entrySet()) {
-                for (var entryEnd : entryStart.getValue().entrySet()) {
-                    Rail rail = entryEnd.getValue();
-
-                    if (drawnNodes.add(entryStart.getKey())) {
-                        enqueueRailNode(level, drawScheduler, viewMatrix, rail, entryStart.getKey());
-                    }
-                    if (drawnNodes.add(entryEnd.getKey())) {
-                        enqueueRailNode(level, drawScheduler, viewMatrix, rail, entryEnd.getKey());
-                    }
-                }
-            }
-        }
-    }
-
-    private void enqueueRailNode(World level, DrawScheduler drawScheduler, Matrix4f viewMatrix, Rail rail, Position node) {
-        final boolean isEnd = isEndPosition(rail, node);
-        double x = node.getX() + 0.5;
-        double y = node.getY();
-        double z = node.getZ() + 0.5;
-        double dx = 0;
-        double dy = 0;
-        double dz = 1;
-
-        try {
-            if ((Object) rail instanceof RailExtraSupplier extra) {
-                final double length = extra.getLength();
-                if (Double.isFinite(length) && length > 0.001) {
-                    final double epsilon = Math.max(0.001, Math.min(0.5, length * 0.01));
-                    final org.mtr.mapping.holder.Vector3d endpoint = extra.getPosition(isEnd ? length : 0);
-                    final org.mtr.mapping.holder.Vector3d inside = extra.getPosition(isEnd ? Math.max(0, length - epsilon) : Math.min(length, epsilon));
-                    x = endpoint.getXMapped();
-                    y = endpoint.getYMapped();
-                    z = endpoint.getZMapped();
-                    if (isEnd) {
-                        dx = endpoint.getXMapped() - inside.getXMapped();
-                        dy = endpoint.getYMapped() - inside.getYMapped();
-                        dz = endpoint.getZMapped() - inside.getZMapped();
-                    } else {
-                        dx = inside.getXMapped() - endpoint.getXMapped();
-                        dy = inside.getYMapped() - endpoint.getYMapped();
-                        dz = inside.getZMapped() - endpoint.getZMapped();
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        final double horizontal = Math.hypot(dx, dz);
-        final float yaw = horizontal < 1E-9 ? 0 : (float) net.minecraft.util.Mth.atan2(dx, dz);
-        final float pitch = (float) net.minecraft.util.Mth.atan2(dy, horizontal);
-        final Matrix4f nodePose = viewMatrix.copy();
-        nodePose.translate((float) x, (float) y, (float) z);
-        nodePose.rotateY(yaw);
-        nodePose.rotateX(-pitch);
-        final BlockPos lightPos = new BlockPos((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
-        final int light = LightTexture.pack(level.getLightLevel(org.mtr.mapping.holder.LightType.BLOCK, lightPos),
-                level.getLightLevel(org.mtr.mapping.holder.LightType.SKY, lightPos));
-        drawScheduler.enqueue(RailModelRegistry.railNodeModel, nodePose, light);
-    }
-
-    private static boolean isEndPosition(Rail rail, Position pos) {
-        if (((Object) rail) instanceof RailExtraSupplier extra) {
-            Position p1 = extra.getExtraPosition1();
-            if (p1 != null) {
-                return p1.getX() != pos.getX() || p1.getY() != pos.getY() || p1.getZ() != pos.getZ();
-            }
-        }
-        return false;
     }
 
     public static java.util.List<String> getModelKeysForRender(Rail rail) {

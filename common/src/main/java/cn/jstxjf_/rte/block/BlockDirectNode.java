@@ -39,7 +39,7 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
     @Nonnull
     @Override
     public BlockRenderType getRenderType2(BlockState state) {
-        return BlockRenderType.getEntityblockAnimatedMapped();
+        return BlockRenderType.getInvisibleMapped();
     }
     
     @Override
@@ -48,6 +48,7 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
     }
     
     public static class BlockEntityDirectNode extends BlockEntityExtension {
+        public static volatile java.util.function.Predicate<BlockPos> clientEditLock = pos -> false;
         private static Field initMainField;
         private static Field worldIdListField;
         private static Field mainSimulatorsField;
@@ -190,6 +191,9 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
 
         public void setAttachmentFaceLocal(int value) {
             attachmentFace = org.mtr.mapping.holder.Direction.byId(value).getId();
+            if (isWallFace(attachmentFace) && Math.abs(pitch - 90) <= 1E-4) {
+                pitch = -90;
+            }
         }
 
         public boolean isFittingNode() {
@@ -206,6 +210,10 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
         }
 
         public void readCompoundTag(CompoundTag compoundTag, boolean triggerRebuild) {
+            final net.minecraft.world.level.Level ownLevel = ((net.minecraft.world.level.block.entity.BlockEntity) (Object) this).getLevel();
+            if (ownLevel != null && ownLevel.isClientSide() && clientEditLock.test(getPos2())) {
+                return;
+            }
             boolean geometryChanged = false;
             if (compoundTag.contains(KEY_ANGLE)) {
                 final double newAngle = normalize(compoundTag.getDouble(KEY_ANGLE));
@@ -221,6 +229,7 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
             final double newYOffset = compoundTag.contains(KEY_Y_OFFSET) ? sanitizeOffset(compoundTag.getDouble(KEY_Y_OFFSET)) : 0;
             final double newZOffset = compoundTag.contains(KEY_Z_OFFSET) ? sanitizeOffset(compoundTag.getDouble(KEY_Z_OFFSET)) : 0;
             final double newPitch = compoundTag.contains(KEY_PITCH) ? normalizePitch(compoundTag.getDouble(KEY_PITCH)) : 0;
+            final double oldPitch = pitch;
             geometryChanged |= Math.abs(newXOffset - xOffset) > 1E-4;
             geometryChanged |= Math.abs(newYOffset - yOffset) > 1E-4;
             geometryChanged |= Math.abs(newZOffset - zOffset) > 1E-4;
@@ -229,9 +238,10 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
             yOffset = newYOffset;
             zOffset = newZOffset;
             pitch = newPitch;
-            attachmentFace = compoundTag.contains(KEY_ATTACHMENT_FACE)
-                    ? org.mtr.mapping.holder.Direction.byId(compoundTag.getInt(KEY_ATTACHMENT_FACE)).getId()
-                    : org.mtr.mapping.holder.Direction.UP.getId();
+            setAttachmentFaceLocal(compoundTag.contains(KEY_ATTACHMENT_FACE)
+                    ? compoundTag.getInt(KEY_ATTACHMENT_FACE)
+                    : org.mtr.mapping.holder.Direction.UP.getId());
+            geometryChanged |= Math.abs(pitch - oldPitch) > 1E-4;
             if (compoundTag.contains(KEY_FITTING_NODE)) {
                 fittingNode = compoundTag.getBoolean(KEY_FITTING_NODE);
             }
@@ -287,6 +297,11 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
             if (value <= -180) value += 360;
             if (value > 180) value -= 360;
             return value;
+        }
+
+        private static boolean isWallFace(int face) {
+            final org.mtr.mapping.holder.Direction direction = org.mtr.mapping.holder.Direction.byId(face);
+            return direction != org.mtr.mapping.holder.Direction.UP && direction != org.mtr.mapping.holder.Direction.DOWN;
         }
 
         public void scheduleUpdateRailwayData() {
@@ -392,7 +407,8 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
                         continue;
                     }
 
-                    if (RailExtraSupplier.usesBezierCurve(forwardExtra.getPathMode()) && !needsSpatialBezier) {
+                    final boolean autoBezier = forwardExtra.getPathMode() == RailExtraSupplier.PATH_MODE_AUTO_BEZIER;
+                    if (RailExtraSupplier.usesBezierCurve(forwardExtra.getPathMode()) && !autoBezier && !needsSpatialBezier) {
                         if (!transformsUnchanged || needsSpatialBezier && forwardExtra.getPathMode() != RailExtraSupplier.PATH_MODE_AUTO_BEZIER) {
                             setRailNodeTransforms(forwardExtra, desiredTransform1, desiredTransform2);
                             if (needsSpatialBezier) {
@@ -459,9 +475,9 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
                     }
                     final Rail rebuilt = rebuildRail(forward, rad1, rad2);
                     if (rebuilt == null) {
-                        if (!transformsUnchanged || needsSpatialBezier) {
+                        if (!transformsUnchanged || needsSpatialBezier || autoBezier) {
                             setRailNodeTransforms(forwardExtra, desiredTransform1, desiredTransform2);
-                            if (needsSpatialBezier) {
+                            if (needsSpatialBezier || autoBezier) {
                                 forwardExtra.setExtraAngle1Rad(rad1);
                                 forwardExtra.setExtraAngle2Rad(rad2);
                                 forwardExtra.setPathModeRaw(RailExtraSupplier.PATH_MODE_AUTO_BEZIER);

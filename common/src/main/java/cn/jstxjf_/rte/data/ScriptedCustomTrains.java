@@ -40,6 +40,8 @@ public class ScriptedCustomTrains {
         "end_2", "cab_3"
     );
     public static final Map<String, ScriptHolderBase> SCRIPTED_TRAINS = new LinkedHashMap<>();
+    private static final Map<String, Set<String>> ALIAS_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, java.util.Optional<ScriptHolderBase>> SCRIPT_LOOKUP_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static final Map<ResourceLocation, String> LEGACY_RAW_PATHS = new java.util.concurrent.ConcurrentHashMap<>();
 
@@ -68,6 +70,7 @@ public class ScriptedCustomTrains {
     public static void init(ResourceManager resourceManager) {
         new HashSet<>(SCRIPTED_TRAINS.values()).forEach(ScriptHolderBase::close);
         SCRIPTED_TRAINS.clear();
+        SCRIPT_LOOKUP_CACHE.clear();
         GangwayPolicy.reset();
         LegacyVehicleRegistry.reset();
         if (resourceManager == null) return;
@@ -246,9 +249,17 @@ public class ScriptedCustomTrains {
     private static void registerScript(String trainId, ScriptHolderBase scriptContext) {
         final Set<String> aliases = getTrainIdAliases(trainId);
         aliases.forEach(alias -> SCRIPTED_TRAINS.put(alias, scriptContext));
+        SCRIPT_LOOKUP_CACHE.clear();
     }
 
     public static Set<String> getTrainIdAliases(String trainId) {
+        if (trainId == null) {
+            return computeTrainIdAliases(null);
+        }
+        return ALIAS_CACHE.computeIfAbsent(trainId, id -> java.util.Collections.unmodifiableSet(computeTrainIdAliases(id)));
+    }
+
+    private static Set<String> computeTrainIdAliases(String trainId) {
         final Set<String> aliases = new LinkedHashSet<>();
         addTrainIdAlias(aliases, trainId);
         if (trainId == null) {
@@ -346,6 +357,13 @@ public class ScriptedCustomTrains {
     }
 
     public static ScriptHolderBase getScript(String trainId) {
+        if (trainId == null) {
+            return lookupScript(null);
+        }
+        return SCRIPT_LOOKUP_CACHE.computeIfAbsent(trainId, id -> java.util.Optional.ofNullable(lookupScript(id))).orElse(null);
+    }
+
+    private static ScriptHolderBase lookupScript(String trainId) {
         for (String alias : getTrainIdAliases(trainId)) {
             final ScriptHolderBase scriptHolder = SCRIPTED_TRAINS.get(alias);
             if (scriptHolder != null) {

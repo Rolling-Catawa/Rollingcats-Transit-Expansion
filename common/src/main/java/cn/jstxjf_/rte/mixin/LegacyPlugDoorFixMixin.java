@@ -19,6 +19,8 @@ public class LegacyPlugDoorFixMixin {
     private static final ThreadLocal<Integer> RTE_OUTPUT_SIZE = new ThreadLocal<>();
     private static final ThreadLocal<String> RTE_DOOR_SIDE = new ThreadLocal<>();
     private static final ThreadLocal<String> RTE_RENDER_CONDITION = new ThreadLocal<>();
+    private static final ThreadLocal<Boolean> RTE_DROP_PART = new ThreadLocal<>();
+    private static final ThreadLocal<String> RTE_RENDER_STAGE = new ThreadLocal<>();
 
     /**
      * Older MTR packs use the singular DOOR_* spelling.  MTR 4's legacy
@@ -44,6 +46,17 @@ public class LegacyPlugDoorFixMixin {
                 return;
             }
             final JsonObject source = sourceElement.getAsJsonObject();
+            RTE_DROP_PART.set(false);
+            RTE_RENDER_STAGE.set("");
+            if (source.has("stage") && source.get("stage").isJsonPrimitive()) {
+                final String stage = source.get("stage").getAsString().toUpperCase(java.util.Locale.ROOT);
+                switch (stage) {
+                    case "LIGHTS" -> RTE_RENDER_STAGE.set("LIGHT");
+                    case "ALWAYS_ON_LIGHTS" -> RTE_RENDER_STAGE.set("ALWAYS_ON_LIGHT");
+                    case "INTERIOR", "INTERIOR_TRANSLUCENT", "EXTERIOR" -> RTE_RENDER_STAGE.set(stage);
+                    default -> RTE_DROP_PART.set(true);
+                }
+            }
             if (source.has("door_offset") && source.get("door_offset").isJsonPrimitive()) {
                 final String offset = source.get("door_offset").getAsString()
                     .toUpperCase(java.util.Locale.ROOT);
@@ -91,6 +104,13 @@ public class LegacyPlugDoorFixMixin {
             }
             final Integer capturedSize = RTE_OUTPUT_SIZE.get();
             final int start = Math.max(0, capturedSize == null ? outputParts.size() : capturedSize);
+            if (Boolean.TRUE.equals(RTE_DROP_PART.get())) {
+                for (int i = outputParts.size() - 1; i >= start; i--) {
+                    outputParts.remove(i);
+                }
+                return;
+            }
+            final String renderStage = RTE_RENDER_STAGE.get() == null ? "" : RTE_RENDER_STAGE.get();
             final String side = RTE_DOOR_SIDE.get() == null ? "" : RTE_DOOR_SIDE.get();
             final String condition = RTE_RENDER_CONDITION.get() == null
                 ? "" : RTE_RENDER_CONDITION.get();
@@ -99,12 +119,15 @@ public class LegacyPlugDoorFixMixin {
                     continue;
                 }
                 final JsonObject converted = outputParts.get(i).getAsJsonObject();
+                if (!renderStage.isEmpty()) {
+                    converted.addProperty("renderStage", renderStage);
+                }
                 if (!side.isEmpty()) {
                     converted.addProperty("rteLegacyDoorSide", side);
                 }
                 if (!condition.isEmpty()) {
                     converted.addProperty("rteLegacyRenderCondition", condition);
-                    if (condition.contains("LEFT") || condition.contains("RIGHT")) {
+                    if ((condition.contains("LEFT") || condition.contains("RIGHT")) && condition.endsWith("_CLOSED")) {
                         converted.addProperty("condition", "NORMAL");
                     }
                 }
@@ -113,6 +136,8 @@ public class LegacyPlugDoorFixMixin {
             RTE_OUTPUT_SIZE.remove();
             RTE_DOOR_SIDE.remove();
             RTE_RENDER_CONDITION.remove();
+            RTE_DROP_PART.remove();
+            RTE_RENDER_STAGE.remove();
         }
     }
 

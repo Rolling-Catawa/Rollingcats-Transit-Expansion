@@ -6,6 +6,8 @@ out/
 .idea_modules/
 atlassian-ide-plugin.xml
 *.class
+__pycache__/
+*.py[cod]
 *.log
 *.ctxt
 *.jar

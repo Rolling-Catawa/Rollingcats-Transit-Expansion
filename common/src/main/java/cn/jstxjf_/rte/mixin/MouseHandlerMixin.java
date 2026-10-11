@@ -12,7 +12,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class MouseHandlerMixin {
 
     @Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
+    private void rte$freeNodePress(long window, int button, int action, int modifiers, CallbackInfo ci) {
+        if (cn.jstxjf_.rte.render.FreeNodeEditor.onMouseButton(button, action, modifiers)) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "onScroll", at = @At("HEAD"), cancellable = true)
+    private void rte$freeNodeScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
+        if (cn.jstxjf_.rte.render.FreeNodeEditor.onScroll(vertical)) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
     private void rte$depotRailMarkPress(long window, int button, int action, int modifiers, CallbackInfo ci) {
+        if (cn.jstxjf_.rte.render.FreeNodeEditor.isCapturingPointer()) {
+            return;
+        }
         final Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.screen != null || minecraft.player == null
             || !cn.jstxjf_.rte.render.DepotRailMarking.isActive() || action != 1) {
@@ -29,6 +46,9 @@ public class MouseHandlerMixin {
 
     @Inject(method = "onPress", at = @At("HEAD"), cancellable = true)
     private void rte$chainHandlePress(long window, int button, int action, int modifiers, CallbackInfo ci) {
+        if (cn.jstxjf_.rte.render.FreeNodeEditor.isCapturingPointer()) {
+            return;
+        }
         final Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.screen != null || minecraft.player == null || !RailChainHandles.isActive()) {
             return;

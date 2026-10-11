@@ -42,6 +42,20 @@ public abstract class ScriptHolderBase {
 
     private final java.util.concurrent.atomic.AtomicBoolean rte$engineBusy =
         new java.util.concurrent.atomic.AtomicBoolean();
+    private static final long RTE_STALL_NANOS = 10_000_000_000L;
+    private static final ThreadLocal<String> RTE_CURRENT_SCRIPT = new ThreadLocal<>();
+
+    public static String currentScriptName() {
+        final String current = RTE_CURRENT_SCRIPT.get();
+        return current == null ? "?" : current;
+    }
+    private static final long RTE_MIN_RENDER_INTERVAL_NANOS = 16_666_667L;
+    private static final long RTE_MAX_RENDER_INTERVAL_NANOS = 100_000_000L;
+    private final Object rte$runLock = new Object();
+    private final java.util.concurrent.atomic.AtomicLong rte$generation = new java.util.concurrent.atomic.AtomicLong();
+    private volatile long rte$dispatchedNanos;
+    private volatile Thread rte$runningThread;
+    private volatile boolean rte$hangReported;
 
     public final String side;
     public final ScriptEngineType engineType;
@@ -338,6 +352,7 @@ public abstract class ScriptHolderBase {
                                        Runnable finishCallback, Object... args) {
         if (duringFailTimeout()) return null;
         if (backend == null) return null;
+        rte$recoverIfStalled();
         if (!rte$engineBusy.compareAndSet(false, true)) {
             RTE_BUSY_SKIPPED.incrementAndGet();
             rte$enqueue(functions, scriptCtx, finishCallback, args);
@@ -396,42 +411,84 @@ public abstract class ScriptHolderBase {
         }
     }
 
+    private void rte$recoverIfStalled() {
+        if (!rte$engineBusy.get() || System.nanoTime() - rte$dispatchedNanos < RTE_STALL_NANOS) {
+            return;
+        }
+        synchronized (rte$runLock) {
+            if (!rte$engineBusy.get() || System.nanoTime() - rte$dispatchedNanos < RTE_STALL_NANOS) {
+                return;
+            }
+            if (rte$runningThread != null) {
+                if (!rte$hangReported) {
+                    rte$hangReported = true;
+                    RTE.LOGGER.warn("[Script] {} has been running for over {} s; its vehicles stay frozen until it returns",
+                        name, RTE_STALL_NANOS / 1_000_000_000L);
+                }
+                return;
+            }
+            RTE.LOGGER.warn("[Script] {} was stuck waiting for a dropped call; recovering", name);
+            rte$generation.incrementAndGet();
+            rte$engineBusy.set(false);
+        }
+    }
+
     private Future<?> rte$dispatch(List<Object> functions, AbstractScriptContext scriptCtx,
                                    Runnable finishCallback, Object... args) {
-        return SCRIPT_THREAD.submit(() -> {
-            long start = System.nanoTime();
-            try {
-                if ("client".equals(side)) {
-                    ClientDataCompat.ensureFresh();
-                }
-                TimingUtil.prepareForScript(scriptCtx);
-                if (scriptCtx.state == null) {
-                    scriptCtx.state = backend.newStateObject();
-                }
-                Object[] allArgs = new Object[3 + args.length];
-                allArgs[0] = scriptCtx;
-                allArgs[1] = scriptCtx.state;
-                allArgs[2] = scriptCtx.getWrapperObject();
-                System.arraycopy(args, 0, allArgs, 3, args.length);
+        final long generation = rte$generation.incrementAndGet();
+        rte$dispatchedNanos = System.nanoTime();
+        try {
+            return SCRIPT_THREAD.submit(() -> rte$run(generation, functions, scriptCtx, finishCallback, args));
+        } catch (java.util.concurrent.RejectedExecutionException e) {
+            rte$engineBusy.set(false);
+            return null;
+        }
+    }
 
-                backend.invoke(functions, allArgs);
-
-                if (finishCallback != null) finishCallback.run();
-
-                failException = null;
-                failTime = 0;
-            } catch (Throwable ex) {
-                RTE.LOGGER.error("Error in RTE Resource Pack JavaScript", ex);
-                failTime = System.currentTimeMillis();
-                failException = ex instanceof Exception e ? e : new RuntimeException(ex);
-                rte$noteRuntimeFailure();
-            } finally {
-                scriptCtx.lastExecuteDuration = System.nanoTime() - start;
-                RTE_SUBMITTED.incrementAndGet();
-                RTE_EXEC_NANOS.addAndGet(scriptCtx.lastExecuteDuration);
-                rte$drainNext();
+    private void rte$run(long generation, List<Object> functions, AbstractScriptContext scriptCtx,
+                         Runnable finishCallback, Object[] args) {
+        synchronized (rte$runLock) {
+            if (generation != rte$generation.get()) {
+                return;
             }
-        });
+            rte$runningThread = Thread.currentThread();
+        }
+        rte$hangReported = false;
+        long start = System.nanoTime();
+        RTE_CURRENT_SCRIPT.set(name);
+        try {
+            if ("client".equals(side)) {
+                ClientDataCompat.ensureFresh();
+            }
+            TimingUtil.prepareForScript(scriptCtx);
+            if (scriptCtx.state == null) {
+                scriptCtx.state = backend.newStateObject();
+            }
+            Object[] allArgs = new Object[3 + args.length];
+            allArgs[0] = scriptCtx;
+            allArgs[1] = scriptCtx.state;
+            allArgs[2] = scriptCtx.getWrapperObject();
+            System.arraycopy(args, 0, allArgs, 3, args.length);
+
+            backend.invoke(functions, allArgs);
+
+            if (finishCallback != null) finishCallback.run();
+
+            failException = null;
+            failTime = 0;
+        } catch (Throwable ex) {
+            RTE.LOGGER.error("Error in RTE Resource Pack JavaScript", ex);
+            failTime = System.currentTimeMillis();
+            failException = ex instanceof Exception e ? e : new RuntimeException(ex);
+            rte$noteRuntimeFailure();
+        } finally {
+            scriptCtx.lastExecuteDuration = System.nanoTime() - start;
+            RTE_SUBMITTED.incrementAndGet();
+            RTE_EXEC_NANOS.addAndGet(scriptCtx.lastExecuteDuration);
+            rte$runningThread = null;
+            RTE_CURRENT_SCRIPT.remove();
+            rte$drainNext();
+        }
     }
 
     private static final int RUNTIME_FAILURES_BEFORE_RHINO = 5;
@@ -554,8 +611,8 @@ public abstract class ScriptHolderBase {
             if (now < scriptCtx.nextRenderNanos) {
                 return;
             }
-            final long interval = Math.max(33_000_000L,
-                Math.min(250_000_000L, scriptCtx.lastExecuteDuration * 2L));
+            final long interval = Math.max(RTE_MIN_RENDER_INTERVAL_NANOS,
+                Math.min(RTE_MAX_RENDER_INTERVAL_NANOS, scriptCtx.lastExecuteDuration));
             scriptCtx.nextRenderNanos = now + interval;
             tryCallFunctionAsync("render", scriptCtx, () -> scriptCtx.renderFunctionFinished(), true);
         }
@@ -579,7 +636,11 @@ public abstract class ScriptHolderBase {
     }
 
     public static void resetRunner() {
-        SCRIPT_THREAD.shutdownNow();
+        for (final Runnable dropped : SCRIPT_THREAD.shutdownNow()) {
+            if (dropped instanceof Future<?> future) {
+                future.cancel(false);
+            }
+        }
         SCRIPT_THREAD = rte$newPool();
     }
 

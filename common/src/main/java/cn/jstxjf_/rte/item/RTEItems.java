@@ -4,28 +4,9 @@ import cn.jstxjf_.rte.RTE;
 import cn.jstxjf_.rte.RTECreativeModeTabs;
 import org.mtr.mapping.holder.Identifier;
 import org.mtr.mapping.holder.Item;
-import org.mtr.mod.item.ItemBridgeCreator;
 import org.mtr.mapping.registry.ItemRegistryObject;
 
 public class RTEItems {
-
-    public static final ItemRegistryObject BRIDGE_CREATOR_1 = RTE.REGISTRY.registerItem(
-        new Identifier(RTE.MOD_ID, "bridge_creator_1"),
-        settings -> new Item(new ItemBridgeCreator(1, settings)),
-        RTECreativeModeTabs.CORE
-    );
-
-    public static final ItemRegistryObject BRIDGE_CREATOR_2 = RTE.REGISTRY.registerItem(
-        new Identifier(RTE.MOD_ID, "bridge_creator_2"),
-        settings -> new Item(new ItemBridgeCreator(2, settings)),
-        RTECreativeModeTabs.CORE
-    );
-
-    public static final ItemRegistryObject BRIDGE_CREATOR_3 = RTE.REGISTRY.registerItem(
-        new Identifier(RTE.MOD_ID, "bridge_creator_3"),
-        settings -> new Item(new ItemBridgeCreator(3, settings)),
-        RTECreativeModeTabs.CORE
-    );
 
     public static final ItemRegistryObject COMPOUND_CREATOR = RTE.REGISTRY.registerItem(
         new Identifier(RTE.MOD_ID, "compound_creator"),

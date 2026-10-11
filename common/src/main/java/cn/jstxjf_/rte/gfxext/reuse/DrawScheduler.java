@@ -113,6 +113,7 @@ public class DrawScheduler {
             final ModelCluster model = entry.getKey();
             final List<ClusterDrawCall> calls = entry.getValue();
             if (calls.size() < INSTANCE_THRESHOLD || !model.supportsInstancing()
+                    || !cn.jstxjf_.rte.render.ShadersModHandler.canUseCustomShader()
                     || !shaderManager.hasInstancedShader(model.opaqueMaterial())) {
                 for (ClusterDrawCall drawCall : calls) {
                     model.enqueueOpaqueGl(batchManager, drawCall.pose, drawCall.light, drawCall.overlay, drawContext);

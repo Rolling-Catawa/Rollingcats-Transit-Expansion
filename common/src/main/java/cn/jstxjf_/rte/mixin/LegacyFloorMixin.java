@@ -1,12 +1,12 @@
 package cn.jstxjf_.rte.mixin;
 
+import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectImmutableList;
 import org.mtr.mapping.holder.Box;
 import org.mtr.mod.resource.VehicleResource;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyArgs;
-import org.spongepowered.asm.mixin.injection.invoke.arg.Args;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,31 +18,34 @@ public class LegacyFloorMixin {
     private static final double END_MARGIN = 2.5;
     private static int rte$logged = 0;
 
-    @ModifyArgs(
+    @ModifyArg(
         method = "getCachedVehicleResource",
         at = @At(
             value = "INVOKE",
             target = "Lorg/mtr/mod/resource/VehicleResourceCache;<init>(Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/ObjectImmutableList;Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/ObjectImmutableList;Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap;Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap;Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap;Lorg/mtr/libraries/it/unimi/dsi/fastutil/objects/Object2ObjectOpenHashMap;)V"
         ),
+        index = 0,
         require = 0
     )
-    private void rte$synthesiseFloor(Args args) {
+    private ObjectImmutableList<Box> rte$synthesiseFloor(ObjectImmutableList<Box> floors, ObjectImmutableList<Box> doorways,
+                                                         Object2ObjectOpenHashMap<?, ?> optimizedModels,
+                                                         Object2ObjectOpenHashMap<?, ?> optimizedModelsDoorsClosed,
+                                                         Object2ObjectOpenHashMap<?, ?> optimizedModelsBogie1,
+                                                         Object2ObjectOpenHashMap<?, ?> optimizedModelsBogie2) {
         try {
             if (!cn.jstxjf_.rte.ClientConfig.legacyWalkways) {
-                return;
+                return floors;
             }
-            final ObjectImmutableList<Box> floors = args.get(0);
-            final ObjectImmutableList<Box> doorways = args.get(1);
             if (floors == null || doorways == null || !floors.isEmpty() || doorways.isEmpty()) {
-                return;
+                return floors;
             }
             final Box floor = rte$slabFromDoorways(doorways);
             if (floor == null) {
-                return;
+                return floors;
             }
             final List<Box> replacement = new ArrayList<>();
             replacement.add(floor);
-            args.set(0, new ObjectImmutableList<>(replacement));
+            final ObjectImmutableList<Box> synthesised = new ObjectImmutableList<>(replacement);
             if (++rte$logged <= 10) {
                 cn.jstxjf_.rte.RTE.LOGGER.info(
                     "[LegacyFloor] floor slab x[{}, {}] y[{}, {}] z[{}, {}] from {} doorways",
@@ -51,8 +54,10 @@ public class LegacyFloorMixin {
                     rte$round(floor.getMinZMapped()), rte$round(floor.getMaxZMapped()),
                     doorways.size());
             }
+            return synthesised;
         } catch (Throwable e) {
             cn.jstxjf_.rte.RTE.LOGGER.warn("[LegacyFloor] synthesis failed", e);
+            return floors;
         }
     }
 

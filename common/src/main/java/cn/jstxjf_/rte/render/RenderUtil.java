@@ -17,8 +17,6 @@ public class RenderUtil {
     public static PoseStack commonPoseStack = null;
     public static MultiBufferSource commonVertexConsumers = null;
     public static org.mtr.mapping.holder.Vector3d mtrRenderOffset = null;
-    public static double bodyOscillation;
-    public static boolean bodyOscillationValid;
 
     public static double runningSeconds;
     public static double frameSeconds;

@@ -33,12 +33,20 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class RenderRailsMixin {
 
     private static final Identifier ARROW_TEXTURE = new Identifier("mtr", "textures/block/one_way_rail_arrow.png");
+    private static final ThreadLocal<Boolean> RTE_SKIP_STYLE_MODELS = ThreadLocal.withInitial(() -> false);
 
     @Inject(method = "render", at = @At("HEAD"), remap = false)
     private static void renderHead(CallbackInfo ci) {
         RenderUtil.commonVertexConsumers = null;
         RTEClient.railRenderDispatcher.prepareDraw();
         cn.jstxjf_.rte.render.DashboardMapCache.frameTick();
+    }
+
+    @Inject(method = "renderNode", at = @At("HEAD"), cancellable = true, remap = false)
+    private static void rte$skipDirectNodeBar(BlockState blockState, BlockPos blockPos, java.util.function.BooleanSupplier shouldRender, int light, CallbackInfo ci) {
+        if (blockState.getBlock().data instanceof BlockDirectNode) {
+            ci.cancel();
+        }
     }
 
     @Redirect(
@@ -197,9 +205,51 @@ public class RenderRailsMixin {
                 cn.jstxjf_.rte.data.RailModelProperties prop = cn.jstxjf_.rte.data.RailModelRegistry.getProperty(modelKey);
                 if (prop != null && prop.rawModel != null) {
                     RTEClient.railRenderDispatcher.registerRail(carrier);
-                    ci.cancel();
+                    if (rte$isHighlightState(renderState) && !rte$hasRteGeometry(carrier)) {
+                        RTE_SKIP_STYLE_MODELS.set(true);
+                    } else {
+                        ci.cancel();
+                    }
                 }
             }
+        }
+    }
+
+    @Inject(method = "renderRailStandard(Lorg/mtr/mapping/holder/ClientWorld;Lorg/mtr/core/data/Rail;FLorg/mtr/mod/render/RenderRails$RenderState;FLorg/mtr/mapping/holder/Identifier;FFFF)V", at = @At("RETURN"), remap = false)
+    private static void rte$endRailStandard(CallbackInfo ci) {
+        RTE_SKIP_STYLE_MODELS.set(false);
+    }
+
+    @Redirect(
+        method = "renderRailStandard(Lorg/mtr/mapping/holder/ClientWorld;Lorg/mtr/core/data/Rail;FLorg/mtr/mod/render/RenderRails$RenderState;FLorg/mtr/mapping/holder/Identifier;FFFF)V",
+        at = @At(value = "INVOKE", target = "Lorg/mtr/mod/client/CustomResourceLoader;getRailById(Ljava/lang/String;Ljava/util/function/Consumer;)V"),
+        require = 0,
+        remap = false
+    )
+    private static void rte$skipStyleModelsWhenRteDraws(String railId, java.util.function.Consumer<org.mtr.mod.resource.RailResource> consumer) {
+        if (!RTE_SKIP_STYLE_MODELS.get()) {
+            org.mtr.mod.client.CustomResourceLoader.getRailById(railId, consumer);
+        }
+    }
+
+    private static boolean rte$hasRteGeometry(Rail rail) {
+        if (!(((Object) rail) instanceof RailExtraSupplier extra)) {
+            return false;
+        }
+        if (RailExtraSupplier.usesBezierCurve(extra.getPathMode()) && extra.getBezierCurve() != null) {
+            return true;
+        }
+        return Double.isFinite(extra.getExtraAngle1Rad()) || Double.isFinite(extra.getExtraAngle2Rad());
+    }
+
+    private static boolean rte$isHighlightState(Object renderState) {
+        return renderState instanceof Enum<?> state && "FLASHING".equals(state.name());
+    }
+
+    @Inject(method = "renderRailStats", at = @At("HEAD"), cancellable = true, require = 0, remap = false)
+    private static void rte$skipStatsUnderRteOverlay(CallbackInfo ci) {
+        if (cn.jstxjf_.rte.render.RailPicker.pickedRail != null) {
+            ci.cancel();
         }
     }
 

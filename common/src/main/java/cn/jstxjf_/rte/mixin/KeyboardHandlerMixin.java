@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(KeyboardHandler.class)
 public class KeyboardHandlerMixin {
@@ -18,6 +19,13 @@ public class KeyboardHandlerMixin {
     @Shadow
     @Final
     private Minecraft minecraft;
+
+    @Inject(method = "keyPress", at = @At("HEAD"), cancellable = true)
+    private void rte$freeNodeKey(long window, int key, int scanCode, int action, int modifiers, CallbackInfo ci) {
+        if (cn.jstxjf_.rte.render.FreeNodeEditor.onKey(key, action, modifiers)) {
+            ci.cancel();
+        }
+    }
 
     @Inject(method = "handleDebugKeys", at = @At("HEAD"), cancellable = true)
     private void rte$reloadClientResources(int key, CallbackInfoReturnable<Boolean> cir) {

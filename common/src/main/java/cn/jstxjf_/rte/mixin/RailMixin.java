@@ -89,6 +89,13 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Unique private int rte$pathMode = 0;
     @Unique private String rte$railType = "";
     @Unique private int rte$speedLimitKph = -1;
+    @Unique private boolean rte$collisionEnabled = false;
+    @Unique private float rte$collisionWidth = 3F;
+    @Unique private float rte$collisionHeight = 0.25F;
+    @Unique private float rte$collisionLength = 0.75F;
+    @Unique private float rte$collisionSpacing = 0.5F;
+    @Unique private float rte$collisionYOffset = -0.25F;
+    @Unique private float rte$collisionSideOffset = 0F;
     @Unique private BezierCurve rte$bezier = null;
     @Unique private BlockPos rte$posStartCache = null;
     @Unique private BlockPos rte$posEndCache = null;
@@ -141,7 +148,7 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Override public boolean getRenderReversed() { return rte$isSecondaryDir; }
     @Override public void setRenderReversed(boolean value) { this.rte$isSecondaryDir = value; }
     @Override public float getVerticalCurveRadius() { return rte$verticalCurveRadius; }
-    @Override public void setVerticalCurveRadius(float value) { this.rte$verticalCurveRadius = value; this.rte$vTheta = 0; rte$invalidateEffectiveLength(); }
+    @Override public void setVerticalCurveRadius(float value) { this.rte$verticalCurveRadius = value; this.rte$vTheta = 0; rte$invalidateEffectiveLength(); rte$markCollisionDirty(); }
 
     @Unique
     private RailAccessor rte$accessor() { return (RailAccessor)(Object)this; }
@@ -157,9 +164,9 @@ public abstract class RailMixin implements RailExtraSupplier {
     }
 
     @Override public Map<Double, Float> getRollAngleMap() { return rte$rollAngleMap; }
-    @Override public void setRollAngleMap(Map<Double, Float> rollAngleMap) { this.rte$rollAngleMap = rollAngleMap; }
+    @Override public void setRollAngleMap(Map<Double, Float> rollAngleMap) { this.rte$rollAngleMap = rollAngleMap; rte$markCollisionDirty(); }
     @Override public Map<String, String> getCustomConfigs() { return rte$customConfigs; }
-    @Override public void setCustomConfigs(Map<String, String> customConfigs) { this.rte$customConfigs = customConfigs; }
+    @Override public void setCustomConfigs(Map<String, String> customConfigs) { this.rte$customConfigs = customConfigs == null ? new HashMap<>() : customConfigs; rte$markCollisionDirty(); }
     @Override public Map<String, ConfigResponder> getCustomResponders() { return rte$customResponders; }
     @Override public void setCustomResponders(Map<String, ConfigResponder> customResponders) { this.rte$customResponders = customResponders; }
     @Override public void setOpeningDirectionRaw(int direction) { this.rte$openingDirection = direction; }
@@ -184,24 +191,38 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Override public String getRailType() { return rte$railType; }
     @Override public void setSpeedLimitKph(int kph) { this.rte$speedLimitKph = kph; }
     @Override public int getSpeedLimitKph() { return rte$speedLimitKph; }
-    @Override public void setRollingOffset(float rollingOffset) { this.rte$rollingOffset = rollingOffset; }
+    @Override public boolean isCollisionEnabled() { return rte$collisionEnabled; }
+    @Override public void setCollisionEnabled(boolean value) { this.rte$collisionEnabled = value; cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
+    @Override public float getCollisionWidth() { return rte$collisionWidth; }
+    @Override public void setCollisionWidth(float value) { this.rte$collisionWidth = rte$collisionValue(value, 0.05F, 32F, 3F); cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
+    @Override public float getCollisionHeight() { return rte$collisionHeight; }
+    @Override public void setCollisionHeight(float value) { this.rte$collisionHeight = rte$collisionValue(value, 0.05F, 16F, 0.25F); cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
+    @Override public float getCollisionLength() { return rte$collisionLength; }
+    @Override public void setCollisionLength(float value) { this.rte$collisionLength = rte$collisionValue(value, 0.05F, 16F, 0.75F); cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
+    @Override public float getCollisionSpacing() { return rte$collisionSpacing; }
+    @Override public void setCollisionSpacing(float value) { this.rte$collisionSpacing = rte$collisionValue(value, 0.05F, 16F, 0.5F); cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
+    @Override public float getCollisionYOffset() { return rte$collisionYOffset; }
+    @Override public void setCollisionYOffset(float value) { this.rte$collisionYOffset = rte$collisionValue(value, -32F, 32F, -0.25F); cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
+    @Override public float getCollisionSideOffset() { return rte$collisionSideOffset; }
+    @Override public void setCollisionSideOffset(float value) { this.rte$collisionSideOffset = rte$collisionValue(value, -32F, 32F, 0F); cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
+    @Override public void setRollingOffset(float rollingOffset) { this.rte$rollingOffset = rollingOffset; rte$markCollisionDirty(); }
     @Override public float getRollingOffset() { return rte$rollingOffset; }
     @Override public double getNodeXOffset1() { return rte$nodeXOffset1; }
-    @Override public void setNodeXOffset1(double value) { rte$nodeXOffset1 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public void setNodeXOffset1(double value) { rte$nodeXOffset1 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); rte$markCollisionDirty(); }
     @Override public double getNodeYOffset1() { return rte$nodeYOffset1; }
-    @Override public void setNodeYOffset1(double value) { rte$nodeYOffset1 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public void setNodeYOffset1(double value) { rte$nodeYOffset1 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); rte$markCollisionDirty(); }
     @Override public double getNodeZOffset1() { return rte$nodeZOffset1; }
-    @Override public void setNodeZOffset1(double value) { rte$nodeZOffset1 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public void setNodeZOffset1(double value) { rte$nodeZOffset1 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); rte$markCollisionDirty(); }
     @Override public double getNodeXOffset2() { return rte$nodeXOffset2; }
-    @Override public void setNodeXOffset2(double value) { rte$nodeXOffset2 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public void setNodeXOffset2(double value) { rte$nodeXOffset2 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); rte$markCollisionDirty(); }
     @Override public double getNodeYOffset2() { return rte$nodeYOffset2; }
-    @Override public void setNodeYOffset2(double value) { rte$nodeYOffset2 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public void setNodeYOffset2(double value) { rte$nodeYOffset2 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); rte$markCollisionDirty(); }
     @Override public double getNodeZOffset2() { return rte$nodeZOffset2; }
-    @Override public void setNodeZOffset2(double value) { rte$nodeZOffset2 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); }
+    @Override public void setNodeZOffset2(double value) { rte$nodeZOffset2 = rte$sanitizeNodeOffset(value); rte$invalidateEffectiveLength(); rte$markCollisionDirty(); }
     @Override public double getNodePitch1() { return rte$nodePitch1; }
-    @Override public void setNodePitch1(double value) { rte$nodePitch1 = rte$sanitizePitch(value); rte$invalidateEffectiveLength(); }
+    @Override public void setNodePitch1(double value) { rte$nodePitch1 = rte$sanitizePitch(value); rte$invalidateEffectiveLength(); rte$markCollisionDirty(); }
     @Override public double getNodePitch2() { return rte$nodePitch2; }
-    @Override public void setNodePitch2(double value) { rte$nodePitch2 = rte$sanitizePitch(value); rte$invalidateEffectiveLength(); }
+    @Override public void setNodePitch2(double value) { rte$nodePitch2 = rte$sanitizePitch(value); rte$invalidateEffectiveLength(); rte$markCollisionDirty(); }
     @Override public boolean hasNodeYOffset() { return Math.abs(rte$nodeYOffset1) > 1E-6 || Math.abs(rte$nodeYOffset2) > 1E-6; }
     @Override public boolean hasNodeOffset() {
         return hasNodeYOffset() || Math.abs(rte$nodeXOffset1) > 1E-6 || Math.abs(rte$nodeZOffset1) > 1E-6
@@ -462,7 +483,7 @@ public abstract class RailMixin implements RailExtraSupplier {
     }
 
     @Override public int getPathMode() { return rte$pathMode; }
-    @Override public void setPathModeRaw(int mode) { this.rte$pathMode = mode; rte$invalidateEffectiveLength(); }
+    @Override public void setPathModeRaw(int mode) { this.rte$pathMode = mode; rte$invalidateEffectiveLength(); rte$markCollisionDirty(); }
 
     @Override
     public void changePathMode(int mode) {
@@ -588,6 +609,7 @@ public abstract class RailMixin implements RailExtraSupplier {
             if (!Double.isFinite(bezierLen) || bezierLen <= 0) {
                 cn.jstxjf_.rte.RTE.LOGGER.warn("[setBezier] Rejected: invalid length={}", bezierLen);
                 this.rte$bezier = null;
+                rte$markCollisionDirty();
                 return;
             }
             Position p1 = rte$accessor().rte$getPosition1();
@@ -602,6 +624,7 @@ public abstract class RailMixin implements RailExtraSupplier {
                     cn.jstxjf_.rte.RTE.LOGGER.warn("[setBezier] Rejected: length={} exceeds {}x straight distance={}",
                         String.format("%.1f", bezierLen), 10, String.format("%.1f", straightDist));
                     this.rte$bezier = null;
+                    rte$markCollisionDirty();
                     return;
                 }
             }
@@ -613,6 +636,7 @@ public abstract class RailMixin implements RailExtraSupplier {
             rte$pathMode = RailExtraSupplier.PATH_MODE_AUTO_BEZIER;
         }
         rte$invalidateEffectiveLength();
+        rte$markCollisionDirty();
     }
 
     @Override
@@ -696,6 +720,13 @@ public abstract class RailMixin implements RailExtraSupplier {
         setRollingOffset(oth.getRollingOffset());
         setRailType(oth.getRailType());
         setSpeedLimitKph(oth.getSpeedLimitKph());
+        setCollisionEnabled(oth.isCollisionEnabled());
+        setCollisionWidth(oth.getCollisionWidth());
+        setCollisionHeight(oth.getCollisionHeight());
+        setCollisionLength(oth.getCollisionLength());
+        setCollisionSpacing(oth.getCollisionSpacing());
+        setCollisionYOffset(oth.getCollisionYOffset());
+        setCollisionSideOffset(oth.getCollisionSideOffset());
     }
 
     @Override
@@ -716,15 +747,12 @@ public abstract class RailMixin implements RailExtraSupplier {
             resultAcc.rte$setSpeedLimit2(sl1);
         }
         RailExtraSupplier extra = (RailExtraSupplier)(Object)result;
-        if ((sl1 <= 0) != (sl2 <= 0)) {
-            extra.setRenderReversed(getRenderReversed());
-        } else {
-            extra.setRenderReversed(!rte$isSecondaryDir);
-        }
+        extra.setRenderReversed(!rte$isSecondaryDir);
         final cn.jstxjf_.rte.data.BezierCurve sourceBezier = getBezierCurve();
         if (sourceBezier != null) {
             extra.setBezier(sourceBezier.getTransposition());
         }
+        extra.setCollisionSideOffset(-getCollisionSideOffset());
         cn.jstxjf_.rte.RTE.LOGGER.info(
             "[RailDir] pathMode={} bezier={} vRadius={} rollPts={} p1y={} p2y={} oneWay={}",
             rte$pathMode, sourceBezier != null, rte$verticalCurveRadius,
@@ -744,6 +772,18 @@ public abstract class RailMixin implements RailExtraSupplier {
     }
 
     @Unique private float rte$vTheta;
+
+    @Unique
+    private static float rte$collisionValue(float value, float min, float max, float fallback) {
+        return Float.isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
+    }
+
+    @Unique
+    private void rte$markCollisionDirty() {
+        if (rte$collisionEnabled) {
+            cn.jstxjf_.rte.util.RailCollisionManager.markDirty();
+        }
+    }
 
     @Override
     public double getPositionY(double rawValue) {
@@ -841,8 +881,8 @@ public abstract class RailMixin implements RailExtraSupplier {
         return result;
     }
 
-    @Override public void setExtraAngle1Rad(double rad) { rte$angle1Rad = rad; }
-    @Override public void setExtraAngle2Rad(double rad) { rte$angle2Rad = rad; }
+    @Override public void setExtraAngle1Rad(double rad) { rte$angle1Rad = rad; rte$markCollisionDirty(); }
+    @Override public void setExtraAngle2Rad(double rad) { rte$angle2Rad = rad; rte$markCollisionDirty(); }
     @Override public double getExtraAngle1Rad() { return rte$angle1Rad; }
     @Override public double getExtraAngle2Rad() { return rte$angle2Rad; }
 

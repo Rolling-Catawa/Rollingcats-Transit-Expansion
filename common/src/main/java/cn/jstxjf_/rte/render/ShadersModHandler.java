@@ -36,7 +36,14 @@ public final class ShadersModHandler {
 
     public static boolean canDrawWithBuffer() {
         ensureInitialized();
-        return canUseCustomShader();
+        return canUseCustomShader() || isShaderPackGpuPathActive();
+    }
+
+    public static boolean isShaderPackGpuPathActive() {
+        ensureInitialized();
+        return cn.jstxjf_.rte.ClientConfig.shaderPackGpuRendering
+            && internalHandler.isShaderPackInUse()
+            && !ContextCapability.isGL4ES;
     }
 
     public static boolean isRenderingShadowPass() {

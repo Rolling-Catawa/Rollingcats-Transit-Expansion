@@ -33,6 +33,8 @@ public class ClientConfig {
     public static boolean hideRidingTrain = false;
     public static boolean translucentSort = true;
     public static boolean gpuTranslucentRendering = true;
+    public static boolean shaderPackGpuRendering = true;
+    public static boolean instancedVehicleRendering = true;
     public static boolean enableBbModelPreload = false;
     public static int modelDedupeFaceLimit = 2000;
     public static int mtrMeshDedupeFaceLimit = 2000;
@@ -40,6 +42,7 @@ public class ClientConfig {
     public static boolean traceDoorSides = false;
     public static boolean traceStationTiming = false;
     public static int maxTextureSize = 2048;
+    public static boolean asyncVehicleModelLoading = true;
     public static int scriptTextureHeapBudgetMb = defaultTextureHeapBudgetMb();
 
     private static int defaultTextureHeapBudgetMb() {
@@ -54,6 +57,9 @@ public class ClientConfig {
     public static int preloadHeapCeilingPercent = 35;
     public static boolean fixLegacyPlugDoors = false;
     public static int bbModelPreloadLimit = 24;
+    public static boolean vehicleMeshDiskCache = true;
+    public static int vehicleMeshCacheMaxMb = 2048;
+    public static int preloadIdleReleaseMinutes = 10;
     public static boolean useEditBoxSetRailRolling = true;
     public static int jcmJsChoice = 0;
     public static boolean enableRenderDiagnostics = false;
@@ -111,6 +117,8 @@ public class ClientConfig {
             hideRidingTrain = getOrDefault(configObject, "hideRidingTrain", JsonElement::getAsBoolean, false);
             translucentSort = getOrDefault(configObject, "translucentSort", JsonElement::getAsBoolean, true);
             gpuTranslucentRendering = getOrDefault(configObject, "gpuTranslucentRendering", JsonElement::getAsBoolean, true);
+            shaderPackGpuRendering = getOrDefault(configObject, "shaderPackGpuRendering", JsonElement::getAsBoolean, true);
+            instancedVehicleRendering = getOrDefault(configObject, "instancedVehicleRendering", JsonElement::getAsBoolean, true);
             enableBbModelPreload = getOrDefault(configObject, "enableBbModelPreload", JsonElement::getAsBoolean, false);
             modelDedupeFaceLimit = clamp(getOrDefault(configObject, "modelDedupeFaceLimit", JsonElement::getAsInt, 2000), 0, 2_000_000);
             mtrMeshDedupeFaceLimit = getOrDefault(configObject, "mtrMeshDedupeFaceLimit", JsonElement::getAsInt, 2000);
@@ -118,6 +126,7 @@ public class ClientConfig {
             traceDoorSides = getOrDefault(configObject, "traceDoorSides", JsonElement::getAsBoolean, false);
             traceStationTiming = getOrDefault(configObject, "traceStationTiming", JsonElement::getAsBoolean, false);
             maxTextureSize = getOrDefault(configObject, "maxTextureSize", JsonElement::getAsInt, 2048);
+            asyncVehicleModelLoading = getOrDefault(configObject, "asyncVehicleModelLoading", JsonElement::getAsBoolean, true);
             scriptTextureHeapBudgetMb = clamp(getOrDefault(configObject, "scriptTextureHeapBudgetMb", JsonElement::getAsInt, defaultTextureHeapBudgetMb()), 128, 4096);
             acceptLegacyPackFormats = getOrDefault(configObject, "acceptLegacyPackFormats", JsonElement::getAsBoolean, true);
             legacyDefaultTextureFallback = getOrDefault(configObject, "legacyDefaultTextureFallback", JsonElement::getAsBoolean, true);
@@ -127,6 +136,9 @@ public class ClientConfig {
             preloadHeapCeilingPercent = clamp(getOrDefault(configObject, "preloadHeapCeilingPercent", JsonElement::getAsInt, 35), 5, 80);
             fixLegacyPlugDoors = getOrDefault(configObject, "fixLegacyPlugDoors", JsonElement::getAsBoolean, false);
             bbModelPreloadLimit = clamp(getOrDefault(configObject, "bbModelPreloadLimit", JsonElement::getAsInt, 24), 0, 4096);
+            vehicleMeshDiskCache = getOrDefault(configObject, "vehicleMeshDiskCache", JsonElement::getAsBoolean, true);
+            vehicleMeshCacheMaxMb = clamp(getOrDefault(configObject, "vehicleMeshCacheMaxMb", JsonElement::getAsInt, 2048), 64, 65536);
+            preloadIdleReleaseMinutes = clamp(getOrDefault(configObject, "preloadIdleReleaseMinutes", JsonElement::getAsInt, 10), 0, 1440);
             useEditBoxSetRailRolling = getOrDefault(configObject, "useEditBoxSetRailRolling", JsonElement::getAsBoolean, true);
             jcmJsChoice = clamp(getOrDefault(configObject, "jcmJsChoice", JsonElement::getAsInt, 0), 0, 3);
             compatAsked = getOrDefault(configObject, "compatAsked", JsonElement::getAsBoolean, false);
@@ -274,6 +286,8 @@ public class ClientConfig {
             configObject.addProperty("hideRidingTrain", hideRidingTrain);
             configObject.addProperty("translucentSort", translucentSort);
             configObject.addProperty("gpuTranslucentRendering", gpuTranslucentRendering);
+            configObject.addProperty("shaderPackGpuRendering", shaderPackGpuRendering);
+            configObject.addProperty("instancedVehicleRendering", instancedVehicleRendering);
             configObject.addProperty("enableBbModelPreload", enableBbModelPreload);
             configObject.addProperty("modelDedupeFaceLimit", modelDedupeFaceLimit);
             configObject.addProperty("mtrMeshDedupeFaceLimit", mtrMeshDedupeFaceLimit);
@@ -281,6 +295,7 @@ public class ClientConfig {
             configObject.addProperty("traceDoorSides", traceDoorSides);
             configObject.addProperty("traceStationTiming", traceStationTiming);
             configObject.addProperty("maxTextureSize", maxTextureSize);
+            configObject.addProperty("asyncVehicleModelLoading", asyncVehicleModelLoading);
             configObject.addProperty("scriptTextureHeapBudgetMb", scriptTextureHeapBudgetMb);
             configObject.addProperty("acceptLegacyPackFormats", acceptLegacyPackFormats);
             configObject.addProperty("legacyDefaultTextureFallback", legacyDefaultTextureFallback);
@@ -290,6 +305,9 @@ public class ClientConfig {
             configObject.addProperty("preloadHeapCeilingPercent", preloadHeapCeilingPercent);
             configObject.addProperty("fixLegacyPlugDoors", fixLegacyPlugDoors);
             configObject.addProperty("bbModelPreloadLimit", bbModelPreloadLimit);
+            configObject.addProperty("vehicleMeshDiskCache", vehicleMeshDiskCache);
+            configObject.addProperty("vehicleMeshCacheMaxMb", vehicleMeshCacheMaxMb);
+            configObject.addProperty("preloadIdleReleaseMinutes", preloadIdleReleaseMinutes);
             configObject.addProperty("useEditBoxSetRailRolling", useEditBoxSetRailRolling);
             configObject.addProperty("vanillaVehicleMode", vanillaVehicleMode);
             configObject.addProperty("legacyVariationCarFilter", legacyVariationCarFilter);

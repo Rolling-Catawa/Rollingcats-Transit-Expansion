@@ -11,6 +11,7 @@ public class ScriptContextManager {
     }
 
     private static long nextDeadScanNanos;
+    public static final long DISPOSE_GRACE_NANOS = 5_000_000_000L;
 
     public static void disposeDeadContexts() {
         final long now = System.nanoTime();
@@ -21,7 +22,7 @@ public class ScriptContextManager {
             if (ctx.disposed) {
                 return true;
             }
-            if (!ctx.isBearerAlive()) {
+            if (ctx.rte$deadFor(DISPOSE_GRACE_NANOS, ctx.isBearerAlive(), now)) {
                 if (ctx.created) {
                     entry.getValue().tryCallDisposeFunctionAsync(ctx);
                 }

@@ -15,6 +15,7 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.lang.reflect.Field;
 import java.util.Locale;
@@ -28,6 +29,8 @@ public abstract class ModelPropertiesPartLegacyMixin implements LegacyDoorMetada
 
     @Unique private String rte$legacyDoorSide = "";
     @Unique private String rte$legacyRenderCondition = "";
+    @Unique private int rte$legacySide;
+    @Unique private boolean rte$legacyWantsOpen;
     @Unique private static Field rte$doorwayField;
 
     @Inject(method = "<init>(Lorg/mtr/core/serializer/ReaderBase;)V", at = @At("RETURN"), require = 0)
@@ -36,6 +39,9 @@ public abstract class ModelPropertiesPartLegacyMixin implements LegacyDoorMetada
             .toUpperCase(Locale.ROOT);
         rte$legacyRenderCondition = reader.getString("rteLegacyRenderCondition", "")
             .toUpperCase(Locale.ROOT);
+        rte$legacySide = rte$legacyRenderCondition.contains("LEFT") ? 1
+            : rte$legacyRenderCondition.contains("RIGHT") ? 2 : 0;
+        rte$legacyWantsOpen = rte$legacyRenderCondition.endsWith("_OPEN");
     }
 
     @Inject(method = "mapDoors", at = @At("RETURN"), require = 0)
@@ -75,11 +81,11 @@ public abstract class ModelPropertiesPartLegacyMixin implements LegacyDoorMetada
             VehicleExtension vehicle, int carNumber, int[] scrollingDisplayIndexTracker,
             int light, ObjectArrayList<?> openDoorways, boolean fromResourcePackCreator,
             CallbackInfo ci) {
-        if (vehicle == null || fromResourcePackCreator || rte$legacyRenderCondition.isEmpty()) {
+        if (rte$legacySide == 0 || vehicle == null || fromResourcePackCreator) {
             return;
         }
-        final String condition = rte$legacyRenderCondition;
-        if (!condition.contains("LEFT") && !condition.contains("RIGHT")) {
+        if (openDoorways.isEmpty()) {
+            ci.cancel();
             return;
         }
         final org.mtr.mod.render.PositionAndRotation position =
@@ -88,10 +94,16 @@ public abstract class ModelPropertiesPartLegacyMixin implements LegacyDoorMetada
         final boolean[] sides = position == null ? new boolean[] {false, false}
             : cn.jstxjf_.rte.scripting.train.ScriptedTrainRenderers
                 .doorSidesOf(vehicle, carNumber, position);
-        final boolean sideOpen = condition.contains("LEFT") ? sides[0] : sides[1];
-        final boolean wantsOpen = condition.endsWith("_OPEN");
-        if (sideOpen != wantsOpen) {
+        final boolean sideOpen = rte$legacySide == 1 ? sides[0] : sides[1];
+        if (sideOpen != rte$legacyWantsOpen) {
             ci.cancel();
+        }
+    }
+
+    @Inject(method = "isDoor", at = @At("HEAD"), cancellable = true, require = 0)
+    private void rte$renderSideConditionPerFrame(CallbackInfoReturnable<Boolean> cir) {
+        if (rte$legacySide != 0) {
+            cir.setReturnValue(true);
         }
     }
 

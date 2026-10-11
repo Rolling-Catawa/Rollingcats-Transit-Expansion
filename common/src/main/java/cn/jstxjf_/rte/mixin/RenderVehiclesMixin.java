@@ -152,13 +152,6 @@ public class RenderVehiclesMixin {
             int carNumber, int totalCars, int light, boolean fromResourcePackCreator) {
         StoredMatrixTransformations effectiveSmt = smt;
         try {
-            RenderUtil.bodyOscillation = vehicle.persistentVehicleData.getOscillation(carNumber).getAmount()
-                * org.mtr.mod.config.Config.getClient().getVehicleOscillationMultiplier();
-            RenderUtil.bodyOscillationValid = true;
-        } catch (Throwable ignored) {
-            RenderUtil.bodyOscillationValid = false;
-        }
-        try {
             if (vehicle instanceof cn.jstxjf_.rte.data.TrainExtraSupplier) {
                 final float roll = cn.jstxjf_.rte.ClientConfig.vanillaVehicleMode ? 0 : cn.jstxjf_.rte.data.TrainExtraSupplier.getRollAngleAt(vehicle, carNumber);
                 if (Math.abs(roll) > 1e-5F) {
@@ -231,6 +224,42 @@ public class RenderVehiclesMixin {
         RTE_CAR_FRAME_STATE.set(new RenderVehicleCarFrameState(vehicle, carNumber,
             offsetVector, offsetRotation, ridingCarPositionAndRotation, cameraShakeOffset, absolutePositionAndRotation));
         RidingRollTransform.begin(vehicle, carNumber);
+    }
+
+    private static final java.util.HashMap<Long, double[]> RTE_LAST_DOOR_CHECK = new java.util.HashMap<>();
+    private static final long RTE_DOOR_CHECK_IDLE_REFRESH_MILLIS = 1000;
+    private static final long RTE_DOOR_CHECK_ACTIVE_REFRESH_MILLIS = 40;
+
+    @Redirect(
+        method = "lambda$render$9",
+        at = @At(value = "INVOKE", target = "Lorg/mtr/mod/render/RenderVehicleHelper;canOpenDoors(Lorg/mtr/mapping/holder/Box;Lorg/mtr/mod/render/PositionAndRotation;D)Z"),
+        require = 0
+    )
+    private static boolean rte$skipIdleDoorCheck(Box doorway, PositionAndRotation positionAndRotation, double doorValue) {
+        final RenderVehicleCarFrameState state = RTE_CAR_FRAME_STATE.get();
+        if (state == null || state.vehicle == null) {
+            return org.mtr.mod.render.RenderVehicleHelper.canOpenDoors(doorway, positionAndRotation, doorValue);
+        }
+        final long key = (state.vehicle.getId() * 31 + state.carNumber) * 31 + System.identityHashCode(doorway);
+        final double[] previous = RTE_LAST_DOOR_CHECK.get(key);
+        final long now = System.currentTimeMillis();
+        final double x = positionAndRotation.position.x;
+        final double z = positionAndRotation.position.z;
+        if (previous != null && previous[0] == doorValue) {
+            if (doorValue == 0 && !state.vehicle.persistentVehicleData.checkCanOpenDoors()) {
+                return false;
+            }
+            final long refresh = previous[1] != 0 ? RTE_DOOR_CHECK_ACTIVE_REFRESH_MILLIS : RTE_DOOR_CHECK_IDLE_REFRESH_MILLIS;
+            if (previous[2] == x && previous[3] == z && now - (long) previous[4] < refresh) {
+                return previous[1] != 0;
+            }
+        }
+        if (RTE_LAST_DOOR_CHECK.size() > 8192) {
+            RTE_LAST_DOOR_CHECK.clear();
+        }
+        final boolean result = org.mtr.mod.render.RenderVehicleHelper.canOpenDoors(doorway, positionAndRotation, doorValue);
+        RTE_LAST_DOOR_CHECK.put(key, new double[]{doorValue, result ? 1 : 0, x, z, now});
+        return result;
     }
 
     @Inject(method = "lambda$render$14", at = @At("RETURN"), require = 0)

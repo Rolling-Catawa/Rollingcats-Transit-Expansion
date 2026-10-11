@@ -10,6 +10,7 @@ import imgui.glfw.ImGuiImplGlfw;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.io.InputStream;
 
 public final class RteImGuiHost {
 
@@ -73,30 +74,48 @@ public final class RteImGuiHost {
     };
 
     private static void loadCjkFont(ImGuiIO io) {
+        try (InputStream stream = RteImGuiHost.class.getResourceAsStream("/assets/mtr/font/noto-sans-cjk-tc-medium.otf")) {
+            if (stream != null) {
+                addFont(io, stream.readAllBytes());
+                return;
+            }
+        } catch (Exception ignored) {
+        }
         final String[] candidates = {
             "C:/Windows/Fonts/msyh.ttc",
             "C:/Windows/Fonts/simhei.ttf",
             "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/opentype/noto-cjk/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+            "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
             "/System/Library/Fonts/PingFang.ttc"
         };
         for (final String candidate : candidates) {
             try {
                 final Path path = Path.of(candidate);
                 if (Files.exists(path)) {
-                    final byte[] data = Files.readAllBytes(path);
-                    final ImFontConfig config = new ImFontConfig();
-                    config.setOversampleH(1);
-                    config.setOversampleV(1);
-                    io.getFonts().addFontFromMemoryTTF(data, 20, config, io.getFonts().getGlyphRangesChineseFull());
-                    config.setMergeMode(true);
-                    io.getFonts().addFontFromMemoryTTF(data, 20, config, SYMBOL_RANGES);
-                    config.destroy();
+                    addFont(io, Files.readAllBytes(path));
                     return;
                 }
             } catch (Exception ignored) {
             }
         }
         io.getFonts().addFontDefault();
+    }
+
+    private static void addFont(ImGuiIO io, byte[] data) {
+        final ImFontConfig base = new ImFontConfig();
+        base.setOversampleH(1);
+        base.setOversampleV(1);
+        io.getFonts().addFontFromMemoryTTF(data, 20, base, io.getFonts().getGlyphRangesChineseFull());
+        base.destroy();
+        final ImFontConfig symbols = new ImFontConfig();
+        symbols.setOversampleH(1);
+        symbols.setOversampleV(1);
+        symbols.setMergeMode(true);
+        io.getFonts().addFontFromMemoryTTF(data, 20, symbols, SYMBOL_RANGES);
+        symbols.destroy();
     }
 
     private static void resetPixelStoreState() {

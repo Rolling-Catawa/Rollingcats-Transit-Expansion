@@ -83,17 +83,22 @@ public class VertAttrState {
             ShaderInstance batchShader = cn.jstxjf_.rte.gfx.shader.ShaderManager.currentBatchShaderInstance;
             if (batchShader == null) batchShader = RenderSystem.getShader();
             if (batchShader != null && batchShader.MODEL_VIEW_MATRIX != null) {
-                Matrix4f matToUpload;
-                if (useCustomShader && cn.jstxjf_.rte.gfx.shader.ShaderManager.currentBatchCameraMatrix != null) {
+                final Matrix4f matToUpload;
+                if (cn.jstxjf_.rte.gfx.shader.ShaderManager.currentBatchCameraMatrix != null) {
                     matToUpload = cn.jstxjf_.rte.gfx.shader.ShaderManager.currentBatchCameraMatrix.copy();
                     matToUpload.multiply(nowMatrix);
                 } else {
                     matToUpload = nowMatrix;
                 }
-                int loc = getModelViewMatLocation();
-                if (loc >= 0) {
-                    matToUpload.asMoj().get(MATRIX_BUF);
-                    GL33.glUniformMatrix4fv(loc, false, MATRIX_BUF);
+                if (useCustomShader) {
+                    int loc = getModelViewMatLocation();
+                    if (loc >= 0) {
+                        matToUpload.asMoj().get(MATRIX_BUF);
+                        GL33.glUniformMatrix4fv(loc, false, MATRIX_BUF);
+                    }
+                } else {
+                    batchShader.MODEL_VIEW_MATRIX.set(matToUpload.asMoj());
+                    batchShader.apply();
                 }
             }
         }

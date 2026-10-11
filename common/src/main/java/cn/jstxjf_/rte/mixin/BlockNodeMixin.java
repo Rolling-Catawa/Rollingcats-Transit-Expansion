@@ -28,7 +28,7 @@ public abstract class BlockNodeMixin {
     @Inject(method = "getOutlineShape2", at = @At("HEAD"), cancellable = true)
     private void rte$getOutlineShape2(BlockState state, BlockView world, BlockPos pos, ShapeContext context, CallbackInfoReturnable<VoxelShape> cir) {
         if ((Object) this instanceof BlockFreeNode) {
-            cir.setReturnValue(BlockFreeNode.getNodeShape(world, pos));
+            cir.setReturnValue(VoxelShapes.empty());
         }
     }
 
@@ -46,7 +46,7 @@ public abstract class BlockNodeMixin {
                 isConnected = state.data.getValue(BlockNode.IS_CONNECTED.data);
             } catch (Exception ignored) {}
 
-            if (!isConnected || state.getBlock().data instanceof BlockFreeNode && !player.isSneaking()) {
+            if (!isConnected) {
                 net.minecraft.client.gui.screens.Screen screen = DirectNodeScreen.createScreen(
                     directNode, () -> null);
                 if (screen != null) {

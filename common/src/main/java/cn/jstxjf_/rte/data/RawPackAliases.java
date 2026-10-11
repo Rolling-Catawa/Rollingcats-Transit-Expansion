@@ -43,6 +43,28 @@ public final class RawPackAliases {
     private RawPackAliases() {
     }
 
+    public static Set<String> selectedPackFileNames() {
+        final Set<String> names = new java.util.HashSet<>();
+        try {
+            final net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getInstance();
+            if (minecraft == null) {
+                return null;
+            }
+            for (final String id : minecraft.getResourcePackRepository().getSelectedIds()) {
+                if (id.startsWith("file/")) {
+                    names.add(id.substring("file/".length()));
+                }
+            }
+        } catch (Throwable ignored) {
+            return null;
+        }
+        return names;
+    }
+
+    public static boolean isFromSelectedPack(Alias alias, Set<String> selectedPackFileNames) {
+        return selectedPackFileNames == null || selectedPackFileNames.contains(alias.packFile.getFileName().toString());
+    }
+
     public static synchronized Map<ResourceLocation, Alias> all() {
         return Collections.unmodifiableMap(ALIASES);
     }

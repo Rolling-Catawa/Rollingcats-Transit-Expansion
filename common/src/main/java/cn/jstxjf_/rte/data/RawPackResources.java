@@ -30,7 +30,10 @@ public final class RawPackResources implements PackResources {
             return null;
         }
         final RawPackAliases.Alias alias = RawPackAliases.all().get(location);
-        return alias == null ? null : () -> RawPackAliases.open(alias);
+        if (alias == null || !RawPackAliases.isFromSelectedPack(alias, RawPackAliases.selectedPackFileNames())) {
+            return null;
+        }
+        return () -> RawPackAliases.open(alias);
     }
 
     @Override
@@ -38,12 +41,16 @@ public final class RawPackResources implements PackResources {
         if (packType != PackType.CLIENT_RESOURCES) {
             return;
         }
+        final Set<String> selectedPackFileNames = RawPackAliases.selectedPackFileNames();
         for (final Map.Entry<ResourceLocation, RawPackAliases.Alias> entry : RawPackAliases.all().entrySet()) {
             final ResourceLocation location = entry.getKey();
             if (!location.getNamespace().equals(namespace) || !location.getPath().startsWith(prefix)) {
                 continue;
             }
             final RawPackAliases.Alias alias = entry.getValue();
+            if (!RawPackAliases.isFromSelectedPack(alias, selectedPackFileNames)) {
+                continue;
+            }
             output.accept(location, () -> RawPackAliases.open(alias));
         }
     }

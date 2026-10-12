@@ -115,7 +115,7 @@ public class ManualBezierPathEditorScreen extends net.minecraft.client.gui.scree
         double handleLen = Math.max(1, dist / 3.0);
 
         double a1 = extra.getExtraAngle1() != null ? extra.getExtraAngle1().angleRadians : Math.atan2(dz, dx);
-        double a2 = extra.getExtraAngle2() != null ? extra.getExtraAngle2().angleRadians : Math.atan2(dz, dx);
+        double a2 = extra.getExtraAngle2() != null ? extra.getExtraAngle2().angleRadians : Math.atan2(-dz, -dx);
 
         controlPoints.add(new BezierCurve.Vec3(p1.getX(), p1.getY(), p1.getZ()));
         controlPoints.add(new BezierCurve.Vec3(
@@ -123,9 +123,9 @@ public class ManualBezierPathEditorScreen extends net.minecraft.client.gui.scree
                 p1.getY() + (p2.getY() - p1.getY()) / 3.0,
                 p1.getZ() + Math.sin(a1) * handleLen));
         controlPoints.add(new BezierCurve.Vec3(
-                p2.getX() - Math.cos(a2) * handleLen,
+                p2.getX() + Math.cos(a2) * handleLen,
                 p2.getY() - (p2.getY() - p1.getY()) / 3.0,
-                p2.getZ() - Math.sin(a2) * handleLen));
+                p2.getZ() + Math.sin(a2) * handleLen));
         controlPoints.add(new BezierCurve.Vec3(p2.getX(), p2.getY(), p2.getZ()));
     }
 

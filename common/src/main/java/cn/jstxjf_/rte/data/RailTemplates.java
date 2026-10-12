@@ -175,11 +175,11 @@ public final class RailTemplates {
         final double dist = Math.hypot(dx, dz);
         final double handle = Math.max(1, dist / 3.0);
         final double a1 = extra.getExtraAngle1() != null ? extra.getExtraAngle1().angleRadians : Math.atan2(dz, dx);
-        final double a2 = extra.getExtraAngle2() != null ? extra.getExtraAngle2().angleRadians : Math.atan2(dz, dx);
+        final double a2 = extra.getExtraAngle2() != null ? extra.getExtraAngle2().angleRadians : Math.atan2(-dz, -dx);
         final List<BezierCurve.Vec3> points = new ArrayList<>();
         points.add(new BezierCurve.Vec3(p1.getX(), p1.getY(), p1.getZ()));
         points.add(new BezierCurve.Vec3(p1.getX() + Math.cos(a1) * handle, p1.getY() + (p2.getY() - p1.getY()) / 3.0, p1.getZ() + Math.sin(a1) * handle));
-        points.add(new BezierCurve.Vec3(p2.getX() - Math.cos(a2) * handle, p2.getY() - (p2.getY() - p1.getY()) / 3.0, p2.getZ() - Math.sin(a2) * handle));
+        points.add(new BezierCurve.Vec3(p2.getX() + Math.cos(a2) * handle, p2.getY() - (p2.getY() - p1.getY()) / 3.0, p2.getZ() + Math.sin(a2) * handle));
         points.add(new BezierCurve.Vec3(p2.getX(), p2.getY(), p2.getZ()));
         return points;
     }

@@ -268,6 +268,9 @@ public abstract class RailSchemaMixin {
     }
 
     private void rte$evictRender() {
+        if (dev.architectury.platform.Platform.getEnvironment() != dev.architectury.utils.Env.CLIENT) {
+            return;
+        }
         try {
             cn.jstxjf_.rte.RTEClient.railRenderDispatcher.evictRailByHexId(((Rail) (Object) this).getHexId());
         } catch (NoClassDefFoundError | Exception ignored) {

@@ -200,11 +200,6 @@ public class CompoundCreator extends ItemNodeModifierBase {
 
         final Rail replacement = createReplacementRail(targetExtra, templateRail, templateExtra, position1, angle1, position2, angle2, task.isOneWay);
 
-        if (!replacement.isValid()) {
-            player.sendMessage(new Text(TextHelper.translatable("gui.mtr.invalid_orientation").data), true);
-            return;
-        }
-
         replacement.copySignalColors(rail);
 
         if (((Object) replacement) instanceof RailExtraSupplier replacementExtra && ((Object) templateRail) instanceof RailExtraSupplier tplExtra) {
@@ -212,7 +207,12 @@ public class CompoundCreator extends ItemNodeModifierBase {
             replacementExtra.setRenderReversed(task.isReversed);
             replacementExtra.setRailType(tplExtra.getRailType());
             replacementExtra.setSpeedLimitKph(tplExtra.getSpeedLimitKph());
-            replacementExtra.changePathMode(tplExtra.getPathMode());
+            restoreTargetGeometry(replacementExtra, targetExtra, task.isReversed);
+        }
+
+        if (!replacement.isValid()) {
+            player.sendMessage(new Text(TextHelper.translatable("gui.mtr.invalid_orientation").data), true);
+            return;
         }
 
         final Rail finalReplacement = RailRebuildHelper.rebuildFromCurrentState(replacement);
@@ -236,6 +236,30 @@ public class CompoundCreator extends ItemNodeModifierBase {
             PacketUpdateData.sendDirectlyToServerRail(serverWorld, replacementReverse);
         }
         player.sendMessage(new Text(TextHelper.translatable("gui.rte.compound_creator.msg.modifier_applied").data), true);
+    }
+
+    private static void restoreTargetGeometry(RailExtraSupplier replacement, RailExtraSupplier target, boolean reversed) {
+        replacement.setExtraAngle1Rad(reversed ? target.getExtraAngle2Rad() : target.getExtraAngle1Rad());
+        replacement.setExtraAngle2Rad(reversed ? target.getExtraAngle1Rad() : target.getExtraAngle2Rad());
+        replacement.setNodeXOffset1(reversed ? target.getNodeXOffset2() : target.getNodeXOffset1());
+        replacement.setNodeYOffset1(reversed ? target.getNodeYOffset2() : target.getNodeYOffset1());
+        replacement.setNodeZOffset1(reversed ? target.getNodeZOffset2() : target.getNodeZOffset1());
+        replacement.setNodeXOffset2(reversed ? target.getNodeXOffset1() : target.getNodeXOffset2());
+        replacement.setNodeYOffset2(reversed ? target.getNodeYOffset1() : target.getNodeYOffset2());
+        replacement.setNodeZOffset2(reversed ? target.getNodeZOffset1() : target.getNodeZOffset2());
+        replacement.setNodePitch1(reversed ? target.getNodePitch2() : target.getNodePitch1());
+        replacement.setNodePitch2(reversed ? target.getNodePitch1() : target.getNodePitch2());
+        final int pathMode = target.getPathMode();
+        final cn.jstxjf_.rte.data.BezierCurve bezier = target.getBezierCurve();
+        if (pathMode == RailExtraSupplier.PATH_MODE_AUTO_BEZIER) {
+            replacement.setPathModeRaw(pathMode);
+            replacement.regenerateAutoBezier();
+        } else if (RailExtraSupplier.usesBezierCurve(pathMode) && bezier != null) {
+            replacement.setPathModeRaw(pathMode);
+            replacement.setBezier(reversed ? bezier.getTransposition() : bezier.copy());
+        } else {
+            replacement.setPathModeRaw(RailExtraSupplier.PATH_MODE_ORIGINAL);
+        }
     }
 
     private static Rail createReplacementRail(

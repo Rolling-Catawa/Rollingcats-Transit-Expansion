@@ -24,6 +24,10 @@ public class PackRepositoryMixin {
             if (minecraft == null) {
                 return;
             }
+            final PackRepository resourceRepository = minecraft.getResourcePackRepository();
+            if (resourceRepository != null && resourceRepository != (Object) this) {
+                return;
+            }
             RawPackAliases.rebuild(minecraft.getResourcePackDirectory());
             if (RawPackAliases.isEmpty()) {
                 return;

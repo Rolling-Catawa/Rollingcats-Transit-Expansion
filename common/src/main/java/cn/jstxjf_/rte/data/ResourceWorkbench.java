@@ -213,6 +213,7 @@ public final class ResourceWorkbench {
             final java.util.LinkedHashSet<String> textureIds = new java.util.LinkedHashSet<>();
             final java.util.List<String> missing = new ArrayList<>();
             rewriteAndCollect(vehicle, packNs, files, textureIds, missing);
+            collectObjDependencies(files, packNs, missing);
 
             final JsonObject root = new JsonObject();
             final org.mtr.libraries.com.google.gson.JsonArray vehiclesArray = new org.mtr.libraries.com.google.gson.JsonArray();
@@ -284,6 +285,117 @@ public final class ResourceWorkbench {
                 rewriteAndCollect(value, packNs, files, textureIds, missing);
             }
         }
+    }
+
+    private static void collectObjDependencies(java.util.Map<String, byte[]> files, String packNs, java.util.List<String> missing) {
+        final java.util.Set<String> visitedMaterialLibraries = new java.util.HashSet<>();
+        for (final String zipPath : new ArrayList<>(files.keySet())) {
+            if (!zipPath.endsWith(".obj")) {
+                continue;
+            }
+            final ResourceLocation objId = sourceIdOf(zipPath, packNs);
+            if (objId == null) {
+                continue;
+            }
+            final String[] lines = new String(files.get(zipPath), StandardCharsets.UTF_8).split("\\r?\\n", -1);
+            final java.util.Set<String> materialNames = new java.util.LinkedHashSet<>();
+            boolean materialLibraryFound = false;
+            boolean rewritten = false;
+            for (int i = 0; i < lines.length; i++) {
+                final String trimmed = lines[i].trim();
+                if (trimmed.startsWith("mtllib ")) {
+                    final StringBuilder builder = new StringBuilder("mtllib");
+                    for (final String reference : trimmed.substring(7).trim().split("\\s+")) {
+                        final ResourceLocation mtlId = cn.jstxjf_.rte.gfxext.util.ResourceUtil.resolveRelativePath(objId, reference, ".mtl");
+                        if (copyDependency(files, packNs, mtlId, missing)) {
+                            materialLibraryFound = true;
+                            if (visitedMaterialLibraries.add(zipPathOf(mtlId, packNs))) {
+                                collectMtlDependencies(files, packNs, mtlId, missing);
+                            }
+                        }
+                        builder.append(' ').append(exportReference(reference, mtlId, packNs));
+                    }
+                    if (!builder.toString().equals(trimmed)) {
+                        lines[i] = builder.toString();
+                        rewritten = true;
+                    }
+                } else if (trimmed.startsWith("usemtl ")) {
+                    materialNames.add(trimmed.substring(7).trim().split("#", 2)[0].trim());
+                }
+            }
+            if (!materialLibraryFound) {
+                for (final String materialName : materialNames) {
+                    if (!materialName.isEmpty() && !materialName.equals("_")) {
+                        copyDependency(files, packNs, cn.jstxjf_.rte.gfxext.util.ResourceUtil.resolveRelativePath(objId, materialName, ".png"), null);
+                    }
+                }
+            }
+            if (rewritten) {
+                files.put(zipPath, String.join("\n", lines).getBytes(StandardCharsets.UTF_8));
+            }
+        }
+    }
+
+    private static void collectMtlDependencies(java.util.Map<String, byte[]> files, String packNs, ResourceLocation mtlId, java.util.List<String> missing) {
+        final String zipPath = zipPathOf(mtlId, packNs);
+        final String[] lines = new String(files.get(zipPath), StandardCharsets.UTF_8).split("\\r?\\n", -1);
+        boolean rewritten = false;
+        for (int i = 0; i < lines.length; i++) {
+            final String trimmed = lines[i].trim();
+            if (!trimmed.startsWith("map_")) {
+                continue;
+            }
+            final String[] tokens = trimmed.split("\\s+");
+            if (tokens.length < 2) {
+                continue;
+            }
+            final String reference = tokens[tokens.length - 1];
+            final ResourceLocation textureId = cn.jstxjf_.rte.gfxext.util.ResourceUtil.resolveRelativePath(mtlId, reference, ".png");
+            copyDependency(files, packNs, textureId, missing);
+            final String exported = exportReference(reference, textureId, packNs);
+            if (!exported.equals(reference)) {
+                lines[i] = trimmed.substring(0, trimmed.length() - reference.length()) + exported;
+                rewritten = true;
+            }
+        }
+        if (rewritten) {
+            files.put(zipPath, String.join("\n", lines).getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    private static boolean copyDependency(java.util.Map<String, byte[]> files, String packNs, ResourceLocation id, java.util.List<String> missing) {
+        final String zipPath = zipPathOf(id, packNs);
+        if (files.containsKey(zipPath)) {
+            return true;
+        }
+        final byte[] bytes = readResourceBytes(id.toString());
+        if (bytes == null) {
+            if (missing != null) {
+                missing.add(id.toString());
+            }
+            return false;
+        }
+        files.put(zipPath, bytes);
+        return true;
+    }
+
+    private static String exportReference(String reference, ResourceLocation resolved, String packNs) {
+        return reference.indexOf(':') < 0 ? reference : remapResourceId(resolved.toString(), packNs);
+    }
+
+    private static String zipPathOf(ResourceLocation id, String packNs) {
+        final String remapped = remapResourceId(id.toString(), packNs);
+        return "assets/" + packNs + "/" + remapped.substring(remapped.indexOf(':') + 1);
+    }
+
+    private static ResourceLocation sourceIdOf(String zipPath, String packNs) {
+        final String prefix = "assets/" + packNs + "/";
+        if (!zipPath.startsWith(prefix)) {
+            return null;
+        }
+        final String rest = zipPath.substring(prefix.length());
+        final int slash = rest.indexOf('/');
+        return slash <= 0 ? null : ResourceLocation.tryParse(rest.substring(0, slash) + ":" + rest.substring(slash + 1));
     }
 
     private static String packResourceSuffix(String value) {

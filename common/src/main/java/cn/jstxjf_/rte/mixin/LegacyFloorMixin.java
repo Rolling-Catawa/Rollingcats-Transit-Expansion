@@ -16,6 +16,8 @@ public class LegacyFloorMixin {
 
     private static final double FLOOR_THICKNESS = 0.5;
     private static final double END_MARGIN = 2.5;
+    private static final double MIN_PLAUSIBLE_FLOOR = 0.5;
+    private static final double MAX_OUTLIER_FRACTION = 0.1;
     private static int rte$logged = 0;
 
     @ModifyArg(
@@ -68,19 +70,27 @@ public class LegacyFloorMixin {
     private static Box rte$slabFromDoorways(ObjectImmutableList<Box> doorways) {
         double minX = Double.MAX_VALUE;
         double maxX = -Double.MAX_VALUE;
-        double floorY = Double.MAX_VALUE;
         double minZ = Double.MAX_VALUE;
         double maxZ = -Double.MAX_VALUE;
+        final double[] bottoms = new double[doorways.size()];
+        int index = 0;
         for (final Box doorway : doorways) {
             minX = Math.min(minX, doorway.getMinXMapped());
             maxX = Math.max(maxX, doorway.getMaxXMapped());
-            floorY = Math.min(floorY, doorway.getMinYMapped());
+            bottoms[index++] = doorway.getMinYMapped();
             minZ = Math.min(minZ, doorway.getMinZMapped());
             maxZ = Math.max(maxZ, doorway.getMaxZMapped());
         }
-        if (minX > maxX || minZ > maxZ || floorY == Double.MAX_VALUE) {
+        if (minX > maxX || minZ > maxZ || index == 0) {
             return null;
         }
+        java.util.Arrays.sort(bottoms, 0, index);
+        int lowOutliers = 0;
+        while (lowOutliers < index && bottoms[lowOutliers] < MIN_PLAUSIBLE_FLOOR) {
+            lowOutliers++;
+        }
+        final boolean dropOutliers = lowOutliers < index && lowOutliers <= index * MAX_OUTLIER_FRACTION;
+        final double floorY = bottoms[dropOutliers ? lowOutliers : 0];
         return new Box(
             minX, floorY - FLOOR_THICKNESS, minZ - END_MARGIN,
             maxX, floorY, maxZ + END_MARGIN);

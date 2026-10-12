@@ -6,7 +6,6 @@ import org.mtr.core.data.PathData;
 import org.mtr.core.data.Platform;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
-import org.mtr.core.tool.Angle;
 import org.mtr.core.serializer.JsonReader;
 import org.mtr.core.tool.Utilities;
 import org.mtr.libraries.com.google.gson.JsonParser;
@@ -302,7 +301,7 @@ public class RoutePathCreator extends ItemExtension {
         }
 
         boolean lastTurnBack = false;
-        Angle lastEndAngle = null;
+        double lastEndHeading = Double.NaN;
 
         for (int i = 0; i < pathData.size(); i++) {
             final PathData current = pathData.get(i);
@@ -311,7 +310,7 @@ public class RoutePathCreator extends ItemExtension {
                 return new PathValidationError("gui.rte.rail_path_creator.error.one_way");
             }
 
-            final OrderedAngles orderedAngles = getOrderedAngles(current);
+            final double[] travelHeadings = getTravelHeadings(current);
             if (i > 0) {
                 final PathData previous = pathData.get(i - 1);
                 if (previous.isOppositeRail(current)) {
@@ -327,15 +326,13 @@ public class RoutePathCreator extends ItemExtension {
                     lastTurnBack = true;
                 } else {
                     lastTurnBack = false;
-                    if (lastEndAngle != null && orderedAngles != null && getAngleDifference(lastEndAngle, orderedAngles.startAngle) < 135) {
+                    if (!Double.isNaN(lastEndHeading) && travelHeadings != null && getHeadingDifferenceDegrees(lastEndHeading, travelHeadings[0]) > 45) {
                         return new PathValidationError("gui.rte.rail_path_creator.error.angle");
                     }
                 }
             }
 
-            if (orderedAngles != null) {
-                lastEndAngle = orderedAngles.endAngle;
-            }
+            lastEndHeading = travelHeadings == null ? Double.NaN : travelHeadings[1];
         }
 
         return null;
@@ -383,21 +380,38 @@ public class RoutePathCreator extends ItemExtension {
         return rail.getSpeedLimitKilometersPerHour(false) == 0 || rail.getSpeedLimitKilometersPerHour(true) == 0;
     }
 
-    private static OrderedAngles getOrderedAngles(PathData pathData) {
+    private static double[] getTravelHeadings(PathData pathData) {
         final Rail rail = pathData.getRail();
         if (!((Object) rail instanceof RailExtraSupplier extra)) {
             return null;
         }
 
-        final Position orderedStart = pathData.getOrderedPosition1();
-        final Position orderedEnd = pathData.getOrderedPosition2();
-        if (samePosition(orderedStart, extra.getExtraPosition1()) && samePosition(orderedEnd, extra.getExtraPosition2())) {
-            return new OrderedAngles(extra.getExtraAngle1(), extra.getExtraAngle2());
+        final Position travelStart = pathData.reversePositions ? pathData.getOrderedPosition2() : pathData.getOrderedPosition1();
+        final boolean alongRail = samePosition(travelStart, extra.getExtraPosition1());
+        if (!alongRail && !samePosition(travelStart, extra.getExtraPosition2())) {
+            return null;
         }
-        if (samePosition(orderedStart, extra.getExtraPosition2()) && samePosition(orderedEnd, extra.getExtraPosition1())) {
-            return new OrderedAngles(extra.getExtraAngle2(), extra.getExtraAngle1());
+        final double length = extra.getLength();
+        if (!Double.isFinite(length) || length <= 0) {
+            return null;
         }
-        return null;
+        final double step = Math.min(0.1, length / 4);
+        final double headingAtPosition1 = getHeading(extra, 0, step);
+        final double headingAtPosition2 = getHeading(extra, length - step, length);
+        if (Double.isNaN(headingAtPosition1) || Double.isNaN(headingAtPosition2)) {
+            return null;
+        }
+        return alongRail
+            ? new double[]{headingAtPosition1, headingAtPosition2}
+            : new double[]{headingAtPosition2 + Math.PI, headingAtPosition1 + Math.PI};
+    }
+
+    private static double getHeading(RailExtraSupplier extra, double from, double to) {
+        final org.mtr.mapping.holder.Vector3d start = extra.getPosition(from);
+        final org.mtr.mapping.holder.Vector3d end = extra.getPosition(to);
+        final double dx = end.getXMapped() - start.getXMapped();
+        final double dz = end.getZMapped() - start.getZMapped();
+        return Math.abs(dx) < 1E-9 && Math.abs(dz) < 1E-9 ? Double.NaN : Math.atan2(dz, dx);
     }
 
     private static boolean samePosition(Position left, Position right) {
@@ -407,19 +421,9 @@ public class RoutePathCreator extends ItemExtension {
             && left.getZ() == right.getZ();
     }
 
-    private static float getAngleDifference(Angle first, Angle second) {
-        final float difference = Math.abs(first.angleDegrees - second.angleDegrees) % 360;
+    private static double getHeadingDifferenceDegrees(double first, double second) {
+        final double difference = Math.abs(Math.toDegrees(first - second)) % 360;
         return difference > 180 ? 360 - difference : difference;
-    }
-
-    private static final class OrderedAngles {
-        private final Angle startAngle;
-        private final Angle endAngle;
-
-        private OrderedAngles(Angle startAngle, Angle endAngle) {
-            this.startAngle = startAngle;
-            this.endAngle = endAngle;
-        }
     }
 
     private static PathData copyPathDataWithDwellTime(PathData pathData, long dwellTime) {

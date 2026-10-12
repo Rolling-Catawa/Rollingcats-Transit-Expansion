@@ -536,7 +536,7 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
         extra.setPathModeRaw(RailExtraSupplier.PATH_MODE_CURVE_FITTING);
         extra.setBezier(result.curve());
         extra.setExtraAngle1Rad(result.angleStart());
-        extra.setExtraAngle2Rad(result.angleEnd());
+        extra.setExtraAngle2Rad(Math.atan2(Math.sin(result.angleEnd() + Math.PI), Math.cos(result.angleEnd() + Math.PI)));
         RailAngleExtra.rebuildRailMathFromBezier(rail, result.curve());
         PacketUpdateRail.sendUpdateC2S(rail);
         float startDirDeg = (float) Math.toDegrees(result.angleStart());

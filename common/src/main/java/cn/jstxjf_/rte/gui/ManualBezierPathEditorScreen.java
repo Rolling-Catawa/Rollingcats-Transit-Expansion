@@ -583,7 +583,7 @@ public class ManualBezierPathEditorScreen extends net.minecraft.client.gui.scree
         extra.setPathModeRaw(RailExtraSupplier.PATH_MODE_MANUAL_BEZIER);
         extra.setBezier(curve);
         extra.setExtraAngle1Rad(angleStart);
-        extra.setExtraAngle2Rad(angleEnd);
+        extra.setExtraAngle2Rad(Math.atan2(Math.sin(angleEnd + Math.PI), Math.cos(angleEnd + Math.PI)));
         RailAngleExtra.rebuildRailMathFromBezier(rail, curve);
 
         PacketUpdateRail.sendUpdateC2S(rail);

@@ -36,9 +36,7 @@ public class RailDistanceRenderer {
         if (p1 == null || p2 == null) return;
 
         final double length = extra.getLength();
-        final double horizontalLength = Math.sqrt(
-            Math.pow(p2.getX() - p1.getX(), 2) + Math.pow(p2.getZ() - p1.getZ(), 2)
-        );
+        final double horizontalLength = horizontalArcLength(extra, length);
 
         final double dx = p2.getX() - p1.getX();
         final double dy = p2.getY() - p1.getY();
@@ -94,7 +92,24 @@ public class RailDistanceRenderer {
             : translate("gui.rte.rail_stat.disabled");
         addRow(rows, "gui.rte.rail_stat.collision", collision);
 
-        renderStatsAtPosition(p1, matrices, vertexConsumers, rows);
+        final org.mtr.mapping.holder.BlockPos aimed = RailPicker.pickedPosStart;
+        final boolean aimedAtSecond = aimed != null && aimed.getX() == p2.getX() && aimed.getY() == p2.getY() && aimed.getZ() == p2.getZ();
+        renderStatsAtPosition(aimedAtSecond ? p2 : p1, matrices, vertexConsumers, rows);
+    }
+
+    private static double horizontalArcLength(RailExtraSupplier extra, double length) {
+        if (!Double.isFinite(length) || length <= 0) {
+            return 0;
+        }
+        final int steps = Math.max(1, (int) Math.ceil(length / 0.5));
+        double total = 0;
+        org.mtr.mapping.holder.Vector3d previous = extra.getPosition(0);
+        for (int i = 1; i <= steps; i++) {
+            final org.mtr.mapping.holder.Vector3d current = extra.getPosition(length * i / steps);
+            total += Math.hypot(current.getXMapped() - previous.getXMapped(), current.getZMapped() - previous.getZMapped());
+            previous = current;
+        }
+        return total;
     }
 
     private static void renderStatsAtPosition(Position pos, PoseStack matrices, MultiBufferSource vertexConsumers,

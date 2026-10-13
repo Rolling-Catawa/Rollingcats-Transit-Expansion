@@ -111,7 +111,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
                 RailBrushHelper.updateBrushTag(tag -> tag.putBoolean("RenderReversed", mirror.get()));
             }
             ImGui.sameLine();
-            if (has && ImGui.button(t("gui.rte.imgui.reset") + "###brush_mirror_reset")) {
+            if (has && ImGui.button(t("gui.rte.brush_edit_rail.reset") + "###brush_mirror_reset")) {
                 RailBrushHelper.updateBrushTag(tag -> tag.remove("RenderReversed"));
             }
         }

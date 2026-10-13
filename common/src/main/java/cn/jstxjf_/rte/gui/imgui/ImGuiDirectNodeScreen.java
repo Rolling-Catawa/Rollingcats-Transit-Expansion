@@ -67,7 +67,7 @@ public class ImGuiDirectNodeScreen extends net.minecraft.client.gui.screens.Scre
             applyAngle(bound ? Math.round(entity.getAngleDegrees() / 45.0) * 45f : 0);
         }
         ImGui.sameLine();
-        if (bound && ImGui.button(t("gui.rte.direct_node.unbind_button") + "###unbind")) {
+        if (bound && ImGui.button(t("gui.rte.direct_node.unbind") + "###unbind")) {
             entity.unbind();
         }
         if (entity.isFittingNode()) {

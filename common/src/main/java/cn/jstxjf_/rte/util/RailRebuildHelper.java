@@ -467,16 +467,10 @@ public final class RailRebuildHelper {
         final RailExtraSupplier sourceExtra = (RailExtraSupplier) (Object) source;
         final RailExtraSupplier targetExtra = (RailExtraSupplier) (Object) target;
 
-        boolean srcReversed = sourceExtra.getRenderReversed();
-        int srcRaw = sourceExtra.getOpeningDirectionRaw();
-        int srcLogical = sourceExtra.getOpeningDirection();
-
-        targetExtra.setRenderReversed(srcReversed);
+        final boolean transposed = isOrientationTransposed(source, target);
+        targetExtra.setRenderReversed(sourceExtra.getRenderReversed() != transposed);
         targetExtra.partialCopyFrom(sourceExtra);
 
-        int afterCopyRaw = targetExtra.getOpeningDirectionRaw();
-
-        boolean transposed = isOrientationTransposed(source, target);
         if (transposed) {
             int raw = targetExtra.getOpeningDirectionRaw();
             if (raw == 1) targetExtra.setOpeningDirectionRaw(2);
@@ -502,13 +496,10 @@ public final class RailRebuildHelper {
             targetExtra.setCustomConfigs(configs);
         }
 
-        final RailAccessor srcAcc = (RailAccessor)(Object) source;
-        final RailAccessor tgtAcc = (RailAccessor)(Object) target;
-
         targetExtra.setRailType(sourceExtra.getRailType());
         targetExtra.setSpeedLimitKph(sourceExtra.getSpeedLimitKph());
-        targetExtra.setExtraAngle1Rad(sourceExtra.getExtraAngle1Rad());
-        targetExtra.setExtraAngle2Rad(sourceExtra.getExtraAngle2Rad());
+        targetExtra.setExtraAngle1Rad(transposed ? sourceExtra.getExtraAngle2Rad() : sourceExtra.getExtraAngle1Rad());
+        targetExtra.setExtraAngle2Rad(transposed ? sourceExtra.getExtraAngle1Rad() : sourceExtra.getExtraAngle2Rad());
 
         if (RailExtraSupplier.usesBezierCurve(sourceExtra.getPathMode())) {
             final BezierCurve bezier = sourceExtra.getBezierCurve();
@@ -527,23 +518,16 @@ public final class RailRebuildHelper {
         } else {
             targetExtra.setPathModeRaw(sourceExtra.getPathMode());
         }
-
-        autoFixOneWayRenderReversed(target, tgtAcc);
     }
 
-    public static void autoFixOneWayRenderReversed(Rail rail, RailAccessor acc) {
-        long sl1 = acc.rte$getSpeedLimit1();
-        long sl2 = acc.rte$getSpeedLimit2();
-        if ((sl1 <= 0) == (sl2 <= 0)) return;
-        Position p1 = acc.rte$getPosition1();
-        Position p2 = acc.rte$getPosition2();
-        if (p1 == null || p2 == null) return;
-        RailExtraSupplier extra = (RailExtraSupplier)(Object)rail;
-        boolean oldReversed = extra.getRenderReversed();
-        boolean hasBezier = extra.getBezierCurve() != null;
-        boolean renderReversed = rail.getSpeedLimitKilometersPerHour(false) <= 0;
-        if (oldReversed == renderReversed) return;
-        extra.setRenderReversed(renderReversed);
+    public static void clearLegacyOneWayRenderReversed(Rail rail, RailAccessor acc) {
+        if ((acc.rte$getSpeedLimit1() <= 0) == (acc.rte$getSpeedLimit2() <= 0)) return;
+        final RailExtraSupplier extra = (RailExtraSupplier)(Object)rail;
+        if (!extra.getRenderReversed()) return;
+        final int raw = extra.getOpeningDirectionRaw();
+        extra.setRenderReversed(false);
+        if (raw == 1) extra.setOpeningDirectionRaw(2);
+        else if (raw == 2) extra.setOpeningDirectionRaw(1);
     }
 
     private static boolean isOrientationTransposed(Rail source, Rail target) {

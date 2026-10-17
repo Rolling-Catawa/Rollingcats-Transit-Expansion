@@ -67,10 +67,11 @@ public abstract class RailMixin implements RailExtraSupplier {
 
     @Inject(method = "isValid", at = @At("RETURN"), cancellable = true, remap = false)
     private void rte$allowSpatialCarrier(CallbackInfoReturnable<Boolean> cir) {
-        if (cir.getReturnValue()) return;
-        RailSpatialContext.apply(this);
+        final boolean vanillaValid = cir.getReturnValue();
+        if (!RailSpatialContext.apply(this) && vanillaValid) return;
         if (RailExtraSupplier.usesBezierCurve(rte$pathMode) && rte$bezier != null
                 && Double.isFinite(rte$bezier.getLength()) && rte$bezier.getLength() > ACCEPT_THRESHOLD) {
+            if (vanillaValid) return;
             cn.jstxjf_.rte.data.RailAngleExtra.ensureCarrierRailMath(
                     (Rail) (Object) this, rte$bezier.getLength(),
                     Double.isFinite(rte$angle1Rad) ? rte$angle1Rad : 0);

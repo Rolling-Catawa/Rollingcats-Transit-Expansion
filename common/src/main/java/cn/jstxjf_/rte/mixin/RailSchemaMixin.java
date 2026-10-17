@@ -144,10 +144,12 @@ public abstract class RailSchemaMixin {
                 extra.setPathModeRaw(RailExtraSupplier.PATH_MODE_ORIGINAL);
             }
         }
-        try {
-            cn.jstxjf_.rte.util.RailRebuildHelper.autoFixOneWayRenderReversed(
+        final boolean[] oneWayDirectionMigrated = {false};
+        reader.unpackBoolean("rte_one_way_direction_v2", value -> oneWayDirectionMigrated[0] = value);
+        if (!oneWayDirectionMigrated[0]) {
+            cn.jstxjf_.rte.util.RailRebuildHelper.clearLegacyOneWayRenderReversed(
                 (Rail)(Object)this, (RailAccessor)(Object)this);
-        } catch (Exception ignored) {}
+        }
     }
 
     @Unique
@@ -189,6 +191,7 @@ public abstract class RailSchemaMixin {
         writer.writeString("rte_model_key", self.getModelKey());
         writer.writeString("rte_model_keys", rte$joinModelKeys(self.getModelKeys()));
         writer.writeBoolean("rte_is_secondary_dir", self.getRenderReversed());
+        writer.writeBoolean("rte_one_way_direction_v2", true);
         writer.writeDouble("rte_vertical_curve_radius", self.getVerticalCurveRadius());
         writer.writeString("rte_rail_type", self.getRailType());
         writer.writeInt("rte_speed_limit_kph", self.getSpeedLimitKph());

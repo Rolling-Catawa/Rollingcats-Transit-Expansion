@@ -225,10 +225,14 @@ public abstract class ItemNodeModifierBaseMixin {
                          ServerPlayerEntity player, boolean spatial) {
         final BlockEntityDirectNode startNode = getBlockEntity(world, posStart);
         final BlockEntityDirectNode endNode = getBlockEntity(world, posEnd);
-        final double startAngle = startNode != null && startNode.isBound()
-                ? startNode.getAngleRadians() : facingStart.angleRadians;
-        final double endAngle = endNode != null && endNode.isBound()
-                ? endNode.getAngleRadians() : normalizeRadians(facingEnd.angleRadians + Math.PI);
+        final double startX = posStart.getX() + (startNode == null ? 0 : startNode.getXOffset());
+        final double startZ = posStart.getZ() + (startNode == null ? 0 : startNode.getZOffset());
+        final double endX = posEnd.getX() + (endNode == null ? 0 : endNode.getXOffset());
+        final double endZ = posEnd.getZ() + (endNode == null ? 0 : endNode.getZOffset());
+        final double startAngle = faceToward(startX, startZ, endX, endZ, startNode != null && startNode.isBound()
+                ? startNode.getAngleRadians() : facingStart.angleRadians);
+        final double endAngle = faceToward(endX, endZ, startX, startZ, endNode != null && endNode.isBound()
+                ? endNode.getAngleRadians() : normalizeRadians(facingEnd.angleRadians + Math.PI));
         final org.mtr.core.data.Position startPosition = org.mtr.mod.Init.blockPosToPosition(posStart);
         cn.jstxjf_.rte.data.RailSpatialContext.run(spatial ? rail -> {
             final boolean firstIsStart = startPosition.equals(rail.getExtraPosition1());

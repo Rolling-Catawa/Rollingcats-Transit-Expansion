@@ -31,11 +31,11 @@ public final class BuiltinGangwayRenderer {
         if (rte$isBlankConnection(connectionId)) {
             return null;
         }
-        final String key = connectionId + '|' + part;
-        final Identifier cached = TEXTURE_CACHE.get(key);
-        if (cached != null) {
-            return cached == MISSING ? null : cached;
-        }
+        final Identifier result = TEXTURE_CACHE.computeIfAbsent(connectionId + '|' + part, key -> rte$loadPackTexture(connectionId, part));
+        return result == MISSING ? null : result;
+    }
+
+    private static Identifier rte$loadPackTexture(String connectionId, String part) {
         Identifier result = MISSING;
         try {
             final int colon = connectionId.indexOf(':');
@@ -50,12 +50,11 @@ public final class BuiltinGangwayRenderer {
             }
         } catch (Throwable ignored) {
         }
-        TEXTURE_CACHE.put(key, result);
         if (cn.jstxjf_.rte.ClientConfig.enableRenderDiagnostics) {
             cn.jstxjf_.rte.RTE.LOGGER.info("[Gangway] {} part={} -> {}",
                 connectionId, part, result == MISSING ? "not found, falling back to RTE built-in texture" : result.toString());
         }
-        return result == MISSING ? null : result;
+        return result;
     }
 
     public static boolean rte$suppressForCurrentVehicle() {
@@ -98,11 +97,9 @@ public final class BuiltinGangwayRenderer {
                             "[Gangway] {} is a blank placeholder, using RTE built-in texture", rawId);
                         return;
                     }
-                    final net.minecraft.client.renderer.texture.DynamicTexture texture =
-                        new net.minecraft.client.renderer.texture.DynamicTexture(image);
-                    net.minecraft.client.Minecraft.getInstance().execute(() ->
+                    com.mojang.blaze3d.systems.RenderSystem.recordRenderCall(() ->
                         net.minecraft.client.Minecraft.getInstance().getTextureManager()
-                            .register(bindable, texture));
+                            .register(bindable, new net.minecraft.client.renderer.texture.DynamicTexture(image)));
                     ok.set(true);
                 } catch (Exception e) {
                     cn.jstxjf_.rte.RTE.LOGGER.warn("[Gangway] failed to decode {}: {}", rawId, e.toString());

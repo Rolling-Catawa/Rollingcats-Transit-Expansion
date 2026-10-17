@@ -7,17 +7,14 @@ import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
 import cn.jstxjf_.rte.RTE;
 import cn.jstxjf_.rte.data.TrainExtraSupplier;
 import cn.jstxjf_.rte.util.StringMapSerializer;
-import org.mtr.core.Main;
 import org.mtr.core.data.Siding;
 import org.mtr.core.data.Vehicle;
 import org.mtr.core.simulation.Simulator;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import org.mtr.mod.Init;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -26,9 +23,6 @@ public class PacketUpdateTrainCustomConfigs extends RtePacket {
     private final long sidingId;
     private final long vehicleId;
     private final String serializedConfigs;
-    private static Field initMainField;
-    private static Field worldIdListField;
-    private static Field mainSimulatorsField;
     private static Field sidingVehiclesField;
 
     public PacketUpdateTrainCustomConfigs(RtePacketReader receiver) {
@@ -80,41 +74,16 @@ public class PacketUpdateTrainCustomConfigs extends RtePacket {
 
     @SuppressWarnings("unchecked")
     private static Vehicle findVehicle(ServerPlayer player, long sidingId, long vehicleId) throws Exception {
-        if (initMainField == null) {
-            initMainField = Init.class.getDeclaredField("main");
-            initMainField.setAccessible(true);
-        }
-        if (worldIdListField == null) {
-            worldIdListField = Init.class.getDeclaredField("WORLD_ID_LIST");
-            worldIdListField.setAccessible(true);
-        }
-        if (mainSimulatorsField == null) {
-            mainSimulatorsField = Main.class.getDeclaredField("simulators");
-            mainSimulatorsField.setAccessible(true);
-        }
         if (sidingVehiclesField == null) {
             sidingVehiclesField = Siding.class.getDeclaredField("vehicles");
             sidingVehiclesField.setAccessible(true);
         }
 
-        final Main main = (Main) initMainField.get(null);
-        if (main == null) {
+        final Simulator simulator = cn.jstxjf_.rte.bridge.MtrBridge.simulator(player.level());
+        if (simulator == null) {
             return null;
         }
 
-        final List<String> worldIds = (List<String>) worldIdListField.get(null);
-        final String worldId = cn.jstxjf_.rte.bridge.MtrBridge.worldId(player.level());
-        final int worldIndex = worldIds.indexOf(worldId);
-        if (worldIndex < 0) {
-            return null;
-        }
-
-        final List<Simulator> simulators = (List<Simulator>) mainSimulatorsField.get(main);
-        if (worldIndex >= simulators.size()) {
-            return null;
-        }
-
-        final Simulator simulator = simulators.get(worldIndex);
         final Siding siding = simulator.sidingIdMap.get(sidingId);
         if (siding == null) {
             return null;

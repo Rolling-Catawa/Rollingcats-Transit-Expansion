@@ -11,12 +11,8 @@ import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
-import org.mtr.mod.Init;
 import org.mtr.mod.packet.PacketUpdateData;
-import org.mtr.core.Main;
 
-import java.lang.reflect.Field;
-import java.util.List;
 import java.util.Map;
 
 public final class RailAutoTangent {
@@ -25,16 +21,13 @@ public final class RailAutoTangent {
     private static final double MIN_REFINE_RAD = Math.toRadians(0.5);
     private static final double MIN_CONTINUATION_SCORE = 0.3;
 
-    private static Field initMainField;
-    private static Field worldIdListField;
-    private static Field mainSimulatorsField;
 
     public static void apply(Level world, BlockPos posStart, BlockPos posEnd) {
         if (!RTEConfig.enableAutoTangent) {
             return;
         }
         try {
-            final Simulator simulator = findSimulator(world);
+            final Simulator simulator = cn.jstxjf_.rte.bridge.MtrBridge.simulator(world);
             if (simulator == null) {
                 return;
             }
@@ -167,33 +160,6 @@ public final class RailAutoTangent {
     private static Rail railBetween(Simulator simulator, Position from, Position to) {
         final Object2ObjectOpenHashMap<Position, Rail> connections = simulator.positionsToRail.get(from);
         return connections == null ? null : connections.get(to);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Simulator findSimulator(Level world) throws Exception {
-        if (initMainField == null) {
-            initMainField = Init.class.getDeclaredField("main");
-            initMainField.setAccessible(true);
-        }
-        if (worldIdListField == null) {
-            worldIdListField = Init.class.getDeclaredField("WORLD_ID_LIST");
-            worldIdListField.setAccessible(true);
-        }
-        if (mainSimulatorsField == null) {
-            mainSimulatorsField = Main.class.getDeclaredField("simulators");
-            mainSimulatorsField.setAccessible(true);
-        }
-        final Main main = (Main) initMainField.get(null);
-        if (main == null) {
-            return null;
-        }
-        final List<String> worldIds = (List<String>) worldIdListField.get(null);
-        final int worldIndex = worldIds.indexOf(cn.jstxjf_.rte.bridge.MtrBridge.worldId(world));
-        if (worldIndex < 0) {
-            return null;
-        }
-        final List<Simulator> simulators = (List<Simulator>) mainSimulatorsField.get(main);
-        return worldIndex < simulators.size() ? simulators.get(worldIndex) : null;
     }
 
     private static double wrap(double rad) {

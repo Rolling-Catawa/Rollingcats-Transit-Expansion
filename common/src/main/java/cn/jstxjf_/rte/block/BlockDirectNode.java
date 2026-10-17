@@ -5,7 +5,6 @@ import cn.jstxjf_.rte.data.RailAngleExtra;
 import cn.jstxjf_.rte.data.RailExtraSupplier;
 import cn.jstxjf_.rte.network.PacketUpdateBlockEntity;
 import cn.jstxjf_.rte.util.RailRebuildHelper;
-import org.mtr.core.Main;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
 import org.mtr.mod.block.BlockNode;
@@ -24,7 +23,6 @@ import org.mtr.mod.packet.PacketDeleteData;
 import org.mtr.mod.packet.PacketUpdateData;
 
 import javax.annotation.Nonnull;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -49,9 +47,6 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
     
     public static class BlockEntityDirectNode extends BlockEntityExtension {
         public static volatile java.util.function.Predicate<BlockPos> clientEditLock = pos -> false;
-        private static Field initMainField;
-        private static Field worldIdListField;
-        private static Field mainSimulatorsField;
         private static final double ANGLE_EPSILON = 1E-6;
 
         private double angle = Double.NaN;
@@ -659,32 +654,7 @@ public class BlockDirectNode extends BlockNode implements BlockWithEntity {
 
         @SuppressWarnings("unchecked")
         public static Simulator findSimulator(World world) throws Exception {
-            if (initMainField == null) {
-                initMainField = Init.class.getDeclaredField("main");
-                initMainField.setAccessible(true);
-            }
-            if (worldIdListField == null) {
-                worldIdListField = Init.class.getDeclaredField("WORLD_ID_LIST");
-                worldIdListField.setAccessible(true);
-            }
-            if (mainSimulatorsField == null) {
-                mainSimulatorsField = Main.class.getDeclaredField("simulators");
-                mainSimulatorsField.setAccessible(true);
-            }
-
-            final Main main = (Main) initMainField.get(null);
-            if (main == null) {
-                return null;
-            }
-
-            final List<String> worldIds = (List<String>) worldIdListField.get(null);
-            final int worldIndex = worldIds.indexOf(Init.getWorldId(world));
-            if (worldIndex < 0) {
-                return null;
-            }
-
-            final List<Simulator> simulators = (List<Simulator>) mainSimulatorsField.get(main);
-            return worldIndex < simulators.size() ? simulators.get(worldIndex) : null;
+            return world == null ? null : cn.jstxjf_.rte.bridge.MtrBridge.simulator(world.data);
         }
 
         private static void logDebug(String message, Object... args) {

@@ -50,7 +50,37 @@ public final class MtrBridge {
         PacketDeleteData.sendDirectlyToServerRailNodePosition(new ServerWorld(level), position(pos));
     }
 
+    private static java.lang.reflect.Field initMainField;
+    private static java.lang.reflect.Field worldIdListField;
+    private static java.lang.reflect.Field mainSimulatorsField;
+
+    @SuppressWarnings("unchecked")
     public static org.mtr.core.simulation.Simulator simulator(Level level) throws Exception {
-        return cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode.findSimulator(new World(level));
+        if (level == null) {
+            return null;
+        }
+        if (initMainField == null) {
+            initMainField = Init.class.getDeclaredField("main");
+            initMainField.setAccessible(true);
+        }
+        if (worldIdListField == null) {
+            worldIdListField = Init.class.getDeclaredField("WORLD_ID_LIST");
+            worldIdListField.setAccessible(true);
+        }
+        if (mainSimulatorsField == null) {
+            mainSimulatorsField = org.mtr.core.Main.class.getDeclaredField("simulators");
+            mainSimulatorsField.setAccessible(true);
+        }
+        final org.mtr.core.Main main = (org.mtr.core.Main) initMainField.get(null);
+        if (main == null) {
+            return null;
+        }
+        final java.util.List<String> worldIds = (java.util.List<String>) worldIdListField.get(null);
+        final int worldIndex = worldIds.indexOf(worldId(level));
+        if (worldIndex < 0) {
+            return null;
+        }
+        final java.util.List<org.mtr.core.simulation.Simulator> simulators = (java.util.List<org.mtr.core.simulation.Simulator>) mainSimulatorsField.get(main);
+        return worldIndex < simulators.size() ? simulators.get(worldIndex) : null;
     }
 }

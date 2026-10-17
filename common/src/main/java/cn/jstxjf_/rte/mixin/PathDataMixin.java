@@ -8,7 +8,7 @@ import org.mtr.core.data.Rail;
 import org.mtr.core.data.RailMath;
 import org.mtr.core.data.Vehicle;
 import org.mtr.core.tool.Vector;
-import org.mtr.mapping.holder.Vector3d;
+import net.minecraft.world.phys.Vec3;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -94,8 +94,8 @@ public abstract class PathDataMixin {
             final boolean railReversed = rp1 != null && rp2 != null && rp1.compareTo(rp2) > 0;
             final boolean effectiveReverse = reverse != railReversed;
             final double actualValue = effectiveReverse ? supplier.getLength() - value : value;
-            final Vector3d vec = supplier.getPosition(actualValue);
-            return new Vector(vec.getXMapped(), vec.getYMapped(), vec.getZMapped());
+            final Vec3 vec = supplier.getPosition(actualValue);
+            return new Vector(vec.x, vec.y, vec.z);
         }
         return railMath.getPosition(value, reverse);
     }

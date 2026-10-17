@@ -11,7 +11,7 @@ import org.mtr.core.tool.Utilities;
 import org.mtr.core.tool.Vector;
 import org.mtr.mapping.holder.ServerPlayerEntity;
 import org.mtr.mapping.holder.ServerWorld;
-import org.mtr.mapping.holder.Vector3d;
+import net.minecraft.world.phys.Vec3;
 import org.mtr.mapping.mapper.TextHelper;
 import org.mtr.mod.block.BlockNode;
 import org.mtr.mod.data.RailAction;
@@ -43,7 +43,7 @@ public class SliceRailAction extends RailAction {
 
     private int startIndex;
     private double distance;
-    private Vector3d last;
+    private Vec3 last;
 
     public SliceRailAction(ServerWorld serverWorld, ServerPlayerEntity player, Rail rail, CompoundCreatorLogic.SliceTask task) {
         super(serverWorld, player, RailActionType.BRIDGE, rail, 0, 0, null);
@@ -107,7 +107,7 @@ public class SliceRailAction extends RailAction {
                 return true;
             }
 
-            final Vector3d next = railExtra.getPosition(distance);
+            final Vec3 next = railExtra.getPosition(distance);
             final Matrix4f matrix = createTransform(last, next, distance - increment / 2);
             last = next;
 
@@ -144,14 +144,14 @@ public class SliceRailAction extends RailAction {
         return Math.floor(along / task.pierInterval) > Math.floor(previous / task.pierInterval);
     }
 
-    private void rte$placePier(Vector3d position) {
+    private void rte$placePier(Vec3 position) {
         final CompoundCreatorLogic.Lump pierLump = rte$pierLump();
         if (pierLump == null || pierLump.blockState == null) {
             return;
         }
-        final int baseX = (int) Math.floor(position.getXMapped());
-        final int baseZ = (int) Math.floor(position.getZMapped());
-        int y = (int) Math.floor(position.getYMapped()) - 1;
+        final int baseX = (int) Math.floor(position.x);
+        final int baseZ = (int) Math.floor(position.z);
+        int y = (int) Math.floor(position.y) - 1;
         for (int placed = 0; placed < task.pierDepth && y > nativeWorld.getMinBuildHeight(); placed++, y--) {
             final net.minecraft.core.BlockPos target = new net.minecraft.core.BlockPos(baseX, y, baseZ);
             if (!nativeWorld.getBlockState(target).isAir() && placed > 0) {
@@ -180,20 +180,20 @@ public class SliceRailAction extends RailAction {
         return null;
     }
 
-    private Matrix4f createTransform(Vector3d start, Vector3d end, double rollDistance) {
+    private Matrix4f createTransform(Vec3 start, Vec3 end, double rollDistance) {
         final Matrix4f matrix = new Matrix4f();
-        matrix.translate((float) start.getXMapped(), (float) start.getYMapped(), (float) start.getZMapped());
+        matrix.translate((float) start.x, (float) start.y, (float) start.z);
 
         if (task.useYaw) {
-            final float yaw = (float) Math.atan2(end.getXMapped() - start.getXMapped(), end.getZMapped() - start.getZMapped());
+            final float yaw = (float) Math.atan2(end.x - start.x, end.z - start.z);
             matrix.rotateY(yaw);
         }
 
         if (task.usePitch) {
-            final double dx = end.getXMapped() - start.getXMapped();
-            final double dz = end.getZMapped() - start.getZMapped();
+            final double dx = end.x - start.x;
+            final double dz = end.z - start.z;
             final double horizontalDistance = Math.sqrt(dx * dx + dz * dz);
-            final float pitch = (float) Math.atan2(end.getYMapped() - start.getYMapped(), horizontalDistance);
+            final float pitch = (float) Math.atan2(end.y - start.y, horizontalDistance);
             matrix.rotateX(pitch);
         }
 

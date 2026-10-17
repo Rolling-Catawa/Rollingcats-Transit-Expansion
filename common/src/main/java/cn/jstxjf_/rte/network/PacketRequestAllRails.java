@@ -10,7 +10,7 @@ import org.mtr.core.data.Rail;
 import org.mtr.core.simulation.Simulator;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import org.mtr.mapping.holder.Vector3d;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -109,9 +109,9 @@ public class PacketRequestAllRails extends RtePacket {
                     x = (i == 0 ? p1.getX() : p2.getX()) + 0.5;
                     z = (i == 0 ? p1.getZ() : p2.getZ()) + 0.5;
                 } else {
-                    final Vector3d position = extra.getPosition(length * i / samples);
-                    x = position.getXMapped();
-                    z = position.getZMapped();
+                    final Vec3 position = extra.getPosition(length * i / samples);
+                    x = position.x;
+                    z = position.z;
                 }
                 if (!Double.isFinite(x) || !Double.isFinite(z)) {
                     return null;

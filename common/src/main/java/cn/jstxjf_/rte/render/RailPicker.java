@@ -96,15 +96,15 @@ public class RailPicker {
                 }
                 final int steps = (int) Math.max(1, Math.min(192, Math.ceil(length)));
                 for (int i = 0; i <= steps; i++) {
-                    final org.mtr.mapping.holder.Vector3d sample;
+                    final net.minecraft.world.phys.Vec3 sample;
                     try {
                         sample = extra.getPosition(length * i / steps);
                     } catch (Exception e) {
                         break;
                     }
-                    final double dx = sample.getXMapped() - eye.x;
-                    final double dy = sample.getYMapped() + 0.5 - eye.y;
-                    final double dz = sample.getZMapped() - eye.z;
+                    final double dx = sample.x - eye.x;
+                    final double dy = sample.y + 0.5 - eye.y;
+                    final double dz = sample.z - eye.z;
                     final double along = dx * look.x + dy * look.y + dz * look.z;
                     if (along < 0.5 || along > maxDistance) {
                         continue;
@@ -167,15 +167,15 @@ public class RailPicker {
                 }
                 final int steps = (int) Math.max(1, Math.min(192, Math.ceil(length)));
                 for (int i = 0; i <= steps; i++) {
-                    final org.mtr.mapping.holder.Vector3d sample;
+                    final net.minecraft.world.phys.Vec3 sample;
                     try {
                         sample = extra.getPosition(length * i / steps);
                     } catch (Exception e) {
                         break;
                     }
-                    final double dx = sample.getXMapped() - eye.x;
-                    final double dy = sample.getYMapped() + 0.5 - eye.y;
-                    final double dz = sample.getZMapped() - eye.z;
+                    final double dx = sample.x - eye.x;
+                    final double dy = sample.y + 0.5 - eye.y;
+                    final double dz = sample.z - eye.z;
                     final double along = dx * look.x + dy * look.y + dz * look.z;
                     if (along < 0.5 || along > 48) {
                         continue;

@@ -15,6 +15,7 @@ import org.mtr.core.tool.Angle;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
 import org.mtr.mapping.holder.*;
+import net.minecraft.world.phys.Vec3;
 import org.mtr.mapping.mapper.GraphicsHolder;
 import org.mtr.mod.Init;
 import org.mtr.mod.block.BlockNode;
@@ -277,9 +278,9 @@ public class RenderRailsMixin {
         try {
             final org.mtr.core.tool.Vector mtrStart = mtrRail.railMath.getPosition(0, false);
             final org.mtr.core.tool.Vector mtrEnd = mtrRail.railMath.getPosition(mtrRail.railMath.getLength(), false);
-            final Vector3d stripStart = extra.getPosition(0);
-            final double toStart = Math.pow(stripStart.getXMapped() - mtrStart.x, 2) + Math.pow(stripStart.getZMapped() - mtrStart.z, 2);
-            final double toEnd = Math.pow(stripStart.getXMapped() - mtrEnd.x, 2) + Math.pow(stripStart.getZMapped() - mtrEnd.z, 2);
+            final Vec3 stripStart = extra.getPosition(0);
+            final double toStart = Math.pow(stripStart.x - mtrStart.x, 2) + Math.pow(stripStart.z - mtrStart.z, 2);
+            final double toEnd = Math.pow(stripStart.x - mtrEnd.x, 2) + Math.pow(stripStart.z - mtrEnd.z, 2);
             if (toEnd < toStart) {
                 final long swap = speed1;
                 speed1 = speed2;
@@ -295,18 +296,18 @@ public class RenderRailsMixin {
         int segments = Math.max(1, (int) Math.round(length));
         double increment = length / segments;
 
-        Vector3d prevCenter = null;
+        Vec3 prevCenter = null;
         double prevPerpX = 0, prevPerpZ = 0;
 
         for (int i = 0; i <= segments; i++) {
             double t = Math.min(i * increment, length);
-            Vector3d center = extra.getPosition(t);
+            Vec3 center = extra.getPosition(t);
 
             double eps = Math.min(0.1, increment * 0.25);
-            Vector3d pA = extra.getPosition(Math.max(0, t - eps));
-            Vector3d pB = extra.getPosition(Math.min(length, t + eps));
-            double dx = pB.getXMapped() - pA.getXMapped();
-            double dz = pB.getZMapped() - pA.getZMapped();
+            Vec3 pA = extra.getPosition(Math.max(0, t - eps));
+            Vec3 pB = extra.getPosition(Math.min(length, t + eps));
+            double dx = pB.x - pA.x;
+            double dz = pB.z - pA.z;
             double hLen = Math.sqrt(dx * dx + dz * dz);
             double perpX = 0, perpZ = 1;
             if (hLen > 1E-9) {
@@ -315,12 +316,12 @@ public class RenderRailsMixin {
             }
 
             if (prevCenter != null) {
-                final double cx = center.getXMapped();
-                final double cy = center.getYMapped();
-                final double cz = center.getZMapped();
-                final double pcx = prevCenter.getXMapped();
-                final double pcy = prevCenter.getYMapped();
-                final double pcz = prevCenter.getZMapped();
+                final double cx = center.x;
+                final double cy = center.y;
+                final double cz = center.z;
+                final double pcx = prevCenter.x;
+                final double pcy = prevCenter.y;
+                final double pcz = prevCenter.z;
 
                 final double ax1 = pcx + prevPerpX;
                 final double az1 = pcz + prevPerpZ;

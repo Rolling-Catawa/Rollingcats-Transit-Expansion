@@ -5,7 +5,7 @@ import cn.jstxjf_.rte.data.RailExtraSupplier;
 import net.minecraft.client.Minecraft;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.Vector3d;
+import net.minecraft.world.phys.Vec3;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -136,9 +136,9 @@ public final class MapRailArchive {
                 z = (i == 0 ? p1.getZ() : p2.getZ()) + 0.5;
             } else {
                 try {
-                    final Vector3d position = extra.getPosition(length * i / samples);
-                    x = position.getXMapped();
-                    z = position.getZMapped();
+                    final Vec3 position = extra.getPosition(length * i / samples);
+                    x = position.x;
+                    z = position.z;
                 } catch (Exception e) {
                     final double ratio = (double) i / samples;
                     x = p1.getX() + 0.5 + (p2.getX() - p1.getX()) * ratio;

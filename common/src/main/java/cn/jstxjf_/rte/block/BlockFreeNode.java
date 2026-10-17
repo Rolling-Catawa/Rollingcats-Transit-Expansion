@@ -9,7 +9,7 @@ import org.mtr.mapping.holder.ItemPlacementContext;
 import org.mtr.mapping.holder.ItemStack;
 import org.mtr.mapping.holder.LivingEntity;
 import org.mtr.mapping.holder.ShapeContext;
-import org.mtr.mapping.holder.Vector3d;
+import net.minecraft.world.phys.Vec3;
 import org.mtr.mapping.holder.VoxelShape;
 import org.mtr.mapping.holder.VoxelShapes;
 import org.mtr.mapping.holder.World;
@@ -27,12 +27,12 @@ public class BlockFreeNode extends BlockDirectNode {
     @Override
     public BlockState getPlacementState2(ItemPlacementContext context) {
         final BlockPos blockPos = context.getBlockPos();
-        final Vector3d hitPos = context.getHitPos();
+        final Vec3 hitPos = cn.jstxjf_.rte.bridge.MtrTypes.vec(context.getHitPos());
         final Direction side = context.getSide();
         PLACEMENT_DATA.set(new PlacementData(
-                hitPos.getXMapped() - blockPos.getX() - 0.5,
-                hitPos.getYMapped() - blockPos.getY() - 0.125,
-                hitPos.getZMapped() - blockPos.getZ() - 0.5,
+                hitPos.x - blockPos.getX() - 0.5,
+                hitPos.y - blockPos.getY() - 0.125,
+                hitPos.z - blockPos.getZ() - 0.5,
                 side == Direction.UP ? 0 : side == Direction.DOWN ? 180 : -90,
                 side.getId()
         ));

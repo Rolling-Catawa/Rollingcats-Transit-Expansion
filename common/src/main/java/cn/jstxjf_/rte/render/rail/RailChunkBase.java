@@ -7,7 +7,6 @@ import cn.jstxjf_.rte.gfx.math.Matrix4f;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.Vector3d;
 import org.mtr.mapping.holder.World;
 
 import cn.jstxjf_.rte.gfx.util.GlStateTracker;
@@ -90,9 +89,9 @@ public abstract class RailChunkBase implements Closeable {
         return (yMin << 4) <= boundingBox.maxY && (yMax << 4) >= boundingBox.minY;
     }
 
-    public double getCameraDistManhattanXZ(Vector3d cameraPos) {
-        cameraDistManhattanXZ = Math.abs(cameraPos.getXMapped() - (boundingBox.minX + boundingBox.maxX) / 2)
-                + Math.abs(cameraPos.getZMapped() - (boundingBox.minZ + boundingBox.maxZ) / 2);
+    public double getCameraDistManhattanXZ(Vec3 cameraPos) {
+        cameraDistManhattanXZ = Math.abs(cameraPos.x - (boundingBox.minX + boundingBox.maxX) / 2)
+                + Math.abs(cameraPos.z - (boundingBox.minZ + boundingBox.maxZ) / 2);
         return cameraDistManhattanXZ;
     }
 

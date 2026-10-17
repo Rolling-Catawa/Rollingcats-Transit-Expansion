@@ -33,8 +33,8 @@ public class BlockItemFreeNode extends BlockItemDirectNode {
         if (!(context.getWorld().data instanceof net.minecraft.server.level.ServerLevel level) || context.getPlayer() == null) {
             return ActionResult.FAIL;
         }
-        final org.mtr.mapping.holder.Vector3d hit = context.getHitPos();
-        final net.minecraft.world.phys.Vec3 point = new net.minecraft.world.phys.Vec3(hit.getXMapped(), hit.getYMapped(), hit.getZMapped());
+        final net.minecraft.world.phys.Vec3 hit = cn.jstxjf_.rte.bridge.MtrTypes.vec(context.getHitPos());
+        final net.minecraft.world.phys.Vec3 point = new net.minecraft.world.phys.Vec3(hit.x, hit.y, hit.z);
         final net.minecraft.core.Direction face = (net.minecraft.core.Direction) context.getSide().data;
         final net.minecraft.world.entity.player.Player player = (net.minecraft.world.entity.player.Player) context.getPlayer().data;
         final net.minecraft.world.item.ItemStack stack = (net.minecraft.world.item.ItemStack) context.getStack().data;

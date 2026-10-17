@@ -114,14 +114,14 @@ public class BlockEyeCandy extends BlockExtension implements BlockWithEntity, Di
 
         if (!world.isClient() && PlayerEntity.isInstance(entity)) {
             final Direction facing = IBlock.getStatePropertySafe(state, FACING);
-            final Vector3d playerPosRotated = entity.getPos()
+            final net.minecraft.world.phys.Vec3 playerPosRotated = cn.jstxjf_.rte.bridge.MtrTypes.vec(entity.getPos()
                 .subtract(blockPos.getX() + 0.5, 0, blockPos.getZ() + 0.5)
-                .rotateY((float) Math.toRadians(facing.asRotation()));
+                .rotateY((float) Math.toRadians(facing.asRotation())));
             final TicketSystem.EnumTicketBarrierOpen open = IBlock.getStatePropertySafe(state, new Property<>(OPEN.data));
 
-            if ((open == TicketSystem.EnumTicketBarrierOpen.OPEN || open == TicketSystem.EnumTicketBarrierOpen.OPEN_CONCESSIONARY) && playerPosRotated.getZMapped() > 0) {
+            if ((open == TicketSystem.EnumTicketBarrierOpen.OPEN || open == TicketSystem.EnumTicketBarrierOpen.OPEN_CONCESSIONARY) && playerPosRotated.z > 0) {
                 world.setBlockState(blockPos, state.with(new Property<>(OPEN.data), TicketSystem.EnumTicketBarrierOpen.CLOSED));
-            } else if (open == TicketSystem.EnumTicketBarrierOpen.CLOSED && playerPosRotated.getZMapped() < 0) {
+            } else if (open == TicketSystem.EnumTicketBarrierOpen.CLOSED && playerPosRotated.z < 0) {
                 final BlockPos blockPosCopy = new BlockPos(blockPos.getX(), blockPos.getY(), blockPos.getZ());
                 world.setBlockState(blockPosCopy, state.with(new Property<>(OPEN.data), TicketSystem.EnumTicketBarrierOpen.PENDING));
                 TicketSystem.passThrough(

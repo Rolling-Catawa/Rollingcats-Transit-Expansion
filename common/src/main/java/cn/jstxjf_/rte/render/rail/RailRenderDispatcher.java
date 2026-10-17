@@ -309,7 +309,7 @@ public class RailRenderDispatcher {
         }
 
         Vec3 cameraBlockPos = Minecraft.getInstance().gameRenderer.getMainCamera().getPosition();
-        final org.mtr.mapping.holder.Vector3d cameraVector = new org.mtr.mapping.holder.Vector3d(cameraBlockPos.x, cameraBlockPos.y, cameraBlockPos.z);
+        final net.minecraft.world.phys.Vec3 cameraVector = new net.minecraft.world.phys.Vec3(cameraBlockPos.x, cameraBlockPos.y, cameraBlockPos.z);
         for (final RailChunkBase chunk : railChunkList) {
             chunk.getCameraDistManhattanXZ(cameraVector);
         }

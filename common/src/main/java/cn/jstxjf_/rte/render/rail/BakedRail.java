@@ -6,7 +6,6 @@ import cn.jstxjf_.rte.data.RailExtraSupplier;
 import cn.jstxjf_.rte.gfx.math.Matrix4f;
 import cn.jstxjf_.rte.gfx.util.AttrUtil;
 import net.minecraft.world.phys.Vec3;
-import org.mtr.mapping.holder.Vector3d;
 import org.mtr.core.data.Rail;
 import org.mtr.mod.data.RailType;
 import net.minecraft.util.Mth;
@@ -100,15 +99,15 @@ public class BakedRail {
             final long cappedSegCount = Math.min(Math.max(1, segCount), MAX_SEGMENTS_PER_RAIL);
             final double ins = length / cappedSegCount;
 
-            Vector3d pre = supplier.getPosition(HALF_ACCEPT_THRESHOLD);
-            Vec3 preVec = new Vec3(pre.getXMapped(), pre.getYMapped(), pre.getZMapped());
+            Vec3 pre = supplier.getPosition(HALF_ACCEPT_THRESHOLD);
+            Vec3 preVec = new Vec3(pre.x, pre.y, pre.z);
             if (!isFiniteVec(preVec)) return;
 
             int count = 0;
             for (double i = ins; i <= length + ACCEPT_THRESHOLD; i += ins) {
                 if (++count > MAX_SEGMENTS_PER_RAIL) break;
-                Vector3d thi = supplier.getPosition(i);
-                Vec3 thiVec = new Vec3(thi.getXMapped(), thi.getYMapped(), thi.getZMapped());
+                Vec3 thi = supplier.getPosition(i);
+                Vec3 thiVec = new Vec3(thi.x, thi.y, thi.z);
                 if (!isFiniteVec(thiVec)) {
                     preVec = thiVec;
                     continue;

@@ -93,8 +93,8 @@ public abstract class RailActionMixin {
     @Redirect(method = "create", at = @At(value = "INVOKE", target = "Lorg/mtr/core/data/RailMath;getPosition(DZ)Lorg/mtr/core/tool/Vector;"))
     private Vector rte$getPosition(RailMath railMath, double value, boolean reverse) {
         if (((Object) rail) instanceof RailExtraSupplier supplier) {
-            final org.mtr.mapping.holder.Vector3d vector = supplier.getPosition(value);
-            return new Vector(vector.getXMapped(), vector.getYMapped(), vector.getZMapped());
+            final net.minecraft.world.phys.Vec3 vector = supplier.getPosition(value);
+            return new Vector(vector.x, vector.y, vector.z);
         }
         return railMath.getPosition(value, reverse);
     }

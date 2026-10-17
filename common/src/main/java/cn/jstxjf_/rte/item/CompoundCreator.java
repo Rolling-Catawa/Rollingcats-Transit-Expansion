@@ -11,6 +11,7 @@ import org.mtr.core.data.TransportMode;
 import org.mtr.core.tool.Angle;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.mapping.holder.*;
+import net.minecraft.world.phys.Vec3;
 import org.mtr.mapping.mapper.TextHelper;
 import org.mtr.mod.Init;
 import org.mtr.mod.data.RailType;
@@ -128,18 +129,18 @@ public class CompoundCreator extends ItemNodeModifierBase {
         int height = task.height;
         
         while (distance < endDistance && distance < length) {
-            Vector3d pos = railExtra.getPosition(distance);
-            Vector3d nextPos = railExtra.getPosition(Math.min(distance + 0.1, length));
+            Vec3 pos = railExtra.getPosition(distance);
+            Vec3 nextPos = railExtra.getPosition(Math.min(distance + 0.1, length));
             
             float yaw = 0, pitch = 0, roll = 0;
             if (task.useYaw) {
-                yaw = (float) Math.atan2(nextPos.getXMapped() - pos.getXMapped(), nextPos.getZMapped() - pos.getZMapped());
+                yaw = (float) Math.atan2(nextPos.x - pos.x, nextPos.z - pos.z);
             }
             if (task.usePitch) {
-                double dx = nextPos.getXMapped() - pos.getXMapped();
-                double dz = nextPos.getZMapped() - pos.getZMapped();
+                double dx = nextPos.x - pos.x;
+                double dz = nextPos.z - pos.z;
                 double hDist = Math.sqrt(dx * dx + dz * dz);
-                pitch = (float) Math.atan2(nextPos.getYMapped() - pos.getYMapped(), hDist);
+                pitch = (float) Math.atan2(nextPos.y - pos.y, hDist);
             }
             if (task.useRoll && ((Object)rail) instanceof RailExtraSupplier) {
                 roll = RailExtraSupplier.getRollAngle(rail, distance);
@@ -156,9 +157,9 @@ public class CompoundCreator extends ItemNodeModifierBase {
                     int offsetX = x - width / 2;
                     int offsetY = y - height / 2;
                     
-                    double bx = pos.getXMapped() + offsetX * Math.cos(yaw);
-                    double by = pos.getYMapped() + offsetY;
-                    double bz = pos.getZMapped() + offsetX * Math.sin(yaw);
+                    double bx = pos.x + offsetX * Math.cos(yaw);
+                    double by = pos.y + offsetY;
+                    double bz = pos.z + offsetX * Math.sin(yaw);
                     
                     BlockPos blockPos = new BlockPos((int)Math.floor(bx), (int)Math.floor(by), (int)Math.floor(bz));
                     

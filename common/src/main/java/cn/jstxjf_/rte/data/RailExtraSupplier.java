@@ -10,7 +10,7 @@ import org.mtr.core.data.TransportMode;
 import org.mtr.core.tool.Angle;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.Vector3d;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.Mth;
 
 public interface RailExtraSupplier {
@@ -213,7 +213,7 @@ public interface RailExtraSupplier {
 
     double getLength();
 
-    Vector3d getPosition(double value);
+    Vec3 getPosition(double value);
 
     java.util.concurrent.atomic.AtomicReference<java.util.function.BiFunction<Object, Position, Object>> ROLL_NEIGHBOR_RESOLVER = new java.util.concurrent.atomic.AtomicReference<>();
 

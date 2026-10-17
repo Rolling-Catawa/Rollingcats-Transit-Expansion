@@ -24,7 +24,7 @@ import net.minecraft.client.renderer.LightTexture;
 import org.mtr.mapping.holder.LightType; // Fixed
 import org.mtr.mapping.holder.BlockPos;
 import org.mtr.mapping.holder.World;
-import org.mtr.mapping.holder.Vector3d;
+import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3; 
 import org.mtr.core.data.Rail;
@@ -150,8 +150,8 @@ public class MeshBuildingRailChunk extends RailChunkBase {
             int count = 0;
             for (double i = halfIns; i <= length ; i += ins) {
                 if (++count > 4096) break;
-                Vector3d midMapped = railExtra.getPosition(i);
-                Vec3 mid = new Vec3(midMapped.getXMapped(), midMapped.getYMapped(), midMapped.getZMapped());
+                Vec3 midMapped = railExtra.getPosition(i);
+                Vec3 mid = new Vec3(midMapped.x, midMapped.y, midMapped.z);
 
                 if (BakedRail.chunkIdFromWorldPos((int) mid.x, (int) mid.z) != chunkId) continue;
 
@@ -186,10 +186,10 @@ public class MeshBuildingRailChunk extends RailChunkBase {
         if (value < HALF_ACCEPT_THRESHOLD) value = HALF_ACCEPT_THRESHOLD;
         else if (value + HALF_ACCEPT_THRESHOLD > railExtra.getLength()) value = railExtra.getLength() - HALF_ACCEPT_THRESHOLD;
 
-        Vector3d fromMapped = railExtra.getPosition(value - HALF_ACCEPT_THRESHOLD);
-        Vector3d toMapped = railExtra.getPosition(value + HALF_ACCEPT_THRESHOLD);
-        Vec3 from = new Vec3(fromMapped.getXMapped(), fromMapped.getYMapped(), fromMapped.getZMapped());
-        Vec3 to = new Vec3(toMapped.getXMapped(), toMapped.getYMapped(), toMapped.getZMapped());
+        Vec3 fromMapped = railExtra.getPosition(value - HALF_ACCEPT_THRESHOLD);
+        Vec3 toMapped = railExtra.getPosition(value + HALF_ACCEPT_THRESHOLD);
+        Vec3 from = new Vec3(fromMapped.x, fromMapped.y, fromMapped.z);
+        Vec3 to = new Vec3(toMapped.x, toMapped.y, toMapped.z);
 
         Vec3 mid = from.add(to).scale(0.5F);
         float roll = RailExtraSupplier.getRollAngle(rail, value);

@@ -407,10 +407,10 @@ public class RoutePathCreator extends ItemExtension {
     }
 
     private static double getHeading(RailExtraSupplier extra, double from, double to) {
-        final org.mtr.mapping.holder.Vector3d start = extra.getPosition(from);
-        final org.mtr.mapping.holder.Vector3d end = extra.getPosition(to);
-        final double dx = end.getXMapped() - start.getXMapped();
-        final double dz = end.getZMapped() - start.getZMapped();
+        final net.minecraft.world.phys.Vec3 start = extra.getPosition(from);
+        final net.minecraft.world.phys.Vec3 end = extra.getPosition(to);
+        final double dx = end.x - start.x;
+        final double dz = end.z - start.z;
         return Math.abs(dx) < 1E-9 && Math.abs(dz) < 1E-9 ? Double.NaN : Math.atan2(dz, dx);
     }
 

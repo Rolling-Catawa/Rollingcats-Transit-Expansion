@@ -500,7 +500,7 @@ public class RailPathEditorScreen extends net.minecraft.client.gui.screens.Scree
             try {
                 var pos = extra.getPosition(d);
                 if (pos == null) continue;
-                polyline.add(worldToScreenExact(pos.getXMapped(), pos.getYMapped(), pos.getZMapped()));
+                polyline.add(worldToScreenExact(pos.x, pos.y, pos.z));
             } catch (Exception ignored) {
                 break;
             }

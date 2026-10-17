@@ -9,7 +9,7 @@ import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
 import org.mtr.mapping.holder.BlockEntity;
 import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.Vector3d;
+import net.minecraft.world.phys.Vec3;
 import org.mtr.mapping.holder.World;
 import org.mtr.mod.client.MinecraftClientData;
 
@@ -127,8 +127,8 @@ class XzPlaneView {
                 int[] prevS = null;
                 for (int i = 0; i <= segs; i++) {
                     double t = length * i / segs;
-                    Vector3d pos = rExtra.getPosition(t);
-                    int[] s = camera.xzToScreen(pos.getXMapped(), pos.getZMapped());
+                    Vec3 pos = rExtra.getPosition(t);
+                    int[] s = camera.xzToScreen(pos.x, pos.z);
                     if (prevS != null && deleteTool && !hovered) {
                         double dist = GuiDrawUtil.distPointToSegment(mouseX, mouseY, prevS[0], prevS[1], s[0], s[1]);
                         if (dist < minDist) {
@@ -143,8 +143,8 @@ class XzPlaneView {
                 prevS = null;
                 for (int i = 0; i <= segs; i++) {
                     double t = length * i / segs;
-                    Vector3d pos = rExtra.getPosition(t);
-                    int[] s = camera.xzToScreen(pos.getXMapped(), pos.getZMapped());
+                    Vec3 pos = rExtra.getPosition(t);
+                    int[] s = camera.xzToScreen(pos.x, pos.z);
                     if (prevS != null) {
                         GuiDrawUtil.drawLine(graphics, prevS[0], prevS[1], s[0], s[1], color);
                     }

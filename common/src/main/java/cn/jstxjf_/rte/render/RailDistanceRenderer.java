@@ -103,10 +103,10 @@ public class RailDistanceRenderer {
         }
         final int steps = Math.max(1, (int) Math.ceil(length / 0.5));
         double total = 0;
-        org.mtr.mapping.holder.Vector3d previous = extra.getPosition(0);
+        net.minecraft.world.phys.Vec3 previous = extra.getPosition(0);
         for (int i = 1; i <= steps; i++) {
-            final org.mtr.mapping.holder.Vector3d current = extra.getPosition(length * i / steps);
-            total += Math.hypot(current.getXMapped() - previous.getXMapped(), current.getZMapped() - previous.getZMapped());
+            final net.minecraft.world.phys.Vec3 current = extra.getPosition(length * i / steps);
+            total += Math.hypot(current.x - previous.x, current.z - previous.z);
             previous = current;
         }
         return total;
@@ -171,12 +171,12 @@ public class RailDistanceRenderer {
         if (ratio < 1.001) return 0;
 
         double midDist = length / 2.0;
-        org.mtr.mapping.holder.Vector3d midPos = extra.getPosition(midDist);
+        net.minecraft.world.phys.Vec3 midPos = extra.getPosition(midDist);
         double midX = (p1.getX() + p2.getX()) / 2.0 + 0.5;
         double midZ = (p1.getZ() + p2.getZ()) / 2.0 + 0.5;
         double sagitta = Math.sqrt(
-            Math.pow(midPos.getXMapped() - midX, 2) +
-            Math.pow(midPos.getZMapped() - midZ, 2)
+            Math.pow(midPos.x - midX, 2) +
+            Math.pow(midPos.z - midZ, 2)
         );
         if (sagitta < 0.001 || sagitta / chord < 0.001) return 0;
 

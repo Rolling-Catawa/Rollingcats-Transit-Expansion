@@ -9,7 +9,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
 import org.mtr.core.simulation.Simulator;
-import org.mtr.mapping.holder.Vector3d;
+import net.minecraft.world.phys.Vec3;
 import org.mtr.mapping.holder.World;
 import org.mtr.mod.client.MinecraftClientData;
 
@@ -267,14 +267,14 @@ public final class RailCollisionManager {
                                double sideOffset, double yOffset, double width, double height,
                                double boxLength, double sampleStep) {
         final double railLength = extra.getLength();
-        final Vector3d center = extra.getPosition(Math.max(0, Math.min(railLength, distance)));
+        final Vec3 center = extra.getPosition(Math.max(0, Math.min(railLength, distance)));
         if (center == null) return;
         final double epsilon = Math.max(0.01, Math.min(0.25, sampleStep * 0.5));
-        final Vector3d before = extra.getPosition(Math.max(0, distance - epsilon));
-        final Vector3d after = extra.getPosition(Math.min(railLength, distance + epsilon));
+        final Vec3 before = extra.getPosition(Math.max(0, distance - epsilon));
+        final Vec3 after = extra.getPosition(Math.min(railLength, distance + epsilon));
         if (before == null || after == null) return;
-        double tx = after.getXMapped() - before.getXMapped();
-        double tz = after.getZMapped() - before.getZMapped();
+        double tx = after.x - before.x;
+        double tz = after.z - before.z;
         final double horizontal = Math.hypot(tx, tz);
         if (horizontal <= 1E-7) {
             tx = 0;
@@ -285,9 +285,9 @@ public final class RailCollisionManager {
         }
         final double nx = -tz;
         final double nz = tx;
-        final double x = center.getXMapped() + nx * sideOffset;
-        final double y = center.getYMapped() + yOffset;
-        final double z = center.getZMapped() + nz * sideOffset;
+        final double x = center.x + nx * sideOffset;
+        final double y = center.y + yOffset;
+        final double z = center.z + nz * sideOffset;
         final double halfWidth = width * 0.5;
         final double halfLength = boxLength * 0.5;
         final double extentX = Math.abs(nx) * halfWidth + Math.abs(tx) * halfLength;

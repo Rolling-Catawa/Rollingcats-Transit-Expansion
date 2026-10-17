@@ -16,9 +16,8 @@ import org.mtr.core.data.TransportMode;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.core.tool.Angle;
 import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.Vector3d;
-import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -272,18 +271,18 @@ public abstract class RailMixin implements RailExtraSupplier {
         }
         final int samples = Math.max(16, Math.min(128, (int) Math.ceil(baseLength / 2)));
         double length = 0;
-        Vector3d previous = rte$getBaseCenterPosition(0);
+        Vec3 previous = rte$getBaseCenterPosition(0);
         for (int i = 1; i <= samples; i++) {
             final double value = baseLength * i / samples;
-            final Vector3d current = rte$getBaseCenterPosition(value);
+            final Vec3 current = rte$getBaseCenterPosition(value);
             final double ratio = value / baseLength;
             final double previousRatio = (i - 1D) / samples;
-            final double dx = current.getXMapped() + rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, ratio)
-                    - previous.getXMapped() - rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, previousRatio);
-            final double dy = current.getYMapped() + rte$nodeYOffsetAt(ratio)
-                    - previous.getYMapped() - rte$nodeYOffsetAt(previousRatio);
-            final double dz = current.getZMapped() + rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, ratio)
-                    - previous.getZMapped() - rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, previousRatio);
+            final double dx = current.x + rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, ratio)
+                    - previous.x - rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, previousRatio);
+            final double dy = current.y + rte$nodeYOffsetAt(ratio)
+                    - previous.y - rte$nodeYOffsetAt(previousRatio);
+            final double dz = current.z + rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, ratio)
+                    - previous.z - rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, previousRatio);
             length += Math.sqrt(dx * dx + dy * dy + dz * dz);
             previous = current;
         }
@@ -326,16 +325,16 @@ public abstract class RailMixin implements RailExtraSupplier {
     }
 
     @Override
-    public Vector3d getPosition(double value) {
+    public Vec3 getPosition(double value) {
         final double baseLength = rte$getBaseLength();
         final double effectiveLength = getLength();
         final double ratio = effectiveLength <= ACCEPT_THRESHOLD
                 ? 0 : Mth.clamp(value / effectiveLength, 0, 1);
         final double baseValue = baseLength * ratio;
-        final Vector3d center = rte$getBaseCenterPosition(baseValue);
-        return new Vector3d(center.getXMapped() + rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, ratio),
-                center.getYMapped() + rte$nodeYOffsetAt(ratio) + rte$rollingYOffset(baseValue),
-                center.getZMapped() + rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, ratio));
+        final Vec3 center = rte$getBaseCenterPosition(baseValue);
+        return new Vec3(center.x + rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, ratio),
+                center.y + rte$nodeYOffsetAt(ratio) + rte$rollingYOffset(baseValue),
+                center.z + rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, ratio));
     }
 
     @Unique
@@ -345,14 +344,14 @@ public abstract class RailMixin implements RailExtraSupplier {
     }
 
     @Unique
-    private Vector3d rte$getBaseCenterPosition(double baseValue) {
+    private Vec3 rte$getBaseCenterPosition(double baseValue) {
         if (usesBezierCurve(rte$pathMode) && rte$bezier != null) {
             final BezierCurve.Vec3 vec = rte$bezier.getPosition(baseValue);
-            return new Vector3d(vec.x + 0.5, vec.y, vec.z + 0.5);
+            return new Vec3(vec.x + 0.5, vec.y, vec.z + 0.5);
         }
         final org.mtr.core.tool.Vector vec = railMathPositionFromP1(baseValue);
         final double y = rte$verticalCurveRadius == 0 ? vec.y : rte$getPositionYBase(baseValue);
-        return new Vector3d(vec.x, y, vec.z);
+        return new Vec3(vec.x, y, vec.z);
     }
 
     @Unique
@@ -434,10 +433,10 @@ public abstract class RailMixin implements RailExtraSupplier {
 
         final double start = getEnd ? length : 0;
         final double end = getEnd ? Math.max(0, length - ACCEPT_THRESHOLD) : Math.min(length, ACCEPT_THRESHOLD);
-        final Vector3d pos1 = getPosition(start);
-        final Vector3d pos2 = getPosition(end);
-        final double dx = pos2.getXMapped() - pos1.getXMapped();
-        final double dz = pos2.getZMapped() - pos1.getZMapped();
+        final Vec3 pos1 = getPosition(start);
+        final Vec3 pos2 = getPosition(end);
+        final double dx = pos2.x - pos1.x;
+        final double dz = pos2.z - pos1.z;
         if (Math.abs(dx) < 1E-9 && Math.abs(dz) < 1E-9) {
             return null;
         }
@@ -653,10 +652,10 @@ public abstract class RailMixin implements RailExtraSupplier {
             final int samples = Math.max(8, Math.min(512, (int) Math.ceil(length * 2)));
             final double radiusSquared = radius * radius;
             for (int i = 0; i <= samples; i++) {
-                final Vector3d point = getPosition(length * i / samples);
-                final double dx = point.getXMapped() - x;
-                final double dy = point.getYMapped() - y;
-                final double dz = point.getZMapped() - z;
+                final Vec3 point = getPosition(length * i / samples);
+                final double dx = point.x - x;
+                final double dy = point.y - y;
+                final double dz = point.z - z;
                 if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
                     return true;
                 }

@@ -36,10 +36,10 @@ public class BezierCurve {
         mapping();
     }
 
-    public BezierCurve(double epsilon, org.mtr.mapping.holder.Vector3d... ctrls) {
+    public BezierCurve(double epsilon, net.minecraft.world.phys.Vec3... ctrls) {
         this.epsilon = epsilon;
-        for (org.mtr.mapping.holder.Vector3d ctrl : ctrls) {
-            points.add(new Vec3(ctrl.getXMapped(), ctrl.getYMapped(), ctrl.getZMapped()));
+        for (net.minecraft.world.phys.Vec3 ctrl : ctrls) {
+            points.add(new Vec3(ctrl.x, ctrl.y, ctrl.z));
         }
         mapping();
     }

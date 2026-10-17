@@ -399,11 +399,11 @@ public final class ParallelLineTool {
             }
             final StringBuilder renderGaps = new StringBuilder();
             for (final double f : new double[]{0, 0.25, 0.5, 0.75, 1}) {
-                final org.mtr.mapping.holder.Vector3d ra = extra.getPosition(length * f);
-                final org.mtr.mapping.holder.Vector3d rb = rebuiltExtra.getPosition(
+                final net.minecraft.world.phys.Vec3 ra = extra.getPosition(length * f);
+                final net.minecraft.world.phys.Vec3 rb = rebuiltExtra.getPosition(
                     rebuiltExtra.getLength() * f);
                 renderGaps.append(String.format(java.util.Locale.ROOT, "%.2f ",
-                    Math.hypot(rb.getXMapped() - ra.getXMapped(), rb.getZMapped() - ra.getZMapped())));
+                    Math.hypot(rb.x - ra.x, rb.z - ra.z)));
             }
         } catch (Exception ignored) {
         }

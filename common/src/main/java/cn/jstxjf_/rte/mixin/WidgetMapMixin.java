@@ -11,7 +11,7 @@ import org.mtr.core.data.RoutePlatformData;
 import org.mtr.core.tool.Vector;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArraySet;
 import org.mtr.mapping.holder.Identifier;
-import org.mtr.mapping.holder.Vector3d;
+import net.minecraft.world.phys.Vec3;
 import org.mtr.mapping.mapper.GraphicsHolder;
 import org.mtr.mapping.mapper.GuiDrawing;
 import org.mtr.mod.client.MinecraftClientData;
@@ -178,29 +178,29 @@ public abstract class WidgetMapMixin {
             final int segments = straightFallback ? 1 : (int) Math.max(1, Math.min(256, Math.ceil(length)));
             double prevX = Double.NaN, prevY = Double.NaN;
             for (int i = 0; i <= segments; i++) {
-                Vector3d pos;
+                Vec3 pos;
                 if (straightFallback) {
                     pos = i == 0
-                        ? new Vector3d(p1.getX() + 0.5, p1.getY(), p1.getZ() + 0.5)
-                        : new Vector3d(p2.getX() + 0.5, p2.getY(), p2.getZ() + 0.5);
+                        ? new Vec3(p1.getX() + 0.5, p1.getY(), p1.getZ() + 0.5)
+                        : new Vec3(p2.getX() + 0.5, p2.getY(), p2.getZ() + 0.5);
                 } else {
                     try {
                         pos = extra.getPosition(length * i / segments);
                     } catch (Exception e) {
                         final double ratio = (double) i / segments;
-                        pos = new Vector3d(
+                        pos = new Vec3(
                             p1.getX() + 0.5 + (p2.getX() - p1.getX()) * ratio,
                             p1.getY() + (p2.getY() - p1.getY()) * ratio,
                             p1.getZ() + 0.5 + (p2.getZ() - p1.getZ()) * ratio);
                     }
                 }
-                if (!Double.isFinite(pos.getXMapped()) || !Double.isFinite(pos.getZMapped())) {
+                if (!Double.isFinite(pos.x) || !Double.isFinite(pos.z)) {
                     prevX = Double.NaN;
                     prevY = Double.NaN;
                     continue;
                 }
-                final double mapX = (pos.getXMapped() - centerX) * scale + w / 2.0;
-                final double mapY = (pos.getZMapped() - centerY) * scale + h / 2.0;
+                final double mapX = (pos.x - centerX) * scale + w / 2.0;
+                final double mapY = (pos.z - centerY) * scale + h / 2.0;
                 if (!Double.isNaN(prevX)) {
                     final double dist = Math.max(Math.abs(mapX - prevX), Math.abs(mapY - prevY));
                     final double stride = Math.max(0.35, lineDot * 0.5);

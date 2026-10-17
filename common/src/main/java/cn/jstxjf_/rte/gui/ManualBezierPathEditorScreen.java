@@ -643,13 +643,13 @@ public class ManualBezierPathEditorScreen extends net.minecraft.client.gui.scree
                 if (!atP1 && !atP2) {
                     continue;
                 }
-                final org.mtr.mapping.holder.Vector3d atNode = neighbourExtra.getPosition(atP1 ? 0 : length);
-                final org.mtr.mapping.holder.Vector3d inward = neighbourExtra.getPosition(atP1 ? eps : length - eps);
+                final net.minecraft.world.phys.Vec3 atNode = neighbourExtra.getPosition(atP1 ? 0 : length);
+                final net.minecraft.world.phys.Vec3 inward = neighbourExtra.getPosition(atP1 ? eps : length - eps);
                 if (atNode == null || inward == null) {
                     continue;
                 }
-                final double dx = inward.getXMapped() - atNode.getXMapped();
-                final double dz = inward.getZMapped() - atNode.getZMapped();
+                final double dx = inward.x - atNode.x;
+                final double dz = inward.z - atNode.z;
                 if (Math.abs(dx) < 1e-9 && Math.abs(dz) < 1e-9) {
                     continue;
                 }

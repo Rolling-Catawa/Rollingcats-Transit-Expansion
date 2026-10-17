@@ -5,10 +5,10 @@ import cn.jstxjf_.rte.data.RailExtraSupplier;
 import cn.jstxjf_.rte.data.RailAngleExtra;
 import cn.jstxjf_.rte.mixin.RailAccessor;
 import cn.jstxjf_.rte.RTE;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.BlockEntity;
-import org.mtr.mapping.holder.BlockState;
-import org.mtr.mapping.holder.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.Level;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
 import org.mtr.core.data.TransportMode;
@@ -201,7 +201,7 @@ public final class RailRebuildHelper {
     }
 
     @Nullable
-    public static Rail rebuildFromWorldNodeAngles(World world, @Nullable BlockPos posStart, @Nullable BlockPos posEnd, Rail source) {
+    public static Rail rebuildFromWorldNodeAngles(Level world, @Nullable BlockPos posStart, @Nullable BlockPos posEnd, Rail source) {
         if (world == null || posStart == null || posEnd == null || source == null || !(((Object) source) instanceof RailExtraSupplier extra)) {
             return null;
         }
@@ -234,7 +234,7 @@ public final class RailRebuildHelper {
         return rebuilt.isValid() ? rebuilt : null;
     }
 
-    public static boolean needsWorldNodeAngleRebuild(World world, @Nullable BlockPos posStart, @Nullable BlockPos posEnd, Rail source) {
+    public static boolean needsWorldNodeAngleRebuild(Level world, @Nullable BlockPos posStart, @Nullable BlockPos posEnd, Rail source) {
         if (world == null || posStart == null || posEnd == null || source == null || !(((Object) source) instanceof RailExtraSupplier extra)) {
             return false;
         }
@@ -253,7 +253,7 @@ public final class RailRebuildHelper {
     }
 
     @Nullable
-    private static double[] getWorldNodeAngles(World world, RailExtraSupplier extra) {
+    private static double[] getWorldNodeAngles(Level world, RailExtraSupplier extra) {
         final Position position1 = extra.getExtraPosition1();
         final Position position2 = extra.getExtraPosition2();
         if (position1 == null || position2 == null) {
@@ -277,22 +277,22 @@ public final class RailRebuildHelper {
         return Math.abs(Math.atan2(Math.sin(first - second), Math.cos(first - second)));
     }
 
-    private static double getNodeAngleRadians(World world, Position position, double fallback) {
+    private static double getNodeAngleRadians(Level world, Position position, double fallback) {
         if (world == null || position == null) {
             return fallback;
         }
         final BlockPos blockPos = new BlockPos((int) position.getX(), (int) position.getY(), (int) position.getZ());
         try {
             final BlockEntity blockEntity = world.getBlockEntity(blockPos);
-            if (blockEntity != null && blockEntity.data instanceof cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode directNode && directNode.isBound()) {
+            if (((Object) blockEntity) instanceof cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode directNode && directNode.isBound()) {
                 return directNode.getAngleRadians();
             }
         } catch (Exception ignored) {
         }
         try {
             final BlockState state = world.getBlockState(blockPos);
-            if (state != null && state.getBlock().data instanceof BlockNode) {
-                return Math.toRadians(BlockNode.getAngle(state));
+            if (state != null && cn.jstxjf_.rte.bridge.MtrBridge.isNode(state)) {
+                return Math.toRadians(cn.jstxjf_.rte.bridge.MtrBridge.nodeAngle(state));
             }
         } catch (Exception ignored) {
         }

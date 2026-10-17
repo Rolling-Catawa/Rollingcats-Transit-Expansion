@@ -117,7 +117,7 @@ public class RailPathEditor extends ItemExtension {
     }
 
     private static Rail findRail(BlockPos posStart, BlockPos posEnd) {
-        return RailRebuildHelper.findClientRail(posStart, posEnd);
+        return RailRebuildHelper.findClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd));
     }
 
     private static final class RailSelection {

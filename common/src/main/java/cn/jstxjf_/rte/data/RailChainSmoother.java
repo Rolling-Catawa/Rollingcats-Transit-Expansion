@@ -6,8 +6,8 @@ import cn.jstxjf_.rte.track.RailTrackPath;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import org.mtr.mod.Init;
 import org.mtr.mod.client.MinecraftClientData;
 

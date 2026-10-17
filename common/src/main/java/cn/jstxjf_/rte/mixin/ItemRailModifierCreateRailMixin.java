@@ -19,10 +19,10 @@ public abstract class ItemRailModifierCreateRailMixin {
     @Inject(method = "onConnect", at = @At("TAIL"), remap = false)
     private void rte$recordConnect(World world, ItemStack stack, TransportMode transportMode, BlockState stateStart, BlockState stateEnd, BlockPos posStart, BlockPos posEnd, Angle facingStart, Angle facingEnd, ServerPlayerEntity player, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
         if (player != null) {
-            cn.jstxjf_.rte.data.RailUndoManager.record(world, posStart, posEnd,
+            cn.jstxjf_.rte.data.RailUndoManager.record(world.data, posStart.data, posEnd.data,
                 ((net.minecraft.server.level.ServerPlayer) player.data).getUUID());
         }
-        cn.jstxjf_.rte.data.RailAutoTangent.apply(world, posStart, posEnd);
+        cn.jstxjf_.rte.data.RailAutoTangent.apply(world.data, posStart.data, posEnd.data);
     }
 
     @Inject(method = "createRail", at = @At("RETURN"))

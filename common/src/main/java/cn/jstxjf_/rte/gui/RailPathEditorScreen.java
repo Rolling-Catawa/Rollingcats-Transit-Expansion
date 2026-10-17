@@ -51,7 +51,7 @@ public class RailPathEditorScreen extends net.minecraft.client.gui.screens.Scree
             cn.jstxjf_.rte.gui.imgui.RteImGuiHost.notifyUnavailable();
             return parent != null ? parent.get() : null;
         }
-        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
+        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
         if (!((Object) resolvedRail instanceof RailExtraSupplier extra)) {
             return parent != null ? parent.get() : null;
         }
@@ -330,7 +330,7 @@ public class RailPathEditorScreen extends net.minecraft.client.gui.screens.Scree
     }
 
     protected void changeMode() {
-        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
+        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
         if (!((Object) resolvedRail instanceof RailExtraSupplier resolvedExtra)) return;
         final int nextMode = getNextMode(resolvedExtra.getPathMode());
         if (nextMode == RailExtraSupplier.PATH_MODE_CURVE_FITTING) {

@@ -63,7 +63,7 @@ public class ImGuiCatenaryPlannerScreen extends net.minecraft.client.gui.screens
         params.blockVertical = blockVertical[0];
         params.blockLongitudinal = blockLongitudinal[0];
         params.yawOffset = yawOffset[0];
-        plan = CatenaryPlan.build(posStart, posEnd, params);
+        plan = CatenaryPlan.build(posStart.data, posEnd.data, params);
     }
 
     @Override

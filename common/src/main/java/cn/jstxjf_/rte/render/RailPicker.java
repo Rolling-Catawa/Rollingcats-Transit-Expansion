@@ -218,11 +218,11 @@ public class RailPicker {
         }
         lastAngleSyncMillis = now;
         final World world = new World(minecraft.level);
-        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(pickedPosStart, pickedPosEnd, pickedRail);
-        if (!RailRebuildHelper.needsWorldNodeAngleRebuild(world, pickedPosStart, pickedPosEnd, resolvedRail)) {
+        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosEnd), pickedRail);
+        if (!RailRebuildHelper.needsWorldNodeAngleRebuild(cn.jstxjf_.rte.bridge.MtrTypes.level(world), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosEnd), resolvedRail)) {
             return;
         }
-        final Rail rebuilt = RailRebuildHelper.rebuildFromWorldNodeAngles(world, pickedPosStart, pickedPosEnd, resolvedRail);
+        final Rail rebuilt = RailRebuildHelper.rebuildFromWorldNodeAngles(cn.jstxjf_.rte.bridge.MtrTypes.level(world), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosEnd), resolvedRail);
         if (rebuilt != null && rebuilt != resolvedRail) {
             PacketUpdateRail.sendUpdateC2S(resolvedRail, rebuilt);
             pickedRail = rebuilt;

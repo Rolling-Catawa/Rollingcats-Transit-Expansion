@@ -3,9 +3,9 @@ package cn.jstxjf_.rte.data;
 import cn.jstxjf_.rte.block.BlockDirectNode;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockEntity;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.World;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import org.mtr.mod.block.BlockNode;
 
 import javax.annotation.Nullable;
@@ -22,7 +22,7 @@ public final class CurveFitting {
     private CurveFitting() {
     }
 
-    public static Result fit(World world, Rail source, List<DrawPoint> xzPoints, List<DrawPoint> yPoints) {
+    public static Result fit(Level world, Rail source, List<DrawPoint> xzPoints, List<DrawPoint> yPoints) {
         if (!(((Object) source) instanceof RailExtraSupplier extra)) {
             return Result.reject("No RTE rail data");
         }
@@ -306,7 +306,7 @@ public final class CurveFitting {
         return Math.sqrt(dx * dx + dy * dy + dz * dz);
     }
 
-    private static ArrayList<BezierCurve.Vec3> buildCompositeControls(World world, Position p1, Position p2, List<DrawPoint> knots, List<DrawPoint> xz) {
+    private static ArrayList<BezierCurve.Vec3> buildCompositeControls(Level world, Position p1, Position p2, List<DrawPoint> knots, List<DrawPoint> xz) {
         final ArrayList<BezierCurve.Vec3> controls = new ArrayList<>();
         if (knots.size() < 2) {
             controls.add(new BezierCurve.Vec3(p1.getX(), p1.getY(), p1.getZ()));
@@ -334,7 +334,7 @@ public final class CurveFitting {
         return controls;
     }
 
-    private static BezierCurve.Vec3 tangentAt(World world, Position p1, Position p2, List<DrawPoint> knots, List<DrawPoint> xz, int index) {
+    private static BezierCurve.Vec3 tangentAt(Level world, Position p1, Position p2, List<DrawPoint> knots, List<DrawPoint> xz, int index) {
         if (index <= 0) {
             return withVerticalSlope(endpointTangent(world, p1, p2, xz, true), knots.get(0), knots.get(1));
         }
@@ -353,7 +353,7 @@ public final class CurveFitting {
         return normalize(new BezierCurve.Vec3(horizontal.x, (b.y - a.y) / horizontalLength, horizontal.z));
     }
 
-    private static BezierCurve.Vec3 endpointTangent(World world, Position from, Position to, List<DrawPoint> points, boolean start) {
+    private static BezierCurve.Vec3 endpointTangent(Level world, Position from, Position to, List<DrawPoint> points, boolean start) {
         final Double nodeAngle = getBoundNodeAngle(world, from);
         final BezierCurve.Vec3 vector;
         if (nodeAngle != null) {
@@ -392,19 +392,19 @@ public final class CurveFitting {
     }
 
     @Nullable
-    private static Double getBoundNodeAngle(World world, Position position) {
+    private static Double getBoundNodeAngle(Level world, Position position) {
         if (world == null || position == null) {
             return null;
         }
         final BlockPos blockPos = new BlockPos((int) position.getX(), (int) position.getY(), (int) position.getZ());
         try {
             final BlockEntity blockEntity = world.getBlockEntity(blockPos);
-            if (blockEntity != null && blockEntity.data instanceof BlockDirectNode.BlockEntityDirectNode directNode && directNode.isBound()) {
+            if (((Object) blockEntity) instanceof BlockDirectNode.BlockEntityDirectNode directNode && directNode.isBound()) {
                 return directNode.getAngleRadians();
             }
-            final org.mtr.mapping.holder.BlockState state = world.getBlockState(blockPos);
-            if (state != null && state.getBlock().data instanceof BlockNode) {
-                return Math.toRadians(BlockNode.getAngle(state));
+            final net.minecraft.world.level.block.state.BlockState state = world.getBlockState(blockPos);
+            if (state != null && cn.jstxjf_.rte.bridge.MtrBridge.isNode(state)) {
+                return Math.toRadians(cn.jstxjf_.rte.bridge.MtrBridge.nodeAngle(state));
             }
         } catch (Exception ignored) {
         }

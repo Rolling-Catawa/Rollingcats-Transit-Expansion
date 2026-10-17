@@ -40,7 +40,7 @@ public final class RailBrushHelper {
             return false;
         }
 
-        Rail antiRail = RailRebuildHelper.findClientRail(posEnd, posStart);
+        Rail antiRail = RailRebuildHelper.findClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart));
 
         boolean propertyUpdated = false;
 

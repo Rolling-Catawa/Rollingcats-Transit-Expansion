@@ -106,7 +106,7 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
 
     @Override
     public void tick() {
-        Rail fresh = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
+        Rail fresh = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
         if (fresh != null) rail = fresh;
         camera.orient(planeMode == PlaneMode.XZ, rail);
     }
@@ -525,10 +525,10 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
     }
 
     private void build() {
-        rail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
+        rail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
         if (minecraft == null || minecraft.level == null || rail == null || !(((Object) rail) instanceof RailExtraSupplier extra)) return;
         final World world = new World(minecraft.level);
-        final CurveFitting.Result result = CurveFitting.fit(world, rail, xzPoints, yPoints);
+        final CurveFitting.Result result = CurveFitting.fit(world == null ? null : world.data, rail, xzPoints, yPoints);
         if (!result.accepted() || result.curve() == null) {
             setStatus(result.message(), true);
             return;
@@ -570,7 +570,7 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
     }
 
     private void switchToNextMode() {
-        rail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
+        rail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
         if (rail == null || !(((Object) rail) instanceof RailExtraSupplier extra)) return;
         extra.setPathModeRaw(RailExtraSupplier.PATH_MODE_ORIGINAL);
         extra.setBezier(null);

@@ -10,7 +10,7 @@ import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
 import org.mtr.core.simulation.Simulator;
 import net.minecraft.world.phys.Vec3;
-import org.mtr.mapping.holder.World;
+import net.minecraft.world.level.Level;
 import org.mtr.mod.client.MinecraftClientData;
 
 import java.util.ArrayList;
@@ -72,7 +72,7 @@ public final class RailCollisionManager {
             return MinecraftClientData.getInstance().railIdMap.values();
         }
         if (level instanceof net.minecraft.server.level.ServerLevel) {
-            final Simulator simulator = BlockDirectNode.BlockEntityDirectNode.findSimulator(new World(level));
+            final Simulator simulator = BlockDirectNode.BlockEntityDirectNode.findSimulator(cn.jstxjf_.rte.bridge.MtrTypes.world(level));
             return simulator == null ? Collections.emptyList() : simulator.rails;
         }
         return Collections.emptyList();

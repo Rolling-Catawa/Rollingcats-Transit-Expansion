@@ -547,7 +547,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         ImGui.textDisabled(t("gui.rte.imgui.roll_origin_hint",
             railExtra.getExtraPosition1() == null ? "?" : railExtra.getExtraPosition1().getX() + "," + railExtra.getExtraPosition1().getY() + "," + railExtra.getExtraPosition1().getZ()));
 
-        final Rail resolvedRail = cn.jstxjf_.rte.util.RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
+        final Rail resolvedRail = cn.jstxjf_.rte.util.RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), pickedRail);
         final Float alignP1 = resolvedRail == null ? null : RailExtraSupplier.neighborEdgeRollForAlignment(resolvedRail, true);
         final Float alignP2 = resolvedRail == null ? null : RailExtraSupplier.neighborEdgeRollForAlignment(resolvedRail, false);
         if (alignP1 != null || alignP2 != null) {
@@ -629,8 +629,8 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         if (client.level == null) {
             return;
         }
-        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
-        final Rail rebuilt = RailRebuildHelper.rebuildFromWorldNodeAngles(new World(client.level), posStart, posEnd, resolvedRail);
+        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), pickedRail);
+        final Rail rebuilt = RailRebuildHelper.rebuildFromWorldNodeAngles(client.level, cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), resolvedRail);
         if (rebuilt != null && rebuilt != resolvedRail) {
             PacketUpdateRail.sendUpdateC2S(resolvedRail, rebuilt);
         }
@@ -702,7 +702,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
     }
 
     private void rte$pickFromRail() {
-        final Rail resolved = RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
+        final Rail resolved = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), pickedRail);
         if (!(((Object) resolved) instanceof cn.jstxjf_.rte.data.RailExtraSupplier source)) {
             return;
         }
@@ -763,7 +763,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
             return;
         }
         final CompoundTag tag = RailBrushHelper.getBrushTag();
-        final Rail resolved = RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
+        final Rail resolved = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), pickedRail);
         if (tag != null && resolved != null) {
             if (!RailBrushHelper.applyBrushToPickedRail(posStart, posEnd, resolved, tag, false)) {
                 PacketUpdateRail.sendUpdateC2S(resolved);

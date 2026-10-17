@@ -28,13 +28,13 @@ public abstract class ItemRailModifierMixin {
 
         if (((net.minecraft.world.entity.player.Player) player.data).isShiftKeyDown()) {
             final cn.jstxjf_.rte.data.RailUndoManager.RailOperation operation =
-                cn.jstxjf_.rte.data.RailUndoManager.pop(world,
+                cn.jstxjf_.rte.data.RailUndoManager.pop(world.data,
                     ((net.minecraft.world.entity.player.Player) player.data).getUUID());
             if (operation == null) {
                 player.sendMessage(new Text(TextHelper.translatable("gui.rte.rail_undo.empty").data), true);
             } else if (ServerPlayerEntity.isInstance(player)) {
                 ((ItemNodeModifierBaseInvoker) this).rte$invokeOnRemove(
-                    world, operation.posStart(), operation.posEnd(), ServerPlayerEntity.cast(player));
+                    world, cn.jstxjf_.rte.bridge.MtrTypes.blockPos(operation.posStart()), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(operation.posEnd()), ServerPlayerEntity.cast(player));
                 player.sendMessage(new Text(TextHelper.translatable("gui.rte.rail_undo.done",
                     operation.posStart().getX() + "," + operation.posStart().getY() + "," + operation.posStart().getZ(),
                     operation.posEnd().getX() + "," + operation.posEnd().getY() + "," + operation.posEnd().getZ()).data), true);

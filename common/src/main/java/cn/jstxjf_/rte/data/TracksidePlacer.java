@@ -7,8 +7,8 @@ import cn.jstxjf_.rte.track.RailTrackPath;
 import cn.jstxjf_.rte.track.TrackPose;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.CompoundTag;
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
 import org.mtr.mod.Init;
 import org.mtr.mod.client.MinecraftClientData;
 
@@ -38,7 +38,7 @@ public final class TracksidePlacer {
 
         final MinecraftClientData data = MinecraftClientData.getInstance();
         final List<Position> chain = RailChainSmoother.walkChain(data,
-            Init.blockPosToPosition(startBlockPos), Init.blockPosToPosition(endBlockPos));
+            cn.jstxjf_.rte.bridge.MtrBridge.position(startBlockPos), cn.jstxjf_.rte.bridge.MtrBridge.position(endBlockPos));
         if (chain.size() < 2) {
             return -1;
         }
@@ -316,8 +316,8 @@ public final class TracksidePlacer {
         final double yawRelative = eyeCandy.rotateY - trackYaw;
 
         final CompoundTag template = new CompoundTag();
-        eyeCandy.writeCompoundTag(template);
-        return new Anchor(blockPos, bestS, lateral, height, yawRelative, template.data);
+        eyeCandy.writeCompoundTag(new org.mtr.mapping.holder.CompoundTag(template));
+        return new Anchor(blockPos, bestS, lateral, height, yawRelative, template);
     }
 
     private static Object[] buildPlacement(ChainGeometry geometry, Anchor anchor, double chainS) {

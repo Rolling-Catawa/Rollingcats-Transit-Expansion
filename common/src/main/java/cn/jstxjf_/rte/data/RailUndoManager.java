@@ -1,7 +1,7 @@
 package cn.jstxjf_.rte.data;
 
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -17,7 +17,7 @@ public final class RailUndoManager {
     private static final int MAX_HISTORY = 10;
     private static final Map<UUID, Deque<RailOperation>> HISTORY = new ConcurrentHashMap<>();
 
-    public static void record(World world, BlockPos posStart, BlockPos posEnd, UUID playerId) {
+    public static void record(Level world, BlockPos posStart, BlockPos posEnd, UUID playerId) {
         if (world == null || posStart == null || posEnd == null || playerId == null) {
             return;
         }
@@ -30,7 +30,7 @@ public final class RailUndoManager {
         }
     }
 
-    public static RailOperation pop(World world, UUID playerId) {
+    public static RailOperation pop(Level world, UUID playerId) {
         final Deque<RailOperation> stack = HISTORY.get(playerId);
         if (stack == null) {
             return null;
@@ -47,8 +47,8 @@ public final class RailUndoManager {
         return null;
     }
 
-    private static String dimensionOf(World world) {
-        return ((net.minecraft.world.level.Level) world.data).dimension().location().toString();
+    private static String dimensionOf(Level world) {
+        return world.dimension().location().toString();
     }
 
     private RailUndoManager() {

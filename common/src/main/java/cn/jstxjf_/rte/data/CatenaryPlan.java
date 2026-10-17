@@ -1,7 +1,7 @@
 package cn.jstxjf_.rte.data;
 
 import org.mtr.core.data.Position;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.mtr.mod.Init;
 import org.mtr.mod.client.MinecraftClientData;
 
@@ -101,7 +101,7 @@ public final class CatenaryPlan {
 
         final MinecraftClientData data = MinecraftClientData.getInstance();
         final List<Position> chain = RailChainSmoother.walkChain(data,
-            Init.blockPosToPosition(startBlockPos), Init.blockPosToPosition(endBlockPos));
+            cn.jstxjf_.rte.bridge.MtrBridge.position(startBlockPos), cn.jstxjf_.rte.bridge.MtrBridge.position(endBlockPos));
         if (chain.size() < 2) {
             plan.failure = "no_chain";
             return plan;

@@ -8,9 +8,9 @@ import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
 import org.mtr.core.simulation.Simulator;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
-import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.ServerWorld;
-import org.mtr.mapping.holder.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
 import org.mtr.mod.Init;
 import org.mtr.mod.packet.PacketUpdateData;
 import org.mtr.core.Main;
@@ -29,7 +29,7 @@ public final class RailAutoTangent {
     private static Field worldIdListField;
     private static Field mainSimulatorsField;
 
-    public static void apply(World world, BlockPos posStart, BlockPos posEnd) {
+    public static void apply(Level world, BlockPos posStart, BlockPos posEnd) {
         if (!RTEConfig.enableAutoTangent) {
             return;
         }
@@ -38,8 +38,8 @@ public final class RailAutoTangent {
             if (simulator == null) {
                 return;
             }
-            final Position p1 = Init.blockPosToPosition(posStart);
-            final Position p2 = Init.blockPosToPosition(posEnd);
+            final Position p1 = cn.jstxjf_.rte.bridge.MtrBridge.position(posStart);
+            final Position p2 = cn.jstxjf_.rte.bridge.MtrBridge.position(posEnd);
             final Rail rail = railBetween(simulator, p1, p2);
             if (rail == null || !(((Object) rail) instanceof RailExtraSupplier extra)) {
                 return;
@@ -76,10 +76,12 @@ public final class RailAutoTangent {
                 reverseExtra.regenerateAutoBezier();
             }
 
-            final ServerWorld serverWorld = ServerWorld.cast(world);
-            PacketUpdateData.sendDirectlyToServerRail(serverWorld, rail);
+            if (!(world instanceof ServerLevel serverLevel)) {
+                return;
+            }
+            cn.jstxjf_.rte.bridge.MtrBridge.sendRailToServer(serverLevel, rail);
             if (reverse != null && reverse != rail && !reverse.getHexId().equals(rail.getHexId())) {
-                PacketUpdateData.sendDirectlyToServerRail(serverWorld, reverse);
+                cn.jstxjf_.rte.bridge.MtrBridge.sendRailToServer(serverLevel, reverse);
             }
 
         } catch (Exception e) {
@@ -168,7 +170,7 @@ public final class RailAutoTangent {
     }
 
     @SuppressWarnings("unchecked")
-    private static Simulator findSimulator(World world) throws Exception {
+    private static Simulator findSimulator(Level world) throws Exception {
         if (initMainField == null) {
             initMainField = Init.class.getDeclaredField("main");
             initMainField.setAccessible(true);
@@ -186,7 +188,7 @@ public final class RailAutoTangent {
             return null;
         }
         final List<String> worldIds = (List<String>) worldIdListField.get(null);
-        final int worldIndex = worldIds.indexOf(Init.getWorldId(world));
+        final int worldIndex = worldIds.indexOf(cn.jstxjf_.rte.bridge.MtrBridge.worldId(world));
         if (worldIndex < 0) {
             return null;
         }

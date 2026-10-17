@@ -7,7 +7,7 @@ import cn.jstxjf_.rte.track.RailTrackPath;
 import cn.jstxjf_.rte.util.RailRebuildHelper;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.mtr.mod.Init;
 import org.mtr.mod.client.MinecraftClientData;
 
@@ -24,8 +24,8 @@ public final class ParallelLineTool {
 
     public static int copyParallel(BlockPos startBlockPos, BlockPos endBlockPos, double spacing, boolean rightSide, boolean mirrorOneWay) {
         final MinecraftClientData data = MinecraftClientData.getInstance();
-        final Position startNode = Init.blockPosToPosition(startBlockPos);
-        final Position endNode = Init.blockPosToPosition(endBlockPos);
+        final Position startNode = cn.jstxjf_.rte.bridge.MtrBridge.position(startBlockPos);
+        final Position endNode = cn.jstxjf_.rte.bridge.MtrBridge.position(endBlockPos);
         final List<Position> manualChain = RailChainSelection.resolve(startNode, endNode);
         List<Position> chain;
         if (manualChain != null && manualChain.size() >= 2) {

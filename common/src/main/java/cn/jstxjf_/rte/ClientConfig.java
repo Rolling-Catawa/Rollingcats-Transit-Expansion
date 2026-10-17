@@ -55,7 +55,7 @@ public class ClientConfig {
     public static String legacyFlippedPositionFix = "off";
     public static boolean legacyVehicleTakeover = false;
     public static int preloadHeapCeilingPercent = 35;
-    public static boolean fixLegacyPlugDoors = false;
+    public static boolean fixLegacyPlugDoors = true;
     public static int bbModelPreloadLimit = 24;
     public static boolean vehicleMeshDiskCache = true;
     public static int vehicleMeshCacheMaxMb = 2048;
@@ -135,7 +135,7 @@ public class ClientConfig {
             legacyFlippedPositionFix = getOrDefault(configObject, "legacyFlippedPositionFix", JsonElement::getAsString, "off");
             legacyVehicleTakeover = getOrDefault(configObject, "legacyVehicleTakeover", JsonElement::getAsBoolean, false);
             preloadHeapCeilingPercent = clamp(getOrDefault(configObject, "preloadHeapCeilingPercent", JsonElement::getAsInt, 35), 5, 80);
-            fixLegacyPlugDoors = getOrDefault(configObject, "fixLegacyPlugDoors", JsonElement::getAsBoolean, false);
+            fixLegacyPlugDoors = getOrDefault(configObject, "fixLegacyPlugDoors", JsonElement::getAsBoolean, true);
             bbModelPreloadLimit = clamp(getOrDefault(configObject, "bbModelPreloadLimit", JsonElement::getAsInt, 24), 0, 4096);
             vehicleMeshDiskCache = getOrDefault(configObject, "vehicleMeshDiskCache", JsonElement::getAsBoolean, true);
             vehicleMeshCacheMaxMb = clamp(getOrDefault(configObject, "vehicleMeshCacheMaxMb", JsonElement::getAsInt, 2048), 64, 65536);

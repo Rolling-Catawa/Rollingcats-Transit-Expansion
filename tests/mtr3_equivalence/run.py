@@ -65,6 +65,12 @@ red_right = [not value and any_right for value in right_open]
 red_left = [not value and any_left for value in left_open]
 check(not any(red_right) and not any(red_left), "no false red door lights")
 
+door_max = 14.0
+for legacy_multiplier in (-door_max, door_max):
+    mtr4_obj_multiplier = -legacy_multiplier
+    corrected_multiplier = -mtr4_obj_multiplier
+    check(corrected_multiplier == legacy_multiplier, "OBJ door slide direction parity")
+
 # ANTE places a gangway at the midpoint of the two lower face corners.  MTR 4
 # supplies all four face corners; averaging all four would lift a 3 m model by
 # 1.5 m.  The adapter must retain the lower-edge midpoint and derive yaw/pitch
@@ -126,6 +132,7 @@ direct_node_renderer_source = (root / "common/src/main/java/cn/jstxjf_/rte/rende
 imgui_host_source = (root / "common/src/main/java/cn/jstxjf_/rte/gui/imgui/RteImGuiHost.java").read_text(encoding="utf-8")
 imgui_screen_source = (root / "common/src/main/java/cn/jstxjf_/rte/gui/imgui/ImGuiScreenBase.java").read_text(encoding="utf-8")
 train_wrapper_source = (root / "common/src/main/java/cn/jstxjf_/rte/scripting/train/TrainWrapper.java").read_text(encoding="utf-8")
+legacy_door_source = (root / "common/src/main/java/cn/jstxjf_/rte/mixin/LegacyPlugDoorFixMixin.java").read_text(encoding="utf-8")
 check("context.getHitPos()" in free_node_source, "free-node placement uses the exact hit point")
 check("side == Direction.UP ? 0 : side == Direction.DOWN ? 180 : -90" in free_node_source,
       "free-node mirrored wall and ceiling pitch")
@@ -145,6 +152,10 @@ check("/assets/mtr/font/noto-sans-cjk-tc-medium.otf" in imgui_host_source,
 check("graphics.flush()" in imgui_screen_source, "ImGui background is submitted before direct GL rendering")
 check("public float doorValue() {\n        return currentDoorValue;\n    }" in train_wrapper_source,
       "script door value uses the published render snapshot")
+check('"doorZMultiplier".equals(key)' in legacy_door_source
+      and '"doorXMultiplier".equals(key)' not in legacy_door_source
+      and "Boolean.TRUE.equals(RTE_IS_OBJ.get())" in legacy_door_source,
+      "legacy OBJ door axes match MTR 3")
 check("RailSpatialContext.apply(this)" in rail_source, "free-node geometry exists before MTR validation")
 check("rte$copyStyleExtras" in rail_source, "MTR style copies preserve free-node geometry")
 check("ensureCarrierRailMath" in angle_source, "vertical rails receive a valid MTR carrier")

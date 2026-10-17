@@ -6,7 +6,6 @@ import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
 
 import cn.jstxjf_.rte.block.BlockEyeCandy;
 import net.minecraft.nbt.TagParser;
-import org.mtr.mapping.holder.BlockPos;
 import org.mtr.mapping.holder.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -50,16 +49,14 @@ public class PacketPlaceTrackside extends RtePacket {
                 return;
             }
             final net.minecraft.server.level.ServerLevel level = player.serverLevel();
-            final BlockPos anchor = BlockPos.fromLong(anchorPos);
-            final net.minecraft.core.BlockPos nativeAnchor = new net.minecraft.core.BlockPos(anchor.getX(), anchor.getY(), anchor.getZ());
+            final net.minecraft.core.BlockPos nativeAnchor = net.minecraft.core.BlockPos.of(anchorPos);
             final net.minecraft.world.level.block.state.BlockState anchorState = level.getBlockState(nativeAnchor);
             if (!(anchorState.getBlock() instanceof BlockEyeCandy)) {
                 return;
             }
 
             for (final Object[] entry : placements) {
-                final BlockPos targetPos = BlockPos.fromLong((Long) entry[0]);
-                final net.minecraft.core.BlockPos nativeTarget = new net.minecraft.core.BlockPos(targetPos.getX(), targetPos.getY(), targetPos.getZ());
+                final net.minecraft.core.BlockPos nativeTarget = net.minecraft.core.BlockPos.of((Long) entry[0]);
                 final net.minecraft.world.level.block.state.BlockState existing = level.getBlockState(nativeTarget);
                 if (!existing.isAir() && !existing.canBeReplaced() && !(existing.getBlock() instanceof BlockEyeCandy)) {
                     continue;

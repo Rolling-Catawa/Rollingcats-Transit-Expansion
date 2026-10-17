@@ -152,7 +152,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
             final BlockState startState = clientWorld.getBlockState(posStart);
             if (startState != null && startState.getBlock().data instanceof org.mtr.mod.block.BlockNode) {
                 if (ImGui.button(t("gui.rte.brush_edit_rail.switch_to_direct_node") + "###brush_to_direct")) {
-                    PacketReplaceRailNode.sendUpdateC2S(clientWorld, posStart, startState, this::reopen);
+                    PacketReplaceRailNode.sendUpdateC2S(client.level, posStart.data, startState.data, this::reopen);
                 }
             }
         }

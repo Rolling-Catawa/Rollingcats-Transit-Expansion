@@ -4,7 +4,6 @@ import cn.jstxjf_.rte.bridge.network.RtePacket;
 import cn.jstxjf_.rte.bridge.network.RtePacketReader;
 import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
 
-import org.mtr.mapping.holder.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.mtr.mod.block.BlockNode;
@@ -45,10 +44,8 @@ public class PacketPlaceParallelNodes extends RtePacket {
             }
             final net.minecraft.server.level.ServerLevel level = player.serverLevel();
             for (final long[] entry : nodes) {
-                final BlockPos targetPos = BlockPos.fromLong(entry[0]);
-                final BlockPos sourcePos = BlockPos.fromLong(entry[1]);
-                final net.minecraft.core.BlockPos nativeTarget = new net.minecraft.core.BlockPos(targetPos.getX(), targetPos.getY(), targetPos.getZ());
-                final net.minecraft.core.BlockPos nativeSource = new net.minecraft.core.BlockPos(sourcePos.getX(), sourcePos.getY(), sourcePos.getZ());
+                final net.minecraft.core.BlockPos nativeTarget = net.minecraft.core.BlockPos.of(entry[0]);
+                final net.minecraft.core.BlockPos nativeSource = net.minecraft.core.BlockPos.of(entry[1]);
                 final net.minecraft.world.level.block.state.BlockState sourceState = level.getBlockState(nativeSource);
                 if (!(sourceState.getBlock() instanceof BlockNode)) {
                     continue;

@@ -12,7 +12,6 @@ import org.mtr.core.data.Rail;
 import org.mtr.core.serializer.JsonReader;
 import org.mtr.core.tool.Utilities;
 import org.mtr.libraries.com.google.gson.JsonParser;
-import org.mtr.mapping.holder.*;
 
 import java.util.LinkedHashSet;
 import java.util.Set;

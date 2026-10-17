@@ -9,7 +9,8 @@ import cn.jstxjf_.rte.RTE;
 import cn.jstxjf_.rte.gui.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
-import org.mtr.mapping.holder.*;
+import org.mtr.mapping.holder.Hand;
+import org.mtr.mapping.holder.Screen;
 
 public class PacketScreen extends RtePacket {
 
@@ -29,7 +30,7 @@ public class PacketScreen extends RtePacket {
         this.extra = receiver.readInt();
     }
 
-    public PacketScreen(BlockPos pos, int screenId) {
+    public PacketScreen(net.minecraft.core.BlockPos pos, int screenId) {
         this.posLong = pos.asLong();
         this.screenId = screenId;
         this.extra = 0;
@@ -50,7 +51,6 @@ public class PacketScreen extends RtePacket {
 
     @Override
     protected void handleServer(net.minecraft.server.MinecraftServer server, ServerPlayer player) {
-        // Forward to client
         cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, this);
     }
 
@@ -59,7 +59,7 @@ public class PacketScreen extends RtePacket {
         ClientScreenHandler.openScreen(posLong, screenId, extra);
     }
 
-    public static void sendScreenToClient(ServerPlayer player, BlockPos pos, int screenId) {
+    public static void sendScreenToClient(ServerPlayer player, net.minecraft.core.BlockPos pos, int screenId) {
         cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketScreen(pos, screenId));
     }
 

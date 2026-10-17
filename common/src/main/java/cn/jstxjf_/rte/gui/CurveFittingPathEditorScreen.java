@@ -542,10 +542,10 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
         float startDirDeg = (float) Math.toDegrees(result.angleStart());
         float endDirDeg = (float) Math.toDegrees(result.angleEnd() + Math.PI);
         if (canWriteNodeAngle(posStart)) {
-            PacketReplaceRailNode.sendUpdateC2S(world, posStart, startDirDeg, true, true);
+            PacketReplaceRailNode.sendUpdateC2S(world.data, posStart.data, startDirDeg, true, true);
         }
         if (canWriteNodeAngle(posEnd)) {
-            PacketReplaceRailNode.sendUpdateC2S(world, posEnd, endDirDeg, true, true);
+            PacketReplaceRailNode.sendUpdateC2S(world.data, posEnd.data, endDirDeg, true, true);
         }
         setStatus(Component.translatable("gui.rte.curve_fitting.built").getString(), false);
     }

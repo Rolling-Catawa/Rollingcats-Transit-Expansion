@@ -6,7 +6,6 @@ import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
 
 import cn.jstxjf_.rte.block.BlockFreeNode;
 import cn.jstxjf_.rte.util.FreeNodeManager;
-import org.mtr.mapping.holder.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -20,7 +19,7 @@ public class PacketFreeNodeAction extends RtePacket {
     public static final int DELETE_RESULT = 5;
 
     private final int action;
-    private final BlockPos anchor;
+    private final net.minecraft.core.BlockPos anchor;
     private final double x;
     private final double y;
     private final double z;
@@ -31,7 +30,7 @@ public class PacketFreeNodeAction extends RtePacket {
 
     public PacketFreeNodeAction(RtePacketReader receiver) {
         action = receiver.readInt();
-        anchor = BlockPos.fromLong(receiver.readLong());
+        anchor = net.minecraft.core.BlockPos.of(receiver.readLong());
         x = receiver.readDouble();
         y = receiver.readDouble();
         z = receiver.readDouble();
@@ -48,7 +47,7 @@ public class PacketFreeNodeAction extends RtePacket {
     public PacketFreeNodeAction(int action, net.minecraft.core.BlockPos anchor, double x, double y, double z,
                                 double angle, double pitch, int face, boolean fitting) {
         this.action = action;
-        this.anchor = new BlockPos(anchor);
+        this.anchor = anchor.immutable();
         this.x = x;
         this.y = y;
         this.z = z;
@@ -78,7 +77,6 @@ public class PacketFreeNodeAction extends RtePacket {
                 return;
             }
             final net.minecraft.server.level.ServerPlayer nativePlayer = player;
-            final net.minecraft.core.BlockPos nativeAnchor = new net.minecraft.core.BlockPos(anchor.getX(), anchor.getY(), anchor.getZ());
             final net.minecraft.world.item.Item freeNodeItem = cn.jstxjf_.rte.block.RTEBlocks.freeNode().asItem();
             final net.minecraft.world.item.Item brushItem = org.mtr.mod.Items.BRUSH.get().data;
             if (action == PASTE) {
@@ -93,16 +91,16 @@ public class PacketFreeNodeAction extends RtePacket {
                 }
                 return;
             }
-            if (!(nativePlayer.serverLevel().getBlockEntity(nativeAnchor) instanceof BlockFreeNode.BlockEntityFreeNode node)) {
+            if (!(nativePlayer.serverLevel().getBlockEntity(anchor) instanceof BlockFreeNode.BlockEntityFreeNode node)) {
                 if (action == DELETE) {
-                    sendDeleteResult(player, nativeAnchor, false);
+                    sendDeleteResult(player, anchor, false);
                 }
                 return;
             }
-            final net.minecraft.world.phys.Vec3 point = FreeNodeManager.getPoint(nativeAnchor, node);
+            final net.minecraft.world.phys.Vec3 point = FreeNodeManager.getPoint(anchor, node);
             if (nativePlayer.distanceToSqr(point) > 4096) {
                 if (action == DELETE) {
-                    sendDeleteResult(player, nativeAnchor, false);
+                    sendDeleteResult(player, anchor, false);
                 }
                 return;
             }
@@ -117,8 +115,8 @@ public class PacketFreeNodeAction extends RtePacket {
                 }
                 final net.minecraft.world.item.context.UseOnContext context = new net.minecraft.world.item.context.UseOnContext(
                         nativePlayer, hand, new net.minecraft.world.phys.BlockHitResult(
-                        net.minecraft.world.phys.Vec3.atCenterOf(nativeAnchor),
-                        net.minecraft.core.Direction.from3DDataValue(node.getAttachmentFace()), nativeAnchor, false));
+                        net.minecraft.world.phys.Vec3.atCenterOf(anchor),
+                        net.minecraft.core.Direction.from3DDataValue(node.getAttachmentFace()), anchor, false));
                 nativePlayer.getItemInHand(hand).useOn(context);
                 return;
             }
@@ -126,21 +124,21 @@ public class PacketFreeNodeAction extends RtePacket {
                     || nativePlayer.getMainHandItem().is(brushItem) || nativePlayer.getOffhandItem().is(brushItem);
             if (!holdingTool) {
                 if (action == DELETE) {
-                    sendDeleteResult(player, nativeAnchor, false);
+                    sendDeleteResult(player, anchor, false);
                 }
                 return;
             }
             if (action == COPY) {
-                FreeNodeManager.copy(nativePlayer.serverLevel(), nativePlayer, nativeAnchor);
+                FreeNodeManager.copy(nativePlayer.serverLevel(), nativePlayer, anchor);
             } else if (action == DELETE) {
                 final net.minecraft.server.level.ServerLevel level = nativePlayer.serverLevel();
-                if (!level.mayInteract(nativePlayer, nativeAnchor)) {
-                    sendDeleteResult(player, nativeAnchor, false);
+                if (!level.mayInteract(nativePlayer, anchor)) {
+                    sendDeleteResult(player, anchor, false);
                     return;
                 }
-                cn.jstxjf_.rte.bridge.MtrBridge.deleteRailNodeOnServer(level, nativeAnchor);
-                final boolean success = level.destroyBlock(nativeAnchor, !nativePlayer.getAbilities().instabuild, nativePlayer);
-                sendDeleteResult(player, nativeAnchor, success);
+                cn.jstxjf_.rte.bridge.MtrBridge.deleteRailNodeOnServer(level, anchor);
+                final boolean success = level.destroyBlock(anchor, !nativePlayer.getAbilities().instabuild, nativePlayer);
+                sendDeleteResult(player, anchor, success);
             }
         });
     }
@@ -163,9 +161,9 @@ public class PacketFreeNodeAction extends RtePacket {
     @Override
     protected void handleClient() {
         if (action == PASTE_RESULT) {
-            ClientHandler.select(new net.minecraft.core.BlockPos(anchor.getX(), anchor.getY(), anchor.getZ()));
+            ClientHandler.select(anchor);
         } else if (action == DELETE_RESULT) {
-            ClientHandler.deleteResult(new net.minecraft.core.BlockPos(anchor.getX(), anchor.getY(), anchor.getZ()), fitting);
+            ClientHandler.deleteResult(anchor, fitting);
         }
     }
 

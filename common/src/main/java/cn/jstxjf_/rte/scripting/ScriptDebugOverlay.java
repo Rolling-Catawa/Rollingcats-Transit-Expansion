@@ -33,7 +33,7 @@ public final class ScriptDebugOverlay {
         final List<Line> lines = new ArrayList<>();
         lines.add(new Line("RTE JS Debug  contexts=" + ScriptContextManager.livingContexts.size(), 0xFF7FE7FF));
         if (contexts.isEmpty()) {
-            lines.add(new Line("No active script debug data", 0xFFAAAAAA));
+            lines.add(new Line("No running scripts nearby", 0xFFAAAAAA));
         } else {
             for (ContextSnapshot context : contexts) {
                 if (lines.size() >= MAX_LINES) {
@@ -74,9 +74,6 @@ public final class ScriptDebugOverlay {
             final AbstractScriptContext context = living.getKey();
             final ScriptHolderBase holder = living.getValue();
             final List<Map.Entry<String, Object>> entries = new ArrayList<>(context.getDebugInfo().entryList());
-            if (entries.isEmpty() && holder.failException == null) {
-                continue;
-            }
             final String name = holder.name == null || holder.name.isBlank() ? "<unnamed>" : truncate(holder.name);
             final String type = holder.contextTypeName == null || holder.contextTypeName.isBlank() ? "script" : truncate(holder.contextTypeName);
             final String state = context.scriptStatus != null && !context.scriptStatus.isDone() ? " running" : "";
@@ -85,7 +82,9 @@ public final class ScriptDebugOverlay {
                 + String.format(java.util.Locale.ROOT, "%.2f ms", millis) + state;
             result.add(new ContextSnapshot(title, entries, holder.failException));
         }
-        result.sort(Comparator.comparing(snapshot -> snapshot.title));
+        result.sort(Comparator.comparing((ContextSnapshot snapshot) -> !snapshot.failed)
+            .thenComparing(snapshot -> snapshot.entries.isEmpty())
+            .thenComparing(snapshot -> snapshot.title));
         return result.size() > MAX_CONTEXTS ? new ArrayList<>(result.subList(0, MAX_CONTEXTS)) : result;
     }
 

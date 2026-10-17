@@ -1,6 +1,7 @@
 package cn.jstxjf_.rte.mixin;
 
 import cn.jstxjf_.rte.render.FreeNodeEditor;
+import cn.jstxjf_.rte.scripting.ScriptDebugOverlay;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphics;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,5 +15,6 @@ public class GuiMixin {
     @Inject(method = "render", at = @At("TAIL"))
     private void rte$renderFreeNodeHints(GuiGraphics graphics, float partialTick, CallbackInfo ci) {
         FreeNodeEditor.renderHud(graphics);
+        ScriptDebugOverlay.render(graphics);
     }
 }

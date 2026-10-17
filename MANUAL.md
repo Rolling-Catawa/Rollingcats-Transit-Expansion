@@ -38,7 +38,7 @@ Rollingcats Transit Expansion（modId `rte`）—— MTR 4.0.x 的轨道几何�
 | `/rte repairrails` | 扫描并修复整个世界里损坏的轨道数据。需要 OP（权限等级 2）。 |
 | `/rte fixoneway` | 修正单向轨的方向数据。需要 OP（权限等级 2）。 |
 
-**调试没有命令入口。** 按 `O` 打开设置，开 `enableRenderDiagnostics`（渲染诊断）；
+**调试没有命令入口。** 按 `O` 打开设置；“显示 JS 调试信息”会把脚本通过 `ctx.setDebugInfo(...)` 写入的数据显示在左上角，“渲染诊断”会把脚本执行、渲染阶段和模型诊断写入 `logs/latest.log`；
 服务端诊断改存档目录下 `rte_config.json` 的 `enableNetworkDiagnostics`。
 
 ---

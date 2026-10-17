@@ -87,6 +87,7 @@ public class ImGuiConfigScreen extends ImGuiScreenBase {
         dirty |= toggle("gui.rte.config.client.mesh_disk_cache", "cfg_mesh_disk_cache", ClientConfig.vehicleMeshDiskCache, v -> ClientConfig.vehicleMeshDiskCache = v);
         ImGui.textDisabled(t("gui.rte.config.client.mesh_disk_cache.description"));
         dirty |= toggle("gui.rte.config.client.slider", "cfg_slider", ClientConfig.useEditBoxSetRailRolling, v -> ClientConfig.useEditBoxSetRailRolling = v);
+        dirty |= toggle("gui.rte.config.client.scriptdebugoverlay", "cfg_scriptdebug", ClientConfig.scriptDebugOverlay, v -> ClientConfig.scriptDebugOverlay = v);
         dirty |= toggle("gui.rte.config.client.renderdiag", "cfg_renderdiag", ClientConfig.enableRenderDiagnostics, v -> ClientConfig.enableRenderDiagnostics = v);
         dirty |= toggle("gui.rte.config.client.gpu_translucent", "cfg_gpu_translucent", ClientConfig.gpuTranslucentRendering, v -> ClientConfig.gpuTranslucentRendering = v);
         dirty |= toggle("gui.rte.config.client.shaderpack_gpu", "cfg_shaderpack_gpu", ClientConfig.shaderPackGpuRendering, v -> ClientConfig.shaderPackGpuRendering = v);

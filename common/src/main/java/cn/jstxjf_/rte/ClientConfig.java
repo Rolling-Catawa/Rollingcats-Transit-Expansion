@@ -63,6 +63,7 @@ public class ClientConfig {
     public static boolean useEditBoxSetRailRolling = true;
     public static int jcmJsChoice = 0;
     public static boolean enableRenderDiagnostics = false;
+    public static boolean scriptDebugOverlay = false;
     public static boolean vanillaVehicleMode = false;
     public static boolean legacyVariationCarFilter = true;
     // AUTO keeps old Nashorn/Rhino-style packs working while allowing modern
@@ -164,6 +165,7 @@ public class ClientConfig {
             }
             cn.jstxjf_.rte.scripting.engine.ScriptEnginePolicy.restore(engineOverrides);
             enableRenderDiagnostics = getOrDefault(configObject, "enableRenderDiagnostics", JsonElement::getAsBoolean, false);
+            scriptDebugOverlay = getOrDefault(configObject, "scriptDebugOverlay", JsonElement::getAsBoolean, false);
             vanillaVehicleMode = getOrDefault(configObject, "vanillaVehicleMode", JsonElement::getAsBoolean, false);
             legacyVariationCarFilter = getOrDefault(configObject, "legacyVariationCarFilter", JsonElement::getAsBoolean, true);
             scriptEngine = normalizeScriptEngine(getOrDefault(configObject, "scriptEngine", JsonElement::getAsString, "auto"));
@@ -274,6 +276,7 @@ public class ClientConfig {
             configObject.addProperty("shaderCompatMode", !enableOptimization);
             configObject.addProperty("jcmJsChoice", jcmJsChoice);
             configObject.addProperty("enableRenderDiagnostics", enableRenderDiagnostics);
+            configObject.addProperty("scriptDebugOverlay", scriptDebugOverlay);
             configObject.addProperty("enableRailDeform", enableRailDeform);
             configObject.addProperty("enableRail3D", enableRail3D);
             configObject.addProperty("enableRailRender", enableRailRender);

@@ -104,6 +104,11 @@ public abstract class ScriptHolderBase {
         this.engineType = engineType;
     }
 
+    public String activeEngineName() {
+        final ScriptBackend current = backend;
+        return current == null ? engineType.name().toLowerCase(java.util.Locale.ROOT) : current.engineName();
+    }
+
     private boolean allowClass(String className) {
         if (loading[0]) return true;
         if (ALLOWED_CLASSES.contains(className)) return true;

@@ -1,5 +1,9 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.RTE;
 import cn.jstxjf_.rte.data.TrainExtraSupplier;
 import cn.jstxjf_.rte.util.StringMapSerializer;
@@ -7,14 +11,10 @@ import org.mtr.core.Main;
 import org.mtr.core.data.Siding;
 import org.mtr.core.data.Vehicle;
 import org.mtr.core.simulation.Simulator;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import org.mtr.mapping.holder.World;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
 import org.mtr.mod.Init;
-import org.mtr.mod.InitClient;
 
 import java.lang.reflect.Field;
 import java.util.HashMap;
@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class PacketUpdateTrainCustomConfigs extends PacketHandler {
+public class PacketUpdateTrainCustomConfigs extends RtePacket {
 
     private final long sidingId;
     private final long vehicleId;
@@ -32,7 +32,7 @@ public class PacketUpdateTrainCustomConfigs extends PacketHandler {
     private static Field mainSimulatorsField;
     private static Field sidingVehiclesField;
 
-    public PacketUpdateTrainCustomConfigs(PacketBufferReceiver receiver) {
+    public PacketUpdateTrainCustomConfigs(RtePacketReader receiver) {
         this.sidingId = receiver.readLong();
         this.vehicleId = receiver.readLong();
         this.serializedConfigs = receiver.readString();
@@ -51,14 +51,14 @@ public class PacketUpdateTrainCustomConfigs extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeLong(sidingId);
         sender.writeLong(vehicleId);
         sender.writeString(serializedConfigs);
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
             try {
                 Map<String, String> customConfigs = StringMapSerializer.deserialize(serializedConfigs);
@@ -76,11 +76,11 @@ public class PacketUpdateTrainCustomConfigs extends PacketHandler {
 
     public static void sendUpdateC2S(Vehicle vehicle, Map<String, String> customConfigs) {
         if (customConfigs == null) return;
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketUpdateTrainCustomConfigs(vehicle.vehicleExtraData.getSidingId(), vehicle.getId(), customConfigs));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketUpdateTrainCustomConfigs(vehicle.vehicleExtraData.getSidingId(), vehicle.getId(), customConfigs));
     }
 
     @SuppressWarnings("unchecked")
-    private static Vehicle findVehicle(ServerPlayerEntity player, long sidingId, long vehicleId) throws Exception {
+    private static Vehicle findVehicle(ServerPlayer player, long sidingId, long vehicleId) throws Exception {
         if (initMainField == null) {
             initMainField = Init.class.getDeclaredField("main");
             initMainField.setAccessible(true);
@@ -104,7 +104,7 @@ public class PacketUpdateTrainCustomConfigs extends PacketHandler {
         }
 
         final List<String> worldIds = (List<String>) worldIdListField.get(null);
-        final String worldId = Init.getWorldId(new World(player.getEntityWorld().data));
+        final String worldId = Init.getWorldId(new World(player.level()));
         final int worldIndex = worldIds.indexOf(worldId);
         if (worldIndex < 0) {
             return null;

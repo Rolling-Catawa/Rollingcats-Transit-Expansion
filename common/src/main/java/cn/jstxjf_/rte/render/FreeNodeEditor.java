@@ -997,7 +997,7 @@ public final class FreeNodeEditor {
         if (minecraft == null || minecraft.player == null || minecraft.level == null || minecraft.screen != null) {
             return false;
         }
-        final net.minecraft.world.item.Item item = RTEBlocks.FREE_NODE.get().asItem().data;
+        final net.minecraft.world.item.Item item = RTEBlocks.freeNode().asItem();
         final net.minecraft.world.item.Item brush = org.mtr.mod.Items.BRUSH.get().data;
         return minecraft.player.getMainHandItem().is(item) || minecraft.player.getOffhandItem().is(item)
                 || minecraft.player.getMainHandItem().is(brush) || minecraft.player.getOffhandItem().is(brush);

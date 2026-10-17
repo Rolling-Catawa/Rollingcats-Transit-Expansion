@@ -1,16 +1,16 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.block.BlockFreeNode;
 import cn.jstxjf_.rte.util.FreeNodeManager;
 import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.InitClient;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
-public class PacketFreeNodeAction extends PacketHandler {
+public class PacketFreeNodeAction extends RtePacket {
 
     public static final int COPY = 0;
     public static final int DELETE = 1;
@@ -29,7 +29,7 @@ public class PacketFreeNodeAction extends PacketHandler {
     private final int face;
     private final boolean fitting;
 
-    public PacketFreeNodeAction(PacketBufferReceiver receiver) {
+    public PacketFreeNodeAction(RtePacketReader receiver) {
         action = receiver.readInt();
         anchor = BlockPos.fromLong(receiver.readLong());
         x = receiver.readDouble();
@@ -59,7 +59,7 @@ public class PacketFreeNodeAction extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeInt(action);
         sender.writeLong(anchor.asLong());
         sender.writeDouble(x);
@@ -72,14 +72,14 @@ public class PacketFreeNodeAction extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
             if (player == null) {
                 return;
             }
-            final net.minecraft.server.level.ServerPlayer nativePlayer = (net.minecraft.server.level.ServerPlayer) player.data;
+            final net.minecraft.server.level.ServerPlayer nativePlayer = player;
             final net.minecraft.core.BlockPos nativeAnchor = new net.minecraft.core.BlockPos(anchor.getX(), anchor.getY(), anchor.getZ());
-            final net.minecraft.world.item.Item freeNodeItem = cn.jstxjf_.rte.block.RTEBlocks.FREE_NODE.get().asItem().data;
+            final net.minecraft.world.item.Item freeNodeItem = cn.jstxjf_.rte.block.RTEBlocks.freeNode().asItem();
             final net.minecraft.world.item.Item brushItem = org.mtr.mod.Items.BRUSH.get().data;
             if (action == PASTE) {
                 final net.minecraft.world.phys.Vec3 point = new net.minecraft.world.phys.Vec3(x, y, z);
@@ -88,7 +88,7 @@ public class PacketFreeNodeAction extends PacketHandler {
                     final net.minecraft.core.BlockPos created = FreeNodeManager.paste(
                             nativePlayer.serverLevel(), nativePlayer, point, angle, pitch, face, fitting);
                     if (created != null) {
-                        org.mtr.mod.Init.REGISTRY.sendPacketToClient(player, new PacketFreeNodeAction(PASTE_RESULT, created));
+                        cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketFreeNodeAction(PASTE_RESULT, created));
                     }
                 }
                 return;
@@ -146,23 +146,23 @@ public class PacketFreeNodeAction extends PacketHandler {
         });
     }
 
-    private static void sendDeleteResult(ServerPlayerEntity player, net.minecraft.core.BlockPos anchor, boolean success) {
-        org.mtr.mod.Init.REGISTRY.sendPacketToClient(player, new PacketFreeNodeAction(
+    private static void sendDeleteResult(ServerPlayer player, net.minecraft.core.BlockPos anchor, boolean success) {
+        cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketFreeNodeAction(
                 DELETE_RESULT, anchor, 0, 0, 0, Double.NaN, 0, 0, success));
     }
 
     public static void send(int action, net.minecraft.core.BlockPos anchor) {
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketFreeNodeAction(action, anchor));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketFreeNodeAction(action, anchor));
     }
 
     public static void sendPaste(net.minecraft.core.BlockPos anchor, double x, double y, double z,
                                  double angle, double pitch, int face, boolean fitting) {
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketFreeNodeAction(
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketFreeNodeAction(
                 PASTE, anchor, x, y, z, angle, pitch, face, fitting));
     }
 
     @Override
-    public void runClient() {
+    protected void handleClient() {
         if (action == PASTE_RESULT) {
             ClientHandler.select(new net.minecraft.core.BlockPos(anchor.getX(), anchor.getY(), anchor.getZ()));
         } else if (action == DELETE_RESULT) {

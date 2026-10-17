@@ -1,17 +1,17 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.data.MsdBridge;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.InitClient;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PacketPlaceCatenary extends PacketHandler {
+public class PacketPlaceCatenary extends RtePacket {
 
     private final long sourceStatePos;
     private final String typeName;
@@ -19,7 +19,7 @@ public class PacketPlaceCatenary extends PacketHandler {
     private final List<String> nodeTags;
     private final List<long[]> links;
 
-    public PacketPlaceCatenary(PacketBufferReceiver receiver) {
+    public PacketPlaceCatenary(RtePacketReader receiver) {
         sourceStatePos = receiver.readLong();
         typeName = receiver.readString();
         final int nodeCount = receiver.readInt();
@@ -45,7 +45,7 @@ public class PacketPlaceCatenary extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeLong(sourceStatePos);
         sender.writeString(typeName);
         sender.writeInt(nodePlacements.size());
@@ -61,17 +61,17 @@ public class PacketPlaceCatenary extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
             if (player == null || !MsdBridge.isLoaded()) {
                 return;
             }
-            final net.minecraft.server.level.ServerLevel level = ((net.minecraft.server.level.ServerPlayer) player.data).serverLevel();
+            final net.minecraft.server.level.ServerLevel level = player.serverLevel();
             MsdBridge.serverPlaceAndLink(level, nodePlacements, nodeTags, sourceStatePos, links, typeName);
         });
     }
 
     public static void sendPlaceC2S(long sourceStatePos, String typeName, List<long[]> nodePlacements, List<String> nodeTags, List<long[]> links) {
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketPlaceCatenary(sourceStatePos, typeName, nodePlacements, nodeTags, links));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketPlaceCatenary(sourceStatePos, typeName, nodePlacements, nodeTags, links));
     }
 }

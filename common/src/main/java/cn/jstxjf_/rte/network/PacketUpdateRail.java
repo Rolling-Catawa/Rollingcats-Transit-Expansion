@@ -1,5 +1,10 @@
 package cn.jstxjf_.rte.network;
 
+import net.minecraft.server.level.ServerPlayer;
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.RTE;
 import cn.jstxjf_.rte.data.RailExtraSupplier;
 import cn.jstxjf_.rte.util.RailRebuildHelper;
@@ -8,24 +13,20 @@ import org.mtr.core.serializer.JsonReader;
 import org.mtr.core.tool.Utilities;
 import org.mtr.libraries.com.google.gson.JsonParser;
 import org.mtr.mapping.holder.*;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.InitClient;
 import org.mtr.mod.packet.PacketDeleteData;
 import org.mtr.mod.packet.PacketUpdateData;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class PacketUpdateRail extends PacketHandler {
+public class PacketUpdateRail extends RtePacket {
 
     private final String railJson;
     private final String railReverseJson;
     private final String oldRailId;
     private final String oldRailReverseId;
 
-    public PacketUpdateRail(PacketBufferReceiver receiver) {
+    public PacketUpdateRail(RtePacketReader receiver) {
         this.railJson = receiver.readString();
         this.railReverseJson = receiver.readString();
         this.oldRailId = receiver.readString();
@@ -42,7 +43,7 @@ public class PacketUpdateRail extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeString(railJson);
         sender.writeString(railReverseJson);
         sender.writeString(oldRailId);
@@ -50,14 +51,14 @@ public class PacketUpdateRail extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(net.minecraft.server.MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
             try {
                 Rail rail = new Rail(new JsonReader(JsonParser.parseString(railJson)));
                 Rail railReverse = new Rail(new JsonReader(JsonParser.parseString(railReverseJson)));
                 final ServerWorld serverWorld = player == null
-                    ? server.getOverworld()
-                    : new ServerWorld(((net.minecraft.server.level.ServerPlayer) player.data).serverLevel());
+                    ? new ServerWorld(server.overworld())
+                    : new ServerWorld(player.serverLevel());
                 Set<String> deletedRailIds = new LinkedHashSet<>();
                 if (!oldRailId.isEmpty() && !oldRailId.equals(rail.getHexId()) && deletedRailIds.add(oldRailId)) {
                     PacketDeleteData.sendDirectlyToServerRailId(serverWorld, oldRailId);
@@ -143,7 +144,7 @@ public class PacketUpdateRail extends PacketHandler {
             cn.jstxjf_.rte.RTEClient.railRenderDispatcher.evictRailByHexId(((RailExtraSupplier)(Object)rebuilt).getTransposition().getHexId());
         } catch (Exception ignored) {}
         RailRebuildHelper.replaceClientRail(rebuilt);
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketUpdateRail(original, rebuilt));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketUpdateRail(original, rebuilt));
     }
 
     private static Rail resolveCurrentRail(Rail rail) {

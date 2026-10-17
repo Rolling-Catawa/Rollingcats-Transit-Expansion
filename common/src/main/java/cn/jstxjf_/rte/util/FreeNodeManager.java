@@ -39,7 +39,7 @@ public final class FreeNodeManager {
         if (stack.isEmpty()) {
             return false;
         }
-        final boolean consume = stack.is(RTEBlocks.FREE_NODE.get().asItem().data);
+        final boolean consume = stack.is(RTEBlocks.freeNode().asItem());
         final Vec3 point = getPoint(sourceAnchor, source);
         final net.minecraft.core.BlockPos anchor = findAnchor(level, net.minecraft.core.BlockPos.containing(point), player, stack);
         if (anchor == null) {
@@ -61,7 +61,7 @@ public final class FreeNodeManager {
         if (stack.isEmpty()) {
             return null;
         }
-        final boolean consume = stack.is(RTEBlocks.FREE_NODE.get().asItem().data);
+        final boolean consume = stack.is(RTEBlocks.freeNode().asItem());
         final net.minecraft.core.Direction face = net.minecraft.core.Direction.from3DDataValue(faceId);
         final net.minecraft.core.BlockPos anchor = findAnchor(level, net.minecraft.core.BlockPos.containing(point), player, stack);
         if (anchor == null || !create(level, anchor, point, face, null)) {
@@ -88,7 +88,7 @@ public final class FreeNodeManager {
 
     private static boolean create(ServerLevel level, net.minecraft.core.BlockPos anchor, Vec3 point,
                                   net.minecraft.core.Direction face, BlockFreeNode.BlockEntityFreeNode source) {
-        final net.minecraft.world.level.block.state.BlockState state = RTEBlocks.FREE_NODE.get().getDefaultState().data;
+        final net.minecraft.world.level.block.state.BlockState state = RTEBlocks.freeNode().defaultBlockState();
         if (!level.setBlockAndUpdate(anchor, state)) {
             return false;
         }
@@ -117,7 +117,7 @@ public final class FreeNodeManager {
     }
 
     private static net.minecraft.world.item.ItemStack editorStack(Player player) {
-        final net.minecraft.world.item.Item freeNode = RTEBlocks.FREE_NODE.get().asItem().data;
+        final net.minecraft.world.item.Item freeNode = RTEBlocks.freeNode().asItem();
         final net.minecraft.world.item.Item brush = org.mtr.mod.Items.BRUSH.get().data;
         if (player.getMainHandItem().is(freeNode) || player.getMainHandItem().is(brush)) {
             return player.getMainHandItem();

@@ -1,26 +1,26 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.data.RailExtraSupplier;
 import cn.jstxjf_.rte.util.RailRebuildHelper;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import org.mtr.mapping.holder.ServerWorld;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.InitClient;
 import org.mtr.mod.packet.PacketDeleteData;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-public class PacketDeleteRail extends PacketHandler {
+public class PacketDeleteRail extends RtePacket {
 
     private final String railId;
     private final String reverseRailId;
 
-    public PacketDeleteRail(PacketBufferReceiver receiver) {
+    public PacketDeleteRail(RtePacketReader receiver) {
         railId = receiver.readString();
         reverseRailId = receiver.readString();
     }
@@ -31,18 +31,18 @@ public class PacketDeleteRail extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeString(railId);
         sender.writeString(reverseRailId);
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
             if (player == null) {
                 return;
             }
-            final ServerWorld serverWorld = new ServerWorld(((net.minecraft.server.level.ServerPlayer) player.data).serverLevel());
+            final ServerWorld serverWorld = new ServerWorld(player.serverLevel());
             final Set<String> deleted = new LinkedHashSet<>();
             if (!railId.isEmpty() && deleted.add(railId)) {
                 PacketDeleteData.sendDirectlyToServerRailId(serverWorld, railId);
@@ -63,6 +63,6 @@ public class PacketDeleteRail extends PacketHandler {
         } catch (Exception ignored) {
         }
         RailRebuildHelper.removeClientRail(rail);
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketDeleteRail(rail.getHexId(), reverseId));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketDeleteRail(rail.getHexId(), reverseId));
     }
 }

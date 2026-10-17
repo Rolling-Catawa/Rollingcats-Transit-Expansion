@@ -10,6 +10,10 @@ public final class RTEParticleTypes {
     private RTEParticleTypes() {
     }
 
+    public static net.minecraft.core.particles.ParticleType<?> steamSmoke() {
+        return STEAM_SMOKE.get().data;
+    }
+
     public static void init() {
     }
 }

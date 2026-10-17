@@ -339,7 +339,7 @@ public class RoutePathCreator extends ItemExtension {
     }
 
     private static void syncHoldingItem(Hand hand) {
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketUpdateHoldingItem(hand));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketUpdateHoldingItem(hand));
     }
 
     private static void sendMessage(PlayerEntity player, String key, Object... args) {

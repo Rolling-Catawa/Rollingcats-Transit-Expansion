@@ -36,7 +36,7 @@ public class CompoundCreator extends ItemNodeModifierBase {
             if (!context.getWorld().isClient()) {
                 PlayerEntity user = context.getPlayer();
                 if (ServerPlayerEntity.isInstance(user)) {
-                     RTEPackets.sendOpenCompoundCreatorScreen(ServerPlayerEntity.cast(user), context.getHand());
+                     RTEPackets.sendOpenCompoundCreatorScreen((net.minecraft.server.level.ServerPlayer) ServerPlayerEntity.cast(user).data, context.getHand());
                 }
             }
             return ActionResult.SUCCESS;
@@ -47,7 +47,7 @@ public class CompoundCreator extends ItemNodeModifierBase {
     public void useWithoutResult(World world, PlayerEntity user, Hand hand) {
         if (!world.isClient()) {
             if (ServerPlayerEntity.isInstance(user)) {
-                RTEPackets.sendOpenCompoundCreatorScreen(ServerPlayerEntity.cast(user), hand);
+                RTEPackets.sendOpenCompoundCreatorScreen((net.minecraft.server.level.ServerPlayer) ServerPlayerEntity.cast(user).data, hand);
             }
         }
     }

@@ -81,7 +81,7 @@ public class ImGuiCompoundCreatorScreen extends ImGuiScreenBase {
             tasksTag.data.put(String.valueOf(i), tasks.get(i).toCompoundTag().data);
         }
         tag.data.put(TAG_TASKS, tasksTag.data);
-        org.mtr.mod.InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketUpdateHoldingItem(hand));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketUpdateHoldingItem(hand));
     }
 
     @Override

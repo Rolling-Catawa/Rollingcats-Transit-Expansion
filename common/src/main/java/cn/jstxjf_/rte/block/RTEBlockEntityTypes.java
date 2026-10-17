@@ -26,5 +26,17 @@ public class RTEBlockEntityTypes {
             RTEBlocks.EYE_CANDY::get
         );
 
+    public static net.minecraft.world.level.block.entity.BlockEntityType<?> directNodeType() {
+        return DIRECT_NODE.get().data;
+    }
+
+    public static net.minecraft.world.level.block.entity.BlockEntityType<?> freeNodeType() {
+        return FREE_NODE.get().data;
+    }
+
+    public static net.minecraft.world.level.block.entity.BlockEntityType<?> eyeCandyType() {
+        return EYE_CANDY.get().data;
+    }
+
     public static void init() {}
 }

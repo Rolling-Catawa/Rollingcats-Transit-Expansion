@@ -1,25 +1,25 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.block.BlockEyeCandy;
 import net.minecraft.nbt.TagParser;
 import org.mtr.mapping.holder.BlockPos;
 import org.mtr.mapping.holder.CompoundTag;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.InitClient;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PacketPlaceTrackside extends PacketHandler {
+public class PacketPlaceTrackside extends RtePacket {
 
     private final long anchorPos;
     private final List<Object[]> placements;
 
-    public PacketPlaceTrackside(PacketBufferReceiver receiver) {
+    public PacketPlaceTrackside(RtePacketReader receiver) {
         anchorPos = receiver.readLong();
         final int count = receiver.readInt();
         placements = new ArrayList<>(count);
@@ -34,7 +34,7 @@ public class PacketPlaceTrackside extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeLong(anchorPos);
         sender.writeInt(placements.size());
         for (final Object[] entry : placements) {
@@ -44,12 +44,12 @@ public class PacketPlaceTrackside extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
             if (player == null) {
                 return;
             }
-            final net.minecraft.server.level.ServerLevel level = ((net.minecraft.server.level.ServerPlayer) player.data).serverLevel();
+            final net.minecraft.server.level.ServerLevel level = player.serverLevel();
             final BlockPos anchor = BlockPos.fromLong(anchorPos);
             final net.minecraft.core.BlockPos nativeAnchor = new net.minecraft.core.BlockPos(anchor.getX(), anchor.getY(), anchor.getZ());
             final net.minecraft.world.level.block.state.BlockState anchorState = level.getBlockState(nativeAnchor);
@@ -82,6 +82,6 @@ public class PacketPlaceTrackside extends PacketHandler {
     }
 
     public static void sendPlaceC2S(long anchorPos, List<Object[]> placements) {
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketPlaceTrackside(anchorPos, placements));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketPlaceTrackside(anchorPos, placements));
     }
 }

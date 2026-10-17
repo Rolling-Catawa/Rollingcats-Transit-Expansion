@@ -63,7 +63,7 @@ public class RailPathEditor extends ItemExtension {
             railSelection.posStart.getX(), railSelection.posStart.getY(), railSelection.posStart.getZ(),
             railSelection.posEnd.getX(), railSelection.posEnd.getY(), railSelection.posEnd.getZ()
         ).data), true);
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketUpdateHoldingItem(context.getHand()));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketUpdateHoldingItem(context.getHand()));
         return ActionResult.SUCCESS;
     }
 

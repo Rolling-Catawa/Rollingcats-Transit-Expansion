@@ -1,15 +1,16 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.render.VehicleMarkerCache;
 import net.minecraft.client.Minecraft;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PacketVehicleMarkers extends PacketHandler {
+public class PacketVehicleMarkers extends RtePacket {
 
     private final List<Marker> markers;
 
@@ -28,7 +29,7 @@ public class PacketVehicleMarkers extends PacketHandler {
         }
     }
 
-    public PacketVehicleMarkers(PacketBufferReceiver receiver) {
+    public PacketVehicleMarkers(RtePacketReader receiver) {
         final int size = receiver.readInt();
         markers = new ArrayList<>(Math.max(16, size));
         for (int i = 0; i < size; i++) {
@@ -42,7 +43,7 @@ public class PacketVehicleMarkers extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeInt(markers.size());
         for (final Marker marker : markers) {
             sender.writeLong(marker.id);
@@ -54,7 +55,7 @@ public class PacketVehicleMarkers extends PacketHandler {
     }
 
     @Override
-    public void runClient() {
+    protected void handleClient() {
         Minecraft.getInstance().execute(() -> VehicleMarkerCache.accept(markers));
     }
 }

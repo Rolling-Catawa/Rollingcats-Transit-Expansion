@@ -1,30 +1,30 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.block.BlockDirectNode;
 import cn.jstxjf_.rte.block.RTEBlocks;
 import org.mtr.core.data.TransportMode;
 import org.mtr.mapping.holder.BlockPos;
 import org.mtr.mapping.holder.BlockState;
 import org.mtr.mapping.holder.CompoundTag;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import org.mtr.mapping.holder.World;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.InitClient;
 import org.mtr.mod.block.BlockNode;
 
 import java.util.function.Supplier;
 
-public class PacketReplaceRailNode extends PacketHandler {
+public class PacketReplaceRailNode extends RtePacket {
 
     private final BlockPos pos;
     private final float angle;
     private final boolean skipRebuild;
     private final boolean fittingNode;
 
-    public PacketReplaceRailNode(PacketBufferReceiver receiver) {
+    public PacketReplaceRailNode(RtePacketReader receiver) {
         pos = BlockPos.fromLong(receiver.readLong());
         angle = receiver.readFloat();
         skipRebuild = receiver.readBoolean();
@@ -39,7 +39,7 @@ public class PacketReplaceRailNode extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeLong(pos.asLong());
         sender.writeFloat(angle);
         sender.writeBoolean(skipRebuild);
@@ -47,7 +47,7 @@ public class PacketReplaceRailNode extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         final boolean noRebuild = this.skipRebuild;
         final boolean fitting = this.fittingNode;
         server.execute(() -> {
@@ -55,7 +55,7 @@ public class PacketReplaceRailNode extends PacketHandler {
                 return;
             }
 
-            final net.minecraft.server.level.ServerLevel level = ((net.minecraft.server.level.ServerPlayer) player.data).serverLevel();
+            final net.minecraft.server.level.ServerLevel level = player.serverLevel();
             final net.minecraft.core.BlockPos nativePos = new net.minecraft.core.BlockPos(pos.getX(), pos.getY(), pos.getZ());
             final net.minecraft.world.level.block.state.BlockState nativeState = level.getBlockState(nativePos);
             if (!(nativeState.getBlock() instanceof BlockNode blockNode) || blockNode.transportMode != TransportMode.TRAIN) {
@@ -86,7 +86,7 @@ public class PacketReplaceRailNode extends PacketHandler {
         if (state == null || !(state.getBlock().data instanceof BlockNode blockNode) || blockNode.transportMode != TransportMode.TRAIN) {
             return;
         }
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketReplaceRailNode(pos, angle, skipRebuild, fittingNode));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketReplaceRailNode(pos, angle, skipRebuild, fittingNode));
         if (world.isClient()) {
             replaceNode(world, pos, angle, state, !skipRebuild, fittingNode);
         }
@@ -98,7 +98,7 @@ public class PacketReplaceRailNode extends PacketHandler {
         }
 
         final float angle = BlockNode.getAngle(state);
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketReplaceRailNode(pos, angle, false, false));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketReplaceRailNode(pos, angle, false, false));
 
         if (!world.isClient()) {
             return;

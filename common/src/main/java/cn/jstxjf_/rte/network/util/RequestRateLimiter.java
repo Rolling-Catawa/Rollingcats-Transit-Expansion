@@ -1,7 +1,7 @@
 package cn.jstxjf_.rte.network.util;
 
-import org.mtr.mapping.holder.ServerPlayerEntity;
 
+import net.minecraft.server.level.ServerPlayer;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -21,13 +21,13 @@ public final class RequestRateLimiter {
     private RequestRateLimiter() {
     }
 
-    public static boolean allow(ServerPlayerEntity player, Channel channel, long minimumIntervalMillis) {
+    public static boolean allow(ServerPlayer player, Channel channel, long minimumIntervalMillis) {
         if (player == null || channel == null) {
             return false;
         }
         final UUID playerId;
         try {
-            playerId = ((net.minecraft.server.level.ServerPlayer) player.data).getUUID();
+            playerId = player.getUUID();
         } catch (Exception e) {
             return false;
         }

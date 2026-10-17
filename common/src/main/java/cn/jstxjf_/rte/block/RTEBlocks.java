@@ -31,5 +31,17 @@ public class RTEBlocks {
         RTECreativeModeTabs.EYE_CANDY
     );
 
+    public static net.minecraft.world.level.block.Block directNode() {
+        return DIRECT_NODE.get().data;
+    }
+
+    public static net.minecraft.world.level.block.Block freeNode() {
+        return FREE_NODE.get().data;
+    }
+
+    public static net.minecraft.world.level.block.Block eyeCandy() {
+        return EYE_CANDY.get().data;
+    }
+
     public static void init() {}
 }

@@ -26,16 +26,16 @@ public final class RTEFabricClient implements ClientModInitializer {
         });
         BlockEntityRendererRegistry.register(
             (net.minecraft.world.level.block.entity.BlockEntityType<cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode>)
-                RTEBlockEntityTypes.DIRECT_NODE.get().data,
+                RTEBlockEntityTypes.directNodeType(),
             ctx -> new BlockEntityDirectNodeRenderer(new org.mtr.mapping.mapper.BlockEntityRenderer.Argument(ctx))
         );
         BlockEntityRendererRegistry.register(
-            (net.minecraft.world.level.block.entity.BlockEntityType) RTEBlockEntityTypes.FREE_NODE.get().data,
+            (net.minecraft.world.level.block.entity.BlockEntityType) RTEBlockEntityTypes.freeNodeType(),
             ctx -> new BlockEntityDirectNodeRenderer(new org.mtr.mapping.mapper.BlockEntityRenderer.Argument(ctx))
         );
         BlockEntityRendererRegistry.register(
             (net.minecraft.world.level.block.entity.BlockEntityType<cn.jstxjf_.rte.block.BlockEyeCandy.BlockEntityEyeCandy>)
-                RTEBlockEntityTypes.EYE_CANDY.get().data,
+                RTEBlockEntityTypes.eyeCandyType(),
             ctx -> new BlockEntityEyeCandyRenderer(new org.mtr.mapping.mapper.BlockEntityRenderer.Argument(ctx))
         );
 

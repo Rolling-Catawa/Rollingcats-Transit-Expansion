@@ -1,14 +1,14 @@
 package cn.jstxjf_.rte.network;
 
+import net.minecraft.server.level.ServerPlayer;
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.BuildConfig;
 import cn.jstxjf_.rte.RTE;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.Init;
 
-public class PacketVersionCheck extends PacketHandler {
+public class PacketVersionCheck extends RtePacket {
 
     private final String remoteVersion;
     private final int remoteProtocolVersion;
@@ -28,7 +28,7 @@ public class PacketVersionCheck extends PacketHandler {
         this.remoteSyncFlags = remoteSyncFlags;
     }
 
-    public PacketVersionCheck(PacketBufferReceiver receiver) {
+    public PacketVersionCheck(RtePacketReader receiver) {
         remoteVersion = receiver.readString();
         remoteProtocolVersion = receiver.readInt();
         remoteManualNotchMultiplier = receiver.readInt();
@@ -41,7 +41,7 @@ public class PacketVersionCheck extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeString(remoteVersion);
         sender.writeInt(remoteProtocolVersion);
         sender.writeInt(remoteManualNotchMultiplier);
@@ -62,12 +62,12 @@ public class PacketVersionCheck extends PacketHandler {
     }
 
     @Override
-    public void runClient() {
+    protected void handleClient() {
         ClientHandler.apply(remoteVersion, remoteProtocolVersion, remoteManualNotchMultiplier, remoteSyncFlags);
     }
 
-    public static void sendVersionCheckS2C(ServerPlayerEntity player) {
-        Init.REGISTRY.sendPacketToClient(player, new PacketVersionCheck());
+    public static void sendVersionCheckS2C(ServerPlayer player) {
+        cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketVersionCheck());
     }
 
     /** Client-only linkage is isolated from the packet class loaded by dedicated servers. */

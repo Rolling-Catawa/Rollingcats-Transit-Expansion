@@ -267,9 +267,9 @@ public class RailRenderDispatcher {
         }
         toolItemsResolved = true;
         try { brushItem = Items.BRUSH.get().asItem().data; } catch (Exception ignored) {}
-        try { compoundCreatorItem = RTEItems.COMPOUND_CREATOR.get().asItem().data; } catch (Exception ignored) {}
-        try { displacementToolItem = RTEItems.DISPLACEMENT_TOOL.get().asItem().data; } catch (Exception ignored) {}
-        try { railPathEditorItem = RTEItems.RAIL_PATH_EDITOR.get().asItem().data; } catch (Exception ignored) {}
+        try { compoundCreatorItem = RTEItems.compoundCreator(); } catch (Exception ignored) {}
+        try { displacementToolItem = RTEItems.displacementTool(); } catch (Exception ignored) {}
+        try { railPathEditorItem = RTEItems.railPathEditor(); } catch (Exception ignored) {}
     }
     
     private boolean checkItemName(net.minecraft.world.item.ItemStack stack, String simpleName) {

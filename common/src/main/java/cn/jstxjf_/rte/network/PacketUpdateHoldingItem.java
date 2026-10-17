@@ -1,25 +1,25 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.RTE;
-import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.TagParser;
 import org.mtr.mapping.holder.CompoundTag;
 import org.mtr.mapping.holder.Hand;
 import org.mtr.mapping.holder.ItemStack;
 import org.mtr.mapping.holder.MinecraftClient;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
-public class PacketUpdateHoldingItem extends PacketHandler {
+public class PacketUpdateHoldingItem extends RtePacket {
 
     private final boolean isMainHand;
     private final boolean hasTag;
     private final String tagString;
 
-    public PacketUpdateHoldingItem(PacketBufferReceiver receiver) {
+    public PacketUpdateHoldingItem(RtePacketReader receiver) {
         isMainHand = receiver.readBoolean();
         hasTag = receiver.readBoolean();
         tagString = hasTag ? receiver.readString() : "";
@@ -35,7 +35,7 @@ public class PacketUpdateHoldingItem extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeBoolean(isMainHand);
         sender.writeBoolean(hasTag);
         if (hasTag) {
@@ -44,10 +44,9 @@ public class PacketUpdateHoldingItem extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
-            final Hand hand = isMainHand ? Hand.MAIN_HAND : Hand.OFF_HAND;
-            final ItemStack stack = player.getStackInHand(hand);
+            final ItemStack stack = new ItemStack(player.getItemInHand(isMainHand ? net.minecraft.world.InteractionHand.MAIN_HAND : net.minecraft.world.InteractionHand.OFF_HAND));
             if (stack.isEmpty()) {
                 return;
             }

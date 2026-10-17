@@ -1,19 +1,20 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.data.RouteRailColors;
 import net.minecraft.client.Minecraft;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class PacketRoutePathColors extends PacketHandler {
+public class PacketRoutePathColors extends RtePacket {
 
     private final Map<String, Integer> railColors;
 
-    public PacketRoutePathColors(PacketBufferReceiver receiver) {
+    public PacketRoutePathColors(RtePacketReader receiver) {
         final int size = receiver.readInt();
         railColors = new HashMap<>(Math.max(16, size));
         for (int i = 0; i < size; i++) {
@@ -27,7 +28,7 @@ public class PacketRoutePathColors extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeInt(railColors.size());
         railColors.forEach((railId, color) -> {
             sender.writeString(railId);
@@ -36,7 +37,7 @@ public class PacketRoutePathColors extends PacketHandler {
     }
 
     @Override
-    public void runClient() {
+    protected void handleClient() {
         Minecraft.getInstance().execute(() -> RouteRailColors.acceptGeneratedPathColors(railColors));
     }
 }

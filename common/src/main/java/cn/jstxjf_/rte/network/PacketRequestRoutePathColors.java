@@ -1,36 +1,35 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.mixin.SidingAccessor;
 import org.mtr.core.data.Depot;
 import org.mtr.core.data.PathData;
 import org.mtr.core.data.Rail;
 import org.mtr.core.data.Siding;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.Init;
-import org.mtr.mod.data.RailType;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class PacketRequestRoutePathColors extends PacketHandler {
+public class PacketRequestRoutePathColors extends RtePacket {
 
-    public PacketRequestRoutePathColors(PacketBufferReceiver receiver) {
+    public PacketRequestRoutePathColors(RtePacketReader receiver) {
     }
 
     public PacketRequestRoutePathColors() {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
             if (player == null) {
                 return;
@@ -40,7 +39,7 @@ public class PacketRequestRoutePathColors extends PacketHandler {
                 final org.mtr.core.simulation.Simulator simulator =
                     cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode.findSimulator(
                         new org.mtr.mapping.holder.World(
-                            ((net.minecraft.server.level.ServerPlayer) player.data).serverLevel()));
+                            player.serverLevel()));
                 if (simulator == null) {
                     return;
                 }
@@ -64,7 +63,7 @@ public class PacketRequestRoutePathColors extends PacketHandler {
             }
             cn.jstxjf_.rte.RTE.LOGGER.info("[RoutePathColors] sending {} rails to {}",
                 railColors.size(), player.getName().getString());
-            Init.REGISTRY.sendPacketToClient(player, new PacketRoutePathColors(railColors));
+            cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketRoutePathColors(railColors));
         });
     }
 

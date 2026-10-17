@@ -1,16 +1,17 @@
 package cn.jstxjf_.rte.network;
 
+import net.minecraft.server.level.ServerPlayer;
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.RTE;
 import cn.jstxjf_.rte.gui.*;
-import org.mtr.mod.Init;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionHand;
 import org.mtr.mapping.holder.*;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
 
-public class PacketScreen extends PacketHandler {
+public class PacketScreen extends RtePacket {
 
     public static final int SCREEN_EYE_CANDY = 0;
     public static final int SCREEN_BRUSH_EDIT_RAIL = 1;
@@ -22,7 +23,7 @@ public class PacketScreen extends PacketHandler {
     private final int screenId;
     private final int extra; // e.g., hand ordinal for item screens
 
-    public PacketScreen(PacketBufferReceiver receiver) {
+    public PacketScreen(RtePacketReader receiver) {
         this.posLong = receiver.readLong();
         this.screenId = receiver.readInt();
         this.extra = receiver.readInt();
@@ -41,29 +42,29 @@ public class PacketScreen extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeLong(posLong);
         sender.writeInt(screenId);
         sender.writeInt(extra);
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(net.minecraft.server.MinecraftServer server, ServerPlayer player) {
         // Forward to client
-        Init.REGISTRY.sendPacketToClient(player, this);
+        cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, this);
     }
 
     @Override
-    public void runClient() {
+    protected void handleClient() {
         ClientScreenHandler.openScreen(posLong, screenId, extra);
     }
 
-    public static void sendScreenToClient(ServerPlayerEntity player, BlockPos pos, int screenId) {
-        Init.REGISTRY.sendPacketToClient(player, new PacketScreen(pos, screenId));
+    public static void sendScreenToClient(ServerPlayer player, BlockPos pos, int screenId) {
+        cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketScreen(pos, screenId));
     }
 
-    public static void sendItemScreenToClient(ServerPlayerEntity player, int screenId, InteractionHand hand) {
-        Init.REGISTRY.sendPacketToClient(player, new PacketScreen(screenId, hand.ordinal()));
+    public static void sendItemScreenToClient(ServerPlayer player, int screenId, InteractionHand hand) {
+        cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketScreen(screenId, hand.ordinal()));
     }
 
     private static class ClientScreenHandler {

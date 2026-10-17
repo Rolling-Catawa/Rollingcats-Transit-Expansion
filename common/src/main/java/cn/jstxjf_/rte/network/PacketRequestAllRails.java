@@ -1,30 +1,30 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.data.RailExtraSupplier;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
 import org.mtr.core.simulation.Simulator;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import org.mtr.mapping.holder.Vector3d;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.Init;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-public class PacketRequestAllRails extends PacketHandler {
+public class PacketRequestAllRails extends RtePacket {
 
     private static final int PAGE_SIZE = 256;
     private static final int MAX_SAMPLES = 32;
 
     private final int page;
 
-    public PacketRequestAllRails(PacketBufferReceiver receiver) {
+    public PacketRequestAllRails(RtePacketReader receiver) {
         this.page = receiver.readInt();
     }
 
@@ -33,12 +33,12 @@ public class PacketRequestAllRails extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeInt(page);
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         if (!cn.jstxjf_.rte.RTEConfig.allowFullRailSync || page < 0) {
             return;
         }
@@ -50,7 +50,7 @@ public class PacketRequestAllRails extends PacketHandler {
                 final Simulator simulator =
                     cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode.findSimulator(
                         new org.mtr.mapping.holder.World(
-                            ((net.minecraft.server.level.ServerPlayer) player.data).serverLevel()));
+                            player.serverLevel()));
                 if (simulator == null) {
                     return;
                 }
@@ -70,7 +70,7 @@ public class PacketRequestAllRails extends PacketHandler {
                 }
                 final int from = (int) fromLong;
                 if (from >= all.size()) {
-                    Init.REGISTRY.sendPacketToClient(player, new PacketAllRails(page, false, List.of()));
+                    cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketAllRails(page, false, List.of()));
                     return;
                 }
                 final int to = Math.min(all.size(), from + PAGE_SIZE);
@@ -81,7 +81,7 @@ public class PacketRequestAllRails extends PacketHandler {
                         lines.add(line);
                     }
                 }
-                Init.REGISTRY.sendPacketToClient(player, new PacketAllRails(page, to < all.size(), lines));
+                cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketAllRails(page, to < all.size(), lines));
             } catch (Exception ignored) {
             }
         });

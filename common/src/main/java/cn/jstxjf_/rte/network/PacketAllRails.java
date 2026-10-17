@@ -1,15 +1,16 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.render.MapRailArchive;
 import net.minecraft.client.Minecraft;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PacketAllRails extends PacketHandler {
+public class PacketAllRails extends RtePacket {
 
     private final int page;
     private final boolean hasMore;
@@ -30,7 +31,7 @@ public class PacketAllRails extends PacketHandler {
         }
     }
 
-    public PacketAllRails(PacketBufferReceiver receiver) {
+    public PacketAllRails(RtePacketReader receiver) {
         this.page = receiver.readInt();
         this.hasMore = receiver.readBoolean();
         final int size = receiver.readInt();
@@ -56,7 +57,7 @@ public class PacketAllRails extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeInt(page);
         sender.writeBoolean(hasMore);
         sender.writeInt(lines.size());
@@ -75,7 +76,7 @@ public class PacketAllRails extends PacketHandler {
     }
 
     @Override
-    public void runClient() {
+    protected void handleClient() {
         Minecraft.getInstance().execute(() -> MapRailArchive.acceptServerRails(page, hasMore, lines));
     }
 }

@@ -92,8 +92,7 @@ public final class DepotRailMarking {
             return false;
         }
         final DepotRailRules.Rule next = DepotRailRules.cycle(depotId, hoveredRailId);
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(
-            new PacketSetDepotRailRule(depotId, hoveredRailId, next));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketSetDepotRailRule(depotId, hoveredRailId, next));
         final Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player != null) {
             minecraft.player.displayClientMessage(net.minecraft.network.chat.Component.literal(

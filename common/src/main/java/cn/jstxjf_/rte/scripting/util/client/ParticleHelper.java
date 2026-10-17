@@ -115,7 +115,7 @@ public class ParticleHelper {
             case "ELECTRIC_SPARK" -> ParticleTypes.ELECTRIC_SPARK;
             case "SCRAPE" -> ParticleTypes.SCRAPE;
             case "CHERRY_LEAVES" -> ParticleTypes.CHERRY_LEAVES;
-            case "STEAM_SMOKE" -> RTEParticleTypes.STEAM_SMOKE.get().data;
+            case "STEAM_SMOKE" -> RTEParticleTypes.steamSmoke();
             default -> throw new Exception("Invalid particle name: " + particleName);
         };
     }

@@ -72,7 +72,7 @@ public class EyeCandyScreen {
         public VirtualEyeCandy(Supplier<CompoundTag> tagSupplier, InteractionHand hand) {
             super(new org.mtr.mapping.holder.BlockPos(0, -1145141919, 0),
                 new org.mtr.mapping.holder.BlockState(
-                    cn.jstxjf_.rte.block.RTEBlocks.EYE_CANDY.get().data.defaultBlockState()));
+                    cn.jstxjf_.rte.block.RTEBlocks.eyeCandy().defaultBlockState()));
             this.hand = hand;
             readCompoundTag(new org.mtr.mapping.holder.CompoundTag(tagSupplier.get()));
             this.tagSupplier = tagSupplier;
@@ -81,8 +81,7 @@ public class EyeCandyScreen {
         @Override
         public void sendUpdateC2S() {
             writeCompoundTag(new org.mtr.mapping.holder.CompoundTag(tagSupplier.get()));
-            org.mtr.mod.InitClient.REGISTRY_CLIENT.sendPacketToServer(
-                new PacketUpdateHoldingItem(hand == InteractionHand.MAIN_HAND ? Hand.MAIN_HAND : Hand.OFF_HAND));
+            cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketUpdateHoldingItem(hand == InteractionHand.MAIN_HAND ? Hand.MAIN_HAND : Hand.OFF_HAND));
         }
     }
 }

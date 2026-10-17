@@ -1,5 +1,9 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.block.BlockDirectNode;
 import cn.jstxjf_.rte.block.BlockEyeCandy;
 import net.minecraft.nbt.TagParser;
@@ -7,21 +11,17 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import org.mtr.mapping.holder.BlockPos;
 import org.mtr.mapping.holder.BlockState;
 import org.mtr.mapping.holder.CompoundTag;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import org.mtr.mapping.mapper.BlockEntityExtension;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.InitClient;
 
-public class PacketUpdateBlockEntity extends PacketHandler {
+public class PacketUpdateBlockEntity extends RtePacket {
 
     private final BlockPos pos;
     private final boolean hasTag;
     private final String tagString;
 
-    public PacketUpdateBlockEntity(PacketBufferReceiver receiver) {
+    public PacketUpdateBlockEntity(RtePacketReader receiver) {
         pos = BlockPos.fromLong(receiver.readLong());
         hasTag = receiver.readBoolean();
         tagString = hasTag ? receiver.readString() : "";
@@ -37,7 +37,7 @@ public class PacketUpdateBlockEntity extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeLong(pos.asLong());
         sender.writeBoolean(hasTag);
         if (hasTag) {
@@ -46,9 +46,9 @@ public class PacketUpdateBlockEntity extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
-            final net.minecraft.server.level.ServerPlayer nativePlayer = (net.minecraft.server.level.ServerPlayer) player.data;
+            final net.minecraft.server.level.ServerPlayer nativePlayer = player;
             final BlockEntity blockEntity = nativePlayer.serverLevel().getBlockEntity(new net.minecraft.core.BlockPos(pos.getX(), pos.getY(), pos.getZ()));
             if (blockEntity == null) {
                 return;
@@ -83,6 +83,6 @@ public class PacketUpdateBlockEntity extends PacketHandler {
     }
 
     public static void sendUpdateC2S(BlockEntityExtension blockEntity) {
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketUpdateBlockEntity(blockEntity));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketUpdateBlockEntity(blockEntity));
     }
 }

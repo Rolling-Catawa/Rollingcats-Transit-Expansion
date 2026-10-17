@@ -1,22 +1,22 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import org.mtr.mapping.holder.BlockPos;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.InitClient;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import org.mtr.mod.block.BlockNode;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PacketPlaceParallelNodes extends PacketHandler {
+public class PacketPlaceParallelNodes extends RtePacket {
 
     private final List<long[]> nodes;
 
-    public PacketPlaceParallelNodes(PacketBufferReceiver receiver) {
+    public PacketPlaceParallelNodes(RtePacketReader receiver) {
         final int count = receiver.readInt();
         nodes = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
@@ -29,7 +29,7 @@ public class PacketPlaceParallelNodes extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeInt(nodes.size());
         for (final long[] entry : nodes) {
             sender.writeLong(entry[0]);
@@ -38,12 +38,12 @@ public class PacketPlaceParallelNodes extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
             if (player == null) {
                 return;
             }
-            final net.minecraft.server.level.ServerLevel level = ((net.minecraft.server.level.ServerPlayer) player.data).serverLevel();
+            final net.minecraft.server.level.ServerLevel level = player.serverLevel();
             for (final long[] entry : nodes) {
                 final BlockPos targetPos = BlockPos.fromLong(entry[0]);
                 final BlockPos sourcePos = BlockPos.fromLong(entry[1]);
@@ -84,6 +84,6 @@ public class PacketPlaceParallelNodes extends PacketHandler {
     }
 
     public static void sendPlaceC2S(List<long[]> nodes) {
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketPlaceParallelNodes(nodes));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketPlaceParallelNodes(nodes));
     }
 }

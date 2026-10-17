@@ -712,7 +712,7 @@ public class RoutePathCreatorScreen extends Screen {
     }
 
     private void syncHeldItem() {
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketUpdateHoldingItem(hand == InteractionHand.MAIN_HAND ? Hand.MAIN_HAND : Hand.OFF_HAND));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketUpdateHoldingItem(hand == InteractionHand.MAIN_HAND ? Hand.MAIN_HAND : Hand.OFF_HAND));
     }
 
     private Component getValidationError() {

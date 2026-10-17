@@ -1,15 +1,16 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.render.train.VehiclePathCache;
 import net.minecraft.client.Minecraft;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PacketVehiclePath extends PacketHandler {
+public class PacketVehiclePath extends RtePacket {
 
     public static final int MAX_SEGMENTS = 2048;
     public static final int MAX_SEGMENT_CHARS = 8192;
@@ -50,7 +51,7 @@ public class PacketVehiclePath extends PacketHandler {
         }
     }
 
-    public PacketVehiclePath(PacketBufferReceiver receiver) {
+    public PacketVehiclePath(RtePacketReader receiver) {
         this.vehicleId = receiver.readLong();
         final int encodedSize = receiver.readInt();
         this.includeGeometry = encodedSize < 0;
@@ -86,7 +87,7 @@ public class PacketVehiclePath extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeLong(vehicleId);
         sender.writeInt(includeGeometry ? -segments.size() - 1 : segments.size());
         long bytes = 12;
@@ -107,7 +108,7 @@ public class PacketVehiclePath extends PacketHandler {
         cn.jstxjf_.rte.network.util.SyncTraffic.addPath(bytes);
     }
 
-    private static String readGeometry(PacketBufferReceiver receiver) {
+    private static String readGeometry(RtePacketReader receiver) {
         final int length = receiver.readInt();
         if (length < 0 || length > MAX_SEGMENT_CHARS) {
             throw new IllegalArgumentException("Invalid path geometry length: " + length);
@@ -120,7 +121,7 @@ public class PacketVehiclePath extends PacketHandler {
     }
 
     @Override
-    public void runClient() {
+    protected void handleClient() {
         Minecraft.getInstance().execute(() -> VehiclePathCache.accept(vehicleId, segments));
     }
 }

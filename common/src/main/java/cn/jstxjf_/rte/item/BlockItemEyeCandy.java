@@ -77,7 +77,7 @@ public class BlockItemEyeCandy extends BlockItemExtension {
 
             public VirtualEyeCandy(Supplier<CompoundTag> tagSupplier) {
                 super(new org.mtr.mapping.holder.BlockPos(0, -1145141919, 0),
-                    new org.mtr.mapping.holder.BlockState(cn.jstxjf_.rte.block.RTEBlocks.EYE_CANDY.get().data.defaultBlockState()));
+                    new org.mtr.mapping.holder.BlockState(cn.jstxjf_.rte.block.RTEBlocks.eyeCandy().defaultBlockState()));
                 readCompoundTag(new org.mtr.mapping.holder.CompoundTag(tagSupplier.get()));
                 this.tagSupplier = tagSupplier;
             }

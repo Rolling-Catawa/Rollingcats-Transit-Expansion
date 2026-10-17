@@ -1,28 +1,28 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import org.mtr.core.data.PathData;
 import org.mtr.core.data.Rail;
 import org.mtr.core.data.Siding;
 import org.mtr.core.data.Vehicle;
 import org.mtr.core.simulation.Simulator;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.Init;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PacketRequestVehiclePath extends PacketHandler {
+public class PacketRequestVehiclePath extends RtePacket {
 
     private static final int MAX_SEGMENTS = 2048;
 
     private final long vehicleId;
     private final boolean includeGeometry;
 
-    public PacketRequestVehiclePath(PacketBufferReceiver receiver) {
+    public PacketRequestVehiclePath(RtePacketReader receiver) {
         this.vehicleId = receiver.readLong();
         boolean requested;
         try {
@@ -39,13 +39,13 @@ public class PacketRequestVehiclePath extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeLong(vehicleId);
         sender.writeBoolean(includeGeometry);
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         if (!cn.jstxjf_.rte.RTEConfig.allowVehiclePathSync) {
             return;
         }
@@ -61,7 +61,7 @@ public class PacketRequestVehiclePath extends PacketHandler {
                 final Simulator simulator =
                     cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode.findSimulator(
                         new org.mtr.mapping.holder.World(
-                            ((net.minecraft.server.level.ServerPlayer) player.data).serverLevel()));
+                            player.serverLevel()));
                 if (simulator == null) {
                     return;
                 }
@@ -73,7 +73,7 @@ public class PacketRequestVehiclePath extends PacketHandler {
                         }
                         final List<PacketVehiclePath.Segment> segments = collect(vehicle, includeGeometry);
                         if (!segments.isEmpty()) {
-                            Init.REGISTRY.sendPacketToClient(player, new PacketVehiclePath(vehicleId, segments, includeGeometry));
+                            cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketVehiclePath(vehicleId, segments, includeGeometry));
                         }
                         return;
                     }

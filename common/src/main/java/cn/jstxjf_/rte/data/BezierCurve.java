@@ -1,8 +1,8 @@
 package cn.jstxjf_.rte.data;
 
 import org.msgpack.core.MessagePacker;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
 import org.mtr.core.serializer.ReaderBase;
 import org.mtr.core.serializer.WriterBase;
 import org.msgpack.value.*;
@@ -54,7 +54,7 @@ public class BezierCurve {
         mapping();
     }
 
-    public BezierCurve(PacketBufferReceiver buf) {
+    public BezierCurve(RtePacketReader buf) {
         int size = buf.readInt();
         points = new ArrayList<>(size);
         for (int i = 0; i < size; i++) {
@@ -112,7 +112,7 @@ public class BezierCurve {
         messagePacker.packDouble(epsilon);
     }
 
-    public void save(PacketBufferSender buf) {
+    public void save(RtePacketWriter buf) {
         buf.writeInt(points.size());
         for (Vec3 point : points) {
             buf.writeDouble(point.x);

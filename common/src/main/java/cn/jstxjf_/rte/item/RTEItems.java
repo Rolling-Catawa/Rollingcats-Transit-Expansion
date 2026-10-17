@@ -32,5 +32,21 @@ public class RTEItems {
         RTECreativeModeTabs.CORE
     );
 
+    public static net.minecraft.world.item.Item compoundCreator() {
+        return COMPOUND_CREATOR.get().data;
+    }
+
+    public static net.minecraft.world.item.Item displacementTool() {
+        return DISPLACEMENT_TOOL.get().data;
+    }
+
+    public static net.minecraft.world.item.Item railPathEditor() {
+        return RAIL_PATH_EDITOR.get().data;
+    }
+
+    public static net.minecraft.world.item.Item routePathCreator() {
+        return ROUTE_PATH_CREATOR.get().data;
+    }
+
     public static void init() {}
 }

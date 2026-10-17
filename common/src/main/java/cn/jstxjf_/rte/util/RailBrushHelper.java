@@ -176,7 +176,7 @@ public final class RailBrushHelper {
         }
 
         if (hand != null) {
-            InitClient.REGISTRY_CLIENT.sendPacketToServer(new PacketUpdateHoldingItem(hand));
+            cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketUpdateHoldingItem(hand));
         }
     }
 

@@ -1,19 +1,19 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import org.mtr.core.data.Vehicle;
 import org.mtr.core.simulation.Simulator;
 import org.mtr.core.tool.Vector;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.Init;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PacketRequestVehicleMarkers extends PacketHandler {
+public class PacketRequestVehicleMarkers extends RtePacket {
 
     private static final int MAX_MARKERS = 4096;
 
@@ -22,7 +22,7 @@ public class PacketRequestVehicleMarkers extends PacketHandler {
     private final double maxX;
     private final double maxZ;
 
-    public PacketRequestVehicleMarkers(PacketBufferReceiver receiver) {
+    public PacketRequestVehicleMarkers(RtePacketReader receiver) {
         this.minX = receiver.readDouble();
         this.minZ = receiver.readDouble();
         this.maxX = receiver.readDouble();
@@ -37,7 +37,7 @@ public class PacketRequestVehicleMarkers extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeDouble(minX);
         sender.writeDouble(minZ);
         sender.writeDouble(maxX);
@@ -45,7 +45,7 @@ public class PacketRequestVehicleMarkers extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         if (!cn.jstxjf_.rte.RTEConfig.allowVehicleMarkerSync) {
             return;
         }
@@ -66,7 +66,7 @@ public class PacketRequestVehicleMarkers extends PacketHandler {
                 final Simulator simulator =
                     cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode.findSimulator(
                         new org.mtr.mapping.holder.World(
-                            ((net.minecraft.server.level.ServerPlayer) player.data).serverLevel()));
+                            player.serverLevel()));
                 if (simulator == null) {
                     return;
                 }
@@ -92,7 +92,7 @@ public class PacketRequestVehicleMarkers extends PacketHandler {
             } catch (Exception e) {
                 return;
             }
-            Init.REGISTRY.sendPacketToClient(player, new PacketVehicleMarkers(markers));
+            cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketVehicleMarkers(markers));
         });
     }
 

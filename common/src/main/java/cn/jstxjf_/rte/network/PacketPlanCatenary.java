@@ -1,17 +1,17 @@
 package cn.jstxjf_.rte.network;
 
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
+
 import cn.jstxjf_.rte.data.MsdBridge;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
-import org.mtr.mod.InitClient;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class PacketPlanCatenary extends PacketHandler {
+public class PacketPlanCatenary extends RtePacket {
 
     private final String typeName;
     private final List<long[]> placements;
@@ -21,7 +21,7 @@ public class PacketPlanCatenary extends PacketHandler {
     private final List<Double> rotations;
     private final List<long[]> links;
 
-    public PacketPlanCatenary(PacketBufferReceiver receiver) {
+    public PacketPlanCatenary(RtePacketReader receiver) {
         typeName = receiver.readString();
         final int nodeCount = receiver.readInt();
         placements = new ArrayList<>(nodeCount);
@@ -56,7 +56,7 @@ public class PacketPlanCatenary extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeString(typeName);
         sender.writeInt(placements.size());
         for (int i = 0; i < placements.size(); i++) {
@@ -77,12 +77,12 @@ public class PacketPlanCatenary extends PacketHandler {
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
             if (player == null || !MsdBridge.isLoaded()) {
                 return;
             }
-            final net.minecraft.server.level.ServerLevel level = ((net.minecraft.server.level.ServerPlayer) player.data).serverLevel();
+            final net.minecraft.server.level.ServerLevel level = player.serverLevel();
             MsdBridge.serverPlacePlanned(level, placements, offsets, blockIds, facings, rotations, links, typeName);
         });
     }
@@ -90,7 +90,6 @@ public class PacketPlanCatenary extends PacketHandler {
     public static void sendPlanC2S(String typeName, List<long[]> placements, List<double[]> offsets,
                                    List<String> blockIds, List<Integer> facings, List<Double> rotations,
                               List<long[]> links) {
-        InitClient.REGISTRY_CLIENT.sendPacketToServer(
-            new PacketPlanCatenary(typeName, placements, offsets, blockIds, facings, rotations, links));
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(new PacketPlanCatenary(typeName, placements, offsets, blockIds, facings, rotations, links));
     }
 }

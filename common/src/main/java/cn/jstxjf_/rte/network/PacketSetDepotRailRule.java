@@ -1,19 +1,20 @@
 package cn.jstxjf_.rte.network;
 
-import cn.jstxjf_.rte.data.DepotRailRules;
-import org.mtr.mapping.holder.MinecraftServer;
-import org.mtr.mapping.holder.ServerPlayerEntity;
-import org.mtr.mapping.registry.PacketHandler;
-import org.mtr.mapping.tool.PacketBufferReceiver;
-import org.mtr.mapping.tool.PacketBufferSender;
+import cn.jstxjf_.rte.bridge.network.RtePacket;
+import cn.jstxjf_.rte.bridge.network.RtePacketReader;
+import cn.jstxjf_.rte.bridge.network.RtePacketWriter;
 
-public class PacketSetDepotRailRule extends PacketHandler {
+import cn.jstxjf_.rte.data.DepotRailRules;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+
+public class PacketSetDepotRailRule extends RtePacket {
 
     private final long depotId;
     private final String railId;
     private final int rule;
 
-    public PacketSetDepotRailRule(PacketBufferReceiver receiver) {
+    public PacketSetDepotRailRule(RtePacketReader receiver) {
         depotId = receiver.readLong();
         railId = receiver.readString();
         rule = receiver.readInt();
@@ -26,14 +27,14 @@ public class PacketSetDepotRailRule extends PacketHandler {
     }
 
     @Override
-    public void write(PacketBufferSender sender) {
+    protected void write(RtePacketWriter sender) {
         sender.writeLong(depotId);
         sender.writeString(railId);
         sender.writeInt(rule);
     }
 
     @Override
-    public void runServer(MinecraftServer server, ServerPlayerEntity player) {
+    protected void handleServer(MinecraftServer server, ServerPlayer player) {
         server.execute(() -> {
             if (player == null || railId.isEmpty()) {
                 return;

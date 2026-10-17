@@ -383,7 +383,7 @@ config/rte/mapcache/<世界标识>.rtemap
 | `legacyDefaultTextureFallback` | 开 | MTR 4 只认路径严格等于 `default.png` 的基础贴图，老包常写成 `xxx/default.png`。开启后改为按文件名匹配 |
 | `legacyVehicleTakeover` | 关 | **实验性** —— 由 RTE 直接解析老包的 obj 车辆定义并接管渲染，绕开 MTR 的转换链。仅对 obj 车生效，bbmodel 车不受影响 |
 | `autoGangwayPolicy` | 开 | 资源包自带贯通道（`gangway_connection_id` 为空或指向 `air`）时，自动抑制内置贯通道，避免重叠 |
-| `fixLegacyPlugDoors` | 关 | 老包塞拉门的开门动画修正 |
+| `fixLegacyPlugDoorX` | 关 | 老包塞拉门的开门动画修正 |
 | `mirrorReversedDoorways` | 关 | 反向车厢的门洞镜像 |
 | `traceDoorSides` | 关 | 排查用 —— 在日志打印每节车的开门侧判定 |
 | `legacyFlippedPositionFix` | `off` | 排查用 —— 为缺失 `positionsFlipped` 的位置定义补齐数据，可填 `off` / `copy` / `mirror`。**经查证 MTR 4 的镜像转换本身是正确的，此项无需开启** |

@@ -21,7 +21,6 @@ public class LegacyPlugDoorFixMixin {
     private static final ThreadLocal<String> RTE_RENDER_CONDITION = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> RTE_DROP_PART = new ThreadLocal<>();
     private static final ThreadLocal<String> RTE_RENDER_STAGE = new ThreadLocal<>();
-    private static final ThreadLocal<Boolean> RTE_IS_OBJ = new ThreadLocal<>();
 
     /**
      * Older MTR packs use the singular DOOR_* spelling.  MTR 4's legacy
@@ -30,7 +29,7 @@ public class LegacyPlugDoorFixMixin {
      * the spelling before the converter's condition switch runs.
      */
     @Inject(
-        method = "lambda$processModel$6",
+        method = {"lambda$processModel$6", "lambda$processModel$4"},
         at = @At("HEAD"),
         require = 0
     )
@@ -43,7 +42,6 @@ public class LegacyPlugDoorFixMixin {
             RTE_OUTPUT_SIZE.set(outputParts == null ? 0 : outputParts.size());
             RTE_DOOR_SIDE.set("");
             RTE_RENDER_CONDITION.set("");
-            RTE_IS_OBJ.set(unused8);
             if (sourceElement == null || !sourceElement.isJsonObject()) {
                 return;
             }
@@ -92,7 +90,7 @@ public class LegacyPlugDoorFixMixin {
     }
 
     @Inject(
-        method = "lambda$processModel$6",
+        method = {"lambda$processModel$6", "lambda$processModel$4"},
         at = @At("RETURN"), require = 0
     )
     private void rte$retainLegacyDoorMetadata(
@@ -140,7 +138,6 @@ public class LegacyPlugDoorFixMixin {
             RTE_RENDER_CONDITION.remove();
             RTE_DROP_PART.remove();
             RTE_RENDER_STAGE.remove();
-            RTE_IS_OBJ.remove();
         }
     }
 
@@ -152,23 +149,22 @@ public class LegacyPlugDoorFixMixin {
         ),
         require = 0
     )
-    private void rte$restoreLegacyObjDoorAxis(JsonObject target, String key, Number value) {
+    private void rte$flipPlugDoorX(JsonObject target, String key, Number value) {
         Number finalValue = value;
         try {
             if (cn.jstxjf_.rte.ClientConfig.fixLegacyPlugDoors
-                    && "doorZMultiplier".equals(key)
-                    && Boolean.TRUE.equals(RTE_IS_OBJ.get())
+                    && "doorXMultiplier".equals(key)
                     && value != null
                     && value.doubleValue() != 0) {
                 finalValue = -value.doubleValue();
                 if (++rte$fixedParts <= 5) {
                     cn.jstxjf_.rte.RTE.LOGGER.info(
-                        "[LegacyDoorAxis] doorZMultiplier {} -> {}", value.doubleValue(), finalValue.doubleValue());
+                        "[LegacyPlugDoor] doorXMultiplier {} -> {}", value.doubleValue(), finalValue.doubleValue());
                 }
             }
             if (!rte$hookReported) {
                 rte$hookReported = true;
-                cn.jstxjf_.rte.RTE.LOGGER.info("[LegacyDoorAxis] hook active");
+                cn.jstxjf_.rte.RTE.LOGGER.info("[LegacyPlugDoor] hook active");
             }
         } catch (Throwable ignored) {
             finalValue = value;

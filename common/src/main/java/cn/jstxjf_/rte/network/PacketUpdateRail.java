@@ -115,31 +115,21 @@ public class PacketUpdateRail extends PacketHandler {
             final boolean sameOrder = sourceP1 == null || rebuiltP1 == null
                 || (sourceP1.getX() == rebuiltP1.getX() && sourceP1.getY() == rebuiltP1.getY()
                     && sourceP1.getZ() == rebuiltP1.getZ());
-            final double preciseRad1 = sameOrder ? sourceRad1 : wrapRadians(sourceRad2 + Math.PI);
-            final double preciseRad2 = sameOrder ? sourceRad2 : wrapRadians(sourceRad1 + Math.PI);
+            final double preciseRad1 = sameOrder ? sourceRad1 : sourceRad2;
+            final double preciseRad2 = sameOrder ? sourceRad2 : sourceRad1;
             rebuiltExtra.setExtraAngle1Rad(preciseRad1);
             rebuiltExtra.setExtraAngle2Rad(preciseRad2);
             final int pathMode = origExtra.getPathMode();
             rebuiltExtra.setPathModeRaw(pathMode);
             final cn.jstxjf_.rte.data.BezierCurve sourceCurve = origExtra.getBezierCurve();
             if (sourceCurve != null) {
-                rebuiltExtra.setBezier(sourceCurve);
+                rebuiltExtra.setBezier(sameOrder ? sourceCurve : sourceCurve.getTransposition());
             }
             if (Double.isFinite(preciseRad1) && Double.isFinite(preciseRad2)) {
                 cn.jstxjf_.rte.data.RailAngleExtra.rebuildRailMath(rebuilt, preciseRad1, preciseRad2);
             }
         }
         sendUpdateC2S(source, rebuilt);
-    }
-
-    private static double wrapRadians(double rad) {
-        rad = rad % (2 * Math.PI);
-        if (rad <= -Math.PI) {
-            rad += 2 * Math.PI;
-        } else if (rad > Math.PI) {
-            rad -= 2 * Math.PI;
-        }
-        return rad;
     }
 
     public static void sendUpdateC2S(Rail original, Rail rebuilt) {

@@ -27,6 +27,7 @@ public class ImGuiResourceWorkbenchScreen extends ImGuiScreenBase {
     private int selectedIndex = -1;
     private JsonObject editedJson;
     private String statusLine = "";
+    private final List<JsonObject> exportBatch = new ArrayList<>();
 
     private final ImString search = new ImString(128);
     private final ImString copyId = new ImString(128);
@@ -200,6 +201,28 @@ public class ImGuiResourceWorkbenchScreen extends ImGuiScreenBase {
             final java.nio.file.Path zip = ResourceWorkbench.exportPack(editedJson, packName);
             statusLine = zip == null ? t("gui.rte.workbench.export_failed")
                 : t("gui.rte.workbench.pack_exported", zip.getFileName().toString());
+        }
+        ImGui.sameLine();
+        if (ImGui.button(t("gui.rte.workbench.batch_add", exportBatch.size()) + "###wb_batch_add")) {
+            final JsonObject copy = org.mtr.core.tool.Utilities.parseJson(editedJson.toString());
+            final String id = copy.has("id") ? copy.get("id").getAsString() : "";
+            exportBatch.removeIf(entry -> entry.has("id") && entry.get("id").getAsString().equals(id));
+            exportBatch.add(copy);
+            statusLine = t("gui.rte.workbench.batch_added", exportBatch.size());
+        }
+        if (!exportBatch.isEmpty()) {
+            ImGui.sameLine();
+            if (ImGui.button(t("gui.rte.workbench.batch_export") + "###wb_batch_export")) {
+                final String packName = copyId.get().isBlank() ? "rte_batch" : copyId.get().trim();
+                final java.nio.file.Path zip = ResourceWorkbench.exportPack(exportBatch, packName);
+                statusLine = zip == null ? t("gui.rte.workbench.export_failed")
+                    : t("gui.rte.workbench.pack_exported", zip.getFileName().toString());
+            }
+            ImGui.sameLine();
+            if (ImGui.button(t("gui.rte.workbench.batch_clear") + "###wb_batch_clear")) {
+                exportBatch.clear();
+                statusLine = "";
+            }
         }
         ImGui.sameLine();
         if (ImGui.button(t("gui.rte.workbench.reset") + "###wb_reset")) {

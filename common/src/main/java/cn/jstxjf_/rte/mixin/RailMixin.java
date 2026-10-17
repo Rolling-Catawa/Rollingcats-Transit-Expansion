@@ -737,9 +737,9 @@ public abstract class RailMixin implements RailExtraSupplier {
         Angle a1 = getExtraAngle1();
         Angle a2 = getExtraAngle2();
         if (p1 == null || p2 == null || a1 == null || a2 == null) return (Rail)(Object)this;
-        final Angle ra2 = a2.getOpposite();
-        final Angle ra1 = a1.getOpposite();
-        Rail result = RailRebuildHelper.rebuildWithEndpoints((Rail)(Object)this, p2, ra2, p1, ra1);
+        final double newRad1 = Double.isFinite(rte$angle2Rad) ? rte$angle2Rad : a2.angleRadians;
+        final double newRad2 = Double.isFinite(rte$angle1Rad) ? rte$angle1Rad : a1.angleRadians;
+        Rail result = RailRebuildHelper.rebuildWithEndpoints((Rail)(Object)this, p2, a2, p1, a1);
         long sl1 = rte$accessor().rte$getSpeedLimit1();
         long sl2 = rte$accessor().rte$getSpeedLimit2();
         if (sl1 != sl2) {
@@ -766,9 +766,9 @@ public abstract class RailMixin implements RailExtraSupplier {
             sourceRoll.forEach((distance, angle) -> flipped.put(totalLength - distance, -angle));
             extra.setRollAngleMap(flipped);
         }
-        extra.setExtraAngle1Rad(ra2.angleRadians);
-        extra.setExtraAngle2Rad(ra1.angleRadians);
-        RailAngleExtra.correctStraightRailMathIfApplicable(result, ra2.angleRadians, ra1.angleRadians);
+        extra.setExtraAngle1Rad(newRad1);
+        extra.setExtraAngle2Rad(newRad2);
+        RailAngleExtra.correctStraightRailMathIfApplicable(result, newRad1, newRad2);
         return result;
     }
 

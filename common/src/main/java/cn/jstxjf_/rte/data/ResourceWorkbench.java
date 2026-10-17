@@ -205,19 +205,33 @@ public final class ResourceWorkbench {
     }
 
     public static Path exportPack(JsonObject vehicleSnapshot, String packName) {
+        return exportPack(List.of(vehicleSnapshot), packName);
+    }
+
+    public static Path exportPack(List<JsonObject> vehicleSnapshots, String packName) {
         try {
             final String packNs = sanitizeNamespace(packName);
-            final JsonObject vehicle = org.mtr.core.tool.Utilities.parseJson(vehicleSnapshot.toString());
-
             final java.util.LinkedHashMap<String, byte[]> files = new java.util.LinkedHashMap<>();
             final java.util.LinkedHashSet<String> textureIds = new java.util.LinkedHashSet<>();
             final java.util.List<String> missing = new ArrayList<>();
-            rewriteAndCollect(vehicle, packNs, files, textureIds, missing);
+            final org.mtr.libraries.com.google.gson.JsonArray vehiclesArray = new org.mtr.libraries.com.google.gson.JsonArray();
+            final java.util.Map<String, com.google.gson.JsonObject> soundDefinitions = new java.util.TreeMap<>();
+            final java.util.Set<String> vehicleIds = new java.util.HashSet<>();
+            for (final JsonObject vehicleSnapshot : vehicleSnapshots) {
+                final JsonObject vehicle = org.mtr.core.tool.Utilities.parseJson(vehicleSnapshot.toString());
+                if (vehicle.has("id") && !vehicleIds.add(vehicle.get("id").getAsString())) {
+                    continue;
+                }
+                collectSoundDependencies(vehicle, files, soundDefinitions, missing);
+                rewriteAndCollect(vehicle, packNs, files, textureIds, missing);
+                vehiclesArray.add(vehicle);
+            }
             collectObjDependencies(files, packNs, missing);
+            for (final java.util.Map.Entry<String, com.google.gson.JsonObject> entry : soundDefinitions.entrySet()) {
+                files.put("assets/" + entry.getKey() + "/sounds.json", entry.getValue().toString().getBytes(StandardCharsets.UTF_8));
+            }
 
             final JsonObject root = new JsonObject();
-            final org.mtr.libraries.com.google.gson.JsonArray vehiclesArray = new org.mtr.libraries.com.google.gson.JsonArray();
-            vehiclesArray.add(vehicle);
             root.add("vehicles", vehiclesArray);
             final org.mtr.libraries.com.google.gson.JsonArray textureArray = new org.mtr.libraries.com.google.gson.JsonArray();
             for (final String textureId : textureIds) {
@@ -284,6 +298,122 @@ public final class ResourceWorkbench {
             } else {
                 rewriteAndCollect(value, packNs, files, textureIds, missing);
             }
+        }
+    }
+
+    private static void collectSoundDependencies(JsonObject vehicle, java.util.Map<String, byte[]> files,
+                                                 java.util.Map<String, com.google.gson.JsonObject> soundDefinitions,
+                                                 java.util.List<String> missing) {
+        final String bveBase = stringField(vehicle, "bveSoundBaseResource");
+        if (!bveBase.isEmpty()) {
+            final ResourceLocation bveLocation = bveBase.contains(":") ? ResourceLocation.tryParse(bveBase) : new ResourceLocation("mtr", bveBase);
+            if (bveLocation != null) {
+                collectSoundEvents(bveLocation.getNamespace(), bveLocation.getPath() + "_", files, soundDefinitions, missing);
+                Minecraft.getInstance().getResourceManager().listResources("sounds/" + bveLocation.getPath(),
+                    location -> location.getNamespace().equals(bveLocation.getNamespace()) && !location.getPath().endsWith(".ogg")
+                ).forEach((location, resource) -> {
+                    if (isResourcePackSource(resource)) {
+                        final byte[] bytes = readResource(resource);
+                        if (bytes != null) {
+                            files.putIfAbsent("assets/" + location.getNamespace() + "/" + location.getPath(), bytes);
+                        }
+                    }
+                });
+            }
+        }
+        for (final String key : List.of("legacySpeedSoundBaseResource", "legacyDoorSoundBaseResource")) {
+            final String base = stringField(vehicle, key);
+            if (!base.isEmpty()) {
+                collectSoundEvents("mtr", base, files, soundDefinitions, missing);
+            }
+        }
+    }
+
+    private static void collectSoundEvents(String namespace, String eventPrefix, java.util.Map<String, byte[]> files,
+                                           java.util.Map<String, com.google.gson.JsonObject> soundDefinitions,
+                                           java.util.List<String> missing) {
+        for (final Resource resource : Minecraft.getInstance().getResourceManager().getResourceStack(new ResourceLocation(namespace, "sounds.json"))) {
+            if (!isResourcePackSource(resource)) {
+                continue;
+            }
+            final byte[] bytes = readResource(resource);
+            if (bytes == null) {
+                continue;
+            }
+            final com.google.gson.JsonObject events;
+            try {
+                events = com.google.gson.JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8)).getAsJsonObject();
+            } catch (Exception e) {
+                continue;
+            }
+            for (final java.util.Map.Entry<String, com.google.gson.JsonElement> event : events.entrySet()) {
+                if (!event.getKey().startsWith(eventPrefix) || !event.getValue().isJsonObject()) {
+                    continue;
+                }
+                final com.google.gson.JsonObject exported = soundDefinitions.computeIfAbsent(namespace, ignored -> new com.google.gson.JsonObject());
+                if (exported.has(event.getKey())) {
+                    continue;
+                }
+                exported.add(event.getKey(), event.getValue().deepCopy());
+                final com.google.gson.JsonElement sounds = event.getValue().getAsJsonObject().get("sounds");
+                if (sounds == null || !sounds.isJsonArray()) {
+                    continue;
+                }
+                for (final com.google.gson.JsonElement sound : sounds.getAsJsonArray()) {
+                    final String name = soundFileName(sound);
+                    if (name == null) {
+                        continue;
+                    }
+                    final ResourceLocation soundName = name.contains(":") ? ResourceLocation.tryParse(name) : new ResourceLocation(namespace, name);
+                    if (soundName == null) {
+                        continue;
+                    }
+                    final String zipPath = "assets/" + soundName.getNamespace() + "/sounds/" + soundName.getPath() + ".ogg";
+                    if (!files.containsKey(zipPath)) {
+                        final byte[] ogg = readResourceBytes(soundName.getNamespace() + ":sounds/" + soundName.getPath() + ".ogg");
+                        if (ogg == null) {
+                            missing.add(zipPath);
+                        } else {
+                            files.put(zipPath, ogg);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static String soundFileName(com.google.gson.JsonElement sound) {
+        if (sound.isJsonPrimitive()) {
+            return sound.getAsString();
+        }
+        if (!sound.isJsonObject()) {
+            return null;
+        }
+        final com.google.gson.JsonObject object = sound.getAsJsonObject();
+        if (!object.has("name") || object.has("type") && "event".equals(object.get("type").getAsString())) {
+            return null;
+        }
+        return object.get("name").getAsString();
+    }
+
+    private static boolean isResourcePackSource(Resource resource) {
+        final String source = resource.sourcePackId();
+        return source.startsWith("file/") || source.equals("world") || source.equals("server");
+    }
+
+    private static byte[] readResource(Resource resource) {
+        try (InputStream inputStream = resource.open()) {
+            return inputStream.readAllBytes();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static String stringField(JsonObject object, String key) {
+        try {
+            return object.has(key) && object.get(key).isJsonPrimitive() ? object.get(key).getAsString().trim() : "";
+        } catch (Exception e) {
+            return "";
         }
     }
 

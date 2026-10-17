@@ -12,16 +12,21 @@ public class AtlasSprite {
     public int frameX, frameY, frameWidth, frameHeight;
     public int spriteX, spriteY, spriteWidth, spriteHeight;
     public int sourceWidth, sourceHeight;
-    public boolean rotated; // TODO
+    public boolean rotated;
 
     public void applyToMesh(RawMesh mesh) {
         boolean uvBleeding = false;
         for (Vertex vertex : mesh.vertices) {
-            vertex.u = mapRange(vertex.u, (float)spriteX / sourceWidth, (float)(spriteX + spriteWidth) / sourceWidth, 0, 1);
-            vertex.v = mapRange(vertex.v, (float)spriteY / spriteHeight, (float)(spriteY + spriteHeight) / sourceHeight, 0, 1);
-            if (vertex.u < 0 || vertex.u > 1 || vertex.v < 0 || vertex.v > 1) uvBleeding = true;
-            vertex.u = mapRange(vertex.u, 0, 1, (float)frameX / sheetWidth, (float)(frameX + frameWidth) / sheetWidth);
-            vertex.v = mapRange(vertex.v, 0, 1, (float)frameY / sheetHeight, (float)(frameY + frameHeight) / sheetHeight);
+            final float spriteU = mapRange(vertex.u, (float)spriteX / sourceWidth, (float)(spriteX + spriteWidth) / sourceWidth, 0, 1);
+            final float spriteV = mapRange(vertex.v, (float)spriteY / sourceHeight, (float)(spriteY + spriteHeight) / sourceHeight, 0, 1);
+            if (spriteU < 0 || spriteU > 1 || spriteV < 0 || spriteV > 1) uvBleeding = true;
+            if (rotated) {
+                vertex.u = (frameX + (1 - spriteV) * frameHeight) / sheetWidth;
+                vertex.v = (frameY + spriteU * frameWidth) / sheetHeight;
+            } else {
+                vertex.u = (frameX + spriteU * frameWidth) / sheetWidth;
+                vertex.v = (frameY + spriteV * frameHeight) / sheetHeight;
+            }
         }
         if (uvBleeding) {
             Logging.LOGGER.warn("UV bleeding into adjacent sprite in " + mesh.materialProp.texture);

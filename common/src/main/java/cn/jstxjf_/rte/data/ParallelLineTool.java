@@ -319,7 +319,7 @@ public final class ParallelLineTool {
             double a2 = sameOrder ? srcA2 : srcA1;
             if (!Double.isFinite(a1) || !Double.isFinite(a2)) {
                 a1 = Math.atan2(chordZ, chordX);
-                a2 = a1;
+                a2 = Math.atan2(-chordZ, -chordX);
             }
             angleStart = a1;
             angleEnd = a2;
@@ -355,7 +355,7 @@ public final class ParallelLineTool {
             final Vec3 headNext = controls.get(1);
             final Vec3 tailPrev = controls.get(controls.size() - 2);
             angleStart = Math.atan2(headNext.z - offStart.z, headNext.x - offStart.x);
-            angleEnd = Math.atan2(offEnd.z - tailPrev.z, offEnd.x - tailPrev.x);
+            angleEnd = Math.atan2(tailPrev.z - offEnd.z, tailPrev.x - offEnd.x);
         }
 
         final Rail[] rebuiltHolder = new Rail[1];

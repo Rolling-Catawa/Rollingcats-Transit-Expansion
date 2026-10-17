@@ -45,31 +45,9 @@ public class RenderRailsMixin {
 
     @Inject(method = "renderNode", at = @At("HEAD"), cancellable = true, remap = false)
     private static void rte$skipDirectNodeBar(BlockState blockState, BlockPos blockPos, java.util.function.BooleanSupplier shouldRender, int light, CallbackInfo ci) {
-        if (!(blockState.getBlock().data instanceof BlockDirectNode)) {
-            return;
-        }
-        if (blockState.getBlock().data instanceof cn.jstxjf_.rte.block.BlockFreeNode) {
+        if (blockState.getBlock().data instanceof BlockDirectNode) {
             ci.cancel();
-            return;
         }
-        final net.minecraft.client.multiplayer.ClientLevel level = net.minecraft.client.Minecraft.getInstance().level;
-        final Object blockEntity = level == null ? null : level.getBlockEntity(blockPos.data);
-        if (!(blockEntity instanceof BlockDirectNode.BlockEntityDirectNode node) || !node.isBound()) {
-            return;
-        }
-        ci.cancel();
-        if (!shouldRender.getAsBoolean()) {
-            return;
-        }
-        final org.mtr.mod.render.StoredMatrixTransformations transformations = new org.mtr.mod.render.StoredMatrixTransformations(
-            blockPos.getX() + 0.5 + node.getXOffset(), blockPos.getY() + node.getYOffset(), blockPos.getZ() + 0.5 + node.getZOffset());
-        final float rotation = (float) (90 - node.getAngleDegrees());
-        transformations.add(graphicsHolder -> {
-            graphicsHolder.rotateYDegrees(rotation);
-            graphicsHolder.scale(4, 0.5F, 0.5F);
-            graphicsHolder.translate(-0.5, 0, -0.5);
-        });
-        RenderRailsNodeInvoker.rte$getSmallCube().render(transformations, light);
     }
 
     @Redirect(

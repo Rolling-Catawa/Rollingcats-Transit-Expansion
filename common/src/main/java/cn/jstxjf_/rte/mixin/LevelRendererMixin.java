@@ -101,6 +101,7 @@ public class LevelRendererMixin {
                 poseStack.popPose();
             }
 
+            RTEClient.railRenderDispatcher.drawRailNodes(client.level, RTEClient.drawScheduler, viewMatrix);
         }
 
         RTEClient.drawContext.drawWithBlaze = !ClientConfig.useRenderOptimization();

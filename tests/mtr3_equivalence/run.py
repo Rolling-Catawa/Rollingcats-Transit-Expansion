@@ -139,7 +139,8 @@ check("GLFW_KEY_V" in free_node_editor_source and "GLFW_KEY_Z" in free_node_edit
       and "GLFW_KEY_Y" in free_node_editor_source, "free-node gizmo supports clipboard and history shortcuts")
 check("0.0625" in free_node_editor_source and "0.0001" in free_node_editor_source,
       "free-node gizmo uses Axiom-style snapping precision")
-check("rail_node_vertical" not in direct_node_renderer_source, "legacy node marker bar removed")
+check("rail_node_vertical" in direct_node_renderer_source and "rail_node_connection" in direct_node_renderer_source,
+      "direct node keeps its vertical and connection models")
 check("/assets/mtr/font/noto-sans-cjk-tc-medium.otf" in imgui_host_source,
       "ImGui ships a Linux-independent CJK font")
 check("graphics.flush()" in imgui_screen_source, "ImGui background is submitted before direct GL rendering")

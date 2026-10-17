@@ -281,6 +281,76 @@ public class RailRenderDispatcher {
         return item != null && (mainHand.getItem() == item || offHand.getItem() == item);
     }
 
+    public void drawRailNodes(net.minecraft.world.level.Level level, DrawScheduler drawScheduler, Matrix4f viewMatrix) {
+        if (!isHoldingRailItemOrBrush || RailModelRegistry.railNodeModel == null) {
+            return;
+        }
+        final var rails = MinecraftClientData.getInstance().positionsToRail;
+        if (rails == null) {
+            return;
+        }
+        final HashSet<Position> drawnNodes = new HashSet<>();
+        for (final var entryStart : rails.entrySet()) {
+            for (final var entryEnd : entryStart.getValue().entrySet()) {
+                final Rail rail = entryEnd.getValue();
+                if (drawnNodes.add(entryStart.getKey())) {
+                    enqueueRailNode(level, drawScheduler, viewMatrix, rail, entryStart.getKey());
+                }
+                if (drawnNodes.add(entryEnd.getKey())) {
+                    enqueueRailNode(level, drawScheduler, viewMatrix, rail, entryEnd.getKey());
+                }
+            }
+        }
+    }
+
+    private void enqueueRailNode(net.minecraft.world.level.Level level, DrawScheduler drawScheduler, Matrix4f viewMatrix, Rail rail, Position node) {
+        final boolean isEnd = isNodeAtRailEnd(rail, node);
+        double x = node.getX() + 0.5;
+        double y = node.getY();
+        double z = node.getZ() + 0.5;
+        double dx = 0;
+        double dy = 0;
+        double dz = 1;
+        try {
+            if ((Object) rail instanceof RailExtraSupplier extra) {
+                final double length = extra.getLength();
+                if (Double.isFinite(length) && length > 0.001) {
+                    final double epsilon = Math.max(0.001, Math.min(0.5, length * 0.01));
+                    final Vec3 endpoint = extra.getPosition(isEnd ? length : 0);
+                    final Vec3 inside = extra.getPosition(isEnd ? Math.max(0, length - epsilon) : Math.min(length, epsilon));
+                    x = endpoint.x;
+                    y = endpoint.y;
+                    z = endpoint.z;
+                    final Vec3 direction = isEnd ? endpoint.subtract(inside) : inside.subtract(endpoint);
+                    dx = direction.x;
+                    dy = direction.y;
+                    dz = direction.z;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        final double horizontal = Math.hypot(dx, dz);
+        final float yaw = horizontal < 1E-9 ? 0 : (float) net.minecraft.util.Mth.atan2(dx, dz);
+        final float pitch = (float) net.minecraft.util.Mth.atan2(dy, horizontal);
+        final Matrix4f nodePose = viewMatrix.copy();
+        nodePose.translate((float) x, (float) y, (float) z);
+        nodePose.rotateY(yaw);
+        nodePose.rotateX(-pitch);
+        final net.minecraft.core.BlockPos lightPos = net.minecraft.core.BlockPos.containing(x, y, z);
+        final int light = net.minecraft.client.renderer.LightTexture.pack(level.getBrightness(LightLayer.BLOCK, lightPos), level.getBrightness(LightLayer.SKY, lightPos));
+        drawScheduler.enqueue(RailModelRegistry.railNodeModel, nodePose, light);
+    }
+
+    private static boolean isNodeAtRailEnd(Rail rail, Position pos) {
+        if (((Object) rail) instanceof RailExtraSupplier extra) {
+            final Position p1 = extra.getExtraPosition1();
+            if (p1 != null) {
+                return p1.getX() != pos.getX() || p1.getY() != pos.getY() || p1.getZ() != pos.getZ();
+            }
+        }
+        return false;
+    }
+
     public void drawRails(World level, DrawScheduler drawScheduler, Matrix4f viewMatrix) {
         processPendingEvictions();
         BatchManager batchManager = drawScheduler.batchManager;

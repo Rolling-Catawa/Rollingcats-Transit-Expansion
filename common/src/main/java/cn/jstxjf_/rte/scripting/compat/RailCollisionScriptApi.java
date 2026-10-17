@@ -64,7 +64,7 @@ public final class RailCollisionScriptApi {
         final float normalizedWidth = clamp(width, 0.05F, 32F, 3F);
         final float normalizedHeight = clamp(height, 0.05F, 16F, 0.25F);
         final float normalizedLength = clamp(length, 0.05F, 16F, 0.75F);
-        final float normalizedSpacing = clamp(spacing, 0.05F, 16F, 0.5F);
+        final float normalizedSpacing = clamp(spacing, RailCollisionManager.MIN_SPACING, 16F, 0.5F);
         final float normalizedYOffset = clamp(yOffset, -32F, 32F, -0.25F);
         final float normalizedSideOffset = clamp(sideOffset, -32F, 32F, 0F);
         schedule(rail, extra -> {

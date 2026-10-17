@@ -441,7 +441,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
             RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionLength", collisionLength.get()));
         }
         if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_spacing") + "###brush_collision_spacing", collisionSpacing)) {
-            collisionSpacing.set(clamp(collisionSpacing.get(), 0.05F, 16F));
+            collisionSpacing.set(clamp(collisionSpacing.get(), RailCollisionManager.MIN_SPACING, 16F));
             RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionSpacing", collisionSpacing.get()));
         }
         if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_y_offset") + "###brush_collision_y", collisionYOffset)) {
@@ -765,7 +765,9 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         final CompoundTag tag = RailBrushHelper.getBrushTag();
         final Rail resolved = RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
         if (tag != null && resolved != null) {
-            RailBrushHelper.applyBrushToPickedRail(posStart, posEnd, resolved, tag, false);
+            if (!RailBrushHelper.applyBrushToPickedRail(posStart, posEnd, resolved, tag, false)) {
+                PacketUpdateRail.sendUpdateC2S(resolved);
+            }
         } else {
             RailBrushHelper.applyBrushToPickedRail(RailBrushHelper.getBrushTag(), false);
         }

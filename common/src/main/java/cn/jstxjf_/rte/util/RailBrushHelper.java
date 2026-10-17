@@ -22,7 +22,7 @@ public final class RailBrushHelper {
     private RailBrushHelper() {
     }
 
-    public static void applyBrushToPickedRail(
+    public static boolean applyBrushToPickedRail(
         BlockPos posStart,
         BlockPos posEnd,
         Rail pickedRail,
@@ -30,14 +30,14 @@ public final class RailBrushHelper {
         boolean isBatchApply
     ) {
         if (railBrushProp == null || posStart == null || posEnd == null || pickedRail == null) {
-            return;
+            return false;
         }
 
         final RailExtraSupplier pickedExtra = ((Object) pickedRail) instanceof RailExtraSupplier
             ? (RailExtraSupplier) (Object) pickedRail
             : null;
         if (pickedExtra == null) {
-            return;
+            return false;
         }
 
         Rail antiRail = RailRebuildHelper.findClientRail(posEnd, posStart);
@@ -157,7 +157,9 @@ public final class RailBrushHelper {
                 } catch (Exception ignored) {}
             }
             PacketUpdateRail.sendUpdateC2S(pickedRail);
+            return true;
         }
+        return false;
     }
 
     public static void flushBrushTag() {

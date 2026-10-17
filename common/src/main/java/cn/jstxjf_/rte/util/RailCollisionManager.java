@@ -29,6 +29,7 @@ public final class RailCollisionManager {
 
     public static final String CONFIG_COLUMNS = "rte_collision_columns";
     public static final String CONFIG_LAYOUT = "rte_collision_layout";
+    public static final float MIN_SPACING = 0.01F;
     private static final int MAX_BOXES_PER_RAIL = 8192;
     private static final int MAX_COLUMNS = 32;
     private static final AtomicLong REVISION = new AtomicLong();
@@ -139,7 +140,7 @@ public final class RailCollisionManager {
         if (!Double.isFinite(railLength) || railLength <= 0.001) {
             return boxes;
         }
-        final double spacing = clamp(extra.getCollisionSpacing(), 0.05, 16, 0.5);
+        final double spacing = clamp(extra.getCollisionSpacing(), MIN_SPACING, 16, 0.5);
         final double width = clamp(extra.getCollisionWidth(), 0.05, 32, 3);
         final double height = clamp(extra.getCollisionHeight(), 0.05, 16, 0.25);
         final double boxLength = clamp(extra.getCollisionLength(), 0.05, 16, 0.75);

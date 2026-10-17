@@ -201,7 +201,7 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Override public float getCollisionLength() { return rte$collisionLength; }
     @Override public void setCollisionLength(float value) { this.rte$collisionLength = rte$collisionValue(value, 0.05F, 16F, 0.75F); cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
     @Override public float getCollisionSpacing() { return rte$collisionSpacing; }
-    @Override public void setCollisionSpacing(float value) { this.rte$collisionSpacing = rte$collisionValue(value, 0.05F, 16F, 0.5F); cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
+    @Override public void setCollisionSpacing(float value) { this.rte$collisionSpacing = rte$collisionValue(value, cn.jstxjf_.rte.util.RailCollisionManager.MIN_SPACING, 16F, 0.5F); cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
     @Override public float getCollisionYOffset() { return rte$collisionYOffset; }
     @Override public void setCollisionYOffset(float value) { this.rte$collisionYOffset = rte$collisionValue(value, -32F, 32F, -0.25F); cn.jstxjf_.rte.util.RailCollisionManager.markDirty(); }
     @Override public float getCollisionSideOffset() { return rte$collisionSideOffset; }

@@ -13,7 +13,6 @@ import org.mtr.core.data.Vehicle;
 import org.mtr.core.simulation.Simulator;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import org.mtr.mapping.holder.World;
 import org.mtr.mod.Init;
 
 import java.lang.reflect.Field;
@@ -104,7 +103,7 @@ public class PacketUpdateTrainCustomConfigs extends RtePacket {
         }
 
         final List<String> worldIds = (List<String>) worldIdListField.get(null);
-        final String worldId = Init.getWorldId(new World(player.level()));
+        final String worldId = cn.jstxjf_.rte.bridge.MtrBridge.worldId(player.level());
         final int worldIndex = worldIds.indexOf(worldId);
         if (worldIndex < 0) {
             return null;

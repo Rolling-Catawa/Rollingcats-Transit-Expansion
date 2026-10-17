@@ -45,4 +45,12 @@ public final class MtrBridge {
     public static float nodeAngle(BlockState state) {
         return BlockNode.getAngle(new org.mtr.mapping.holder.BlockState(state));
     }
+
+    public static void deleteRailNodeOnServer(ServerLevel level, BlockPos pos) {
+        PacketDeleteData.sendDirectlyToServerRailNodePosition(new ServerWorld(level), position(pos));
+    }
+
+    public static org.mtr.core.simulation.Simulator simulator(Level level) throws Exception {
+        return cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode.findSimulator(new World(level));
+    }
 }

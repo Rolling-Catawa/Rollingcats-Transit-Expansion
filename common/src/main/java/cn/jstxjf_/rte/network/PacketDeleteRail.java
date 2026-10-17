@@ -9,8 +9,6 @@ import cn.jstxjf_.rte.util.RailRebuildHelper;
 import org.mtr.core.data.Rail;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
-import org.mtr.mapping.holder.ServerWorld;
-import org.mtr.mod.packet.PacketDeleteData;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -42,13 +40,12 @@ public class PacketDeleteRail extends RtePacket {
             if (player == null) {
                 return;
             }
-            final ServerWorld serverWorld = new ServerWorld(player.serverLevel());
             final Set<String> deleted = new LinkedHashSet<>();
             if (!railId.isEmpty() && deleted.add(railId)) {
-                PacketDeleteData.sendDirectlyToServerRailId(serverWorld, railId);
+                cn.jstxjf_.rte.bridge.MtrBridge.deleteRailOnServer(player.serverLevel(), railId);
             }
             if (!reverseRailId.isEmpty() && deleted.add(reverseRailId)) {
-                PacketDeleteData.sendDirectlyToServerRailId(serverWorld, reverseRailId);
+                cn.jstxjf_.rte.bridge.MtrBridge.deleteRailOnServer(player.serverLevel(), reverseRailId);
             }
         });
     }

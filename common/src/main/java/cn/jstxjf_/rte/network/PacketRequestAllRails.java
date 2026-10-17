@@ -48,9 +48,7 @@ public class PacketRequestAllRails extends RtePacket {
             }
             try {
                 final Simulator simulator =
-                    cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode.findSimulator(
-                        new org.mtr.mapping.holder.World(
-                            player.serverLevel()));
+                    cn.jstxjf_.rte.bridge.MtrBridge.simulator(player.serverLevel());
                 if (simulator == null) {
                     return;
                 }

@@ -138,8 +138,7 @@ public class PacketFreeNodeAction extends RtePacket {
                     sendDeleteResult(player, nativeAnchor, false);
                     return;
                 }
-                org.mtr.mod.packet.PacketDeleteData.sendDirectlyToServerRailNodePosition(
-                        new org.mtr.mapping.holder.ServerWorld(level), org.mtr.mod.Init.blockPosToPosition(anchor));
+                cn.jstxjf_.rte.bridge.MtrBridge.deleteRailNodeOnServer(level, nativeAnchor);
                 final boolean success = level.destroyBlock(nativeAnchor, !nativePlayer.getAbilities().instabuild, nativePlayer);
                 sendDeleteResult(player, nativeAnchor, success);
             }

@@ -13,8 +13,6 @@ import org.mtr.core.serializer.JsonReader;
 import org.mtr.core.tool.Utilities;
 import org.mtr.libraries.com.google.gson.JsonParser;
 import org.mtr.mapping.holder.*;
-import org.mtr.mod.packet.PacketDeleteData;
-import org.mtr.mod.packet.PacketUpdateData;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -56,33 +54,29 @@ public class PacketUpdateRail extends RtePacket {
             try {
                 Rail rail = new Rail(new JsonReader(JsonParser.parseString(railJson)));
                 Rail railReverse = new Rail(new JsonReader(JsonParser.parseString(railReverseJson)));
-                final ServerWorld serverWorld = player == null
-                    ? new ServerWorld(server.overworld())
-                    : new ServerWorld(player.serverLevel());
+                final net.minecraft.server.level.ServerLevel level = player == null ? server.overworld() : player.serverLevel();
                 Set<String> deletedRailIds = new LinkedHashSet<>();
                 if (!oldRailId.isEmpty() && !oldRailId.equals(rail.getHexId()) && deletedRailIds.add(oldRailId)) {
-                    PacketDeleteData.sendDirectlyToServerRailId(serverWorld, oldRailId);
+                    cn.jstxjf_.rte.bridge.MtrBridge.deleteRailOnServer(level, oldRailId);
                 }
                 if (!oldRailReverseId.isEmpty() && !oldRailReverseId.equals(railReverse.getHexId()) && deletedRailIds.add(oldRailReverseId)) {
-                    PacketDeleteData.sendDirectlyToServerRailId(serverWorld, oldRailReverseId);
+                    cn.jstxjf_.rte.bridge.MtrBridge.deleteRailOnServer(level, oldRailReverseId);
                 }
-                PacketUpdateData.sendDirectlyToServerRail(serverWorld, rail);
+                cn.jstxjf_.rte.bridge.MtrBridge.sendRailToServer(level, rail);
                 if (!rail.getHexId().equals(railReverse.getHexId())) {
-                    PacketUpdateData.sendDirectlyToServerRail(serverWorld, railReverse);
+                    cn.jstxjf_.rte.bridge.MtrBridge.sendRailToServer(level, railReverse);
                 }
-                rte$markNodesConnected(serverWorld, rail);
+                rte$markNodesConnected(level, rail);
             } catch (Exception e) {
                 RTE.LOGGER.error("Failed applying updated rail", e);
             }
         });
     }
 
-    private static void rte$markNodesConnected(ServerWorld serverWorld, Rail rail) {
+    private static void rte$markNodesConnected(net.minecraft.server.level.ServerLevel level, Rail rail) {
         if (!(((Object) rail) instanceof RailExtraSupplier extra)) {
             return;
         }
-        final net.minecraft.server.level.ServerLevel level =
-            (net.minecraft.server.level.ServerLevel) serverWorld.data;
         for (final org.mtr.core.data.Position position :
             new org.mtr.core.data.Position[]{extra.getExtraPosition1(), extra.getExtraPosition2()}) {
             if (position == null) {

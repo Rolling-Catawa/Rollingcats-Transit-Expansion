@@ -13,7 +13,7 @@ import imgui.type.ImInt;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.mtr.mapping.holder.World;
 
 import java.util.Locale;
@@ -51,7 +51,7 @@ public class ImGuiShapeToolsScreen extends net.minecraft.client.gui.screens.Scre
     }
 
     private void refreshData() {
-        final Rail rail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), pickedRail);
+        final Rail rail = RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
         analysis = rail == null ? null : RailGeometryAnalysis.analyze(rail);
     }
 
@@ -98,12 +98,12 @@ public class ImGuiShapeToolsScreen extends net.minecraft.client.gui.screens.Scre
         ImGui.checkbox(t("gui.rte.parallel.mirror_one_way") + "###parallel_mirror", parallelMirrorOneWay);
         ImGui.sameLine();
         if (ImGui.button(t("gui.rte.imgui.copy_left") + "###copy_left")) {
-            final int created = ParallelLineTool.copyParallel(posStart.data, posEnd.data, parallelSpacing[0], false, parallelMirrorOneWay.get());
+            final int created = ParallelLineTool.copyParallel(posStart, posEnd, parallelSpacing[0], false, parallelMirrorOneWay.get());
             status(t("gui.rte.parallel.result").replace("%s", String.valueOf(created)));
         }
         ImGui.sameLine();
         if (ImGui.button(t("gui.rte.imgui.copy_right") + "###copy_right")) {
-            final int created = ParallelLineTool.copyParallel(posStart.data, posEnd.data, parallelSpacing[0], true, parallelMirrorOneWay.get());
+            final int created = ParallelLineTool.copyParallel(posStart, posEnd, parallelSpacing[0], true, parallelMirrorOneWay.get());
             status(t("gui.rte.parallel.result").replace("%s", String.valueOf(created)));
         }
 
@@ -120,7 +120,7 @@ public class ImGuiShapeToolsScreen extends net.minecraft.client.gui.screens.Scre
             }
         }
         if (ImGui.button(t("gui.rte.trackside.array") + "###trackside_array")) {
-            final int result = TracksidePlacer.arrayAlongChain(posStart.data, posEnd.data, tracksideInterval[0]);
+            final int result = TracksidePlacer.arrayAlongChain(posStart, posEnd, tracksideInterval[0]);
             status(result == -2 ? t("gui.rte.trackside.no_anchor")
                 : result < 0 ? t("gui.rte.trackside.failed")
                 : t("gui.rte.trackside.result").replace("%s", String.valueOf(result)));
@@ -164,8 +164,8 @@ public class ImGuiShapeToolsScreen extends net.minecraft.client.gui.screens.Scre
         drawDepotRuleSection();
         ImGui.separator();
         final org.mtr.mod.client.MinecraftClientData data = org.mtr.mod.client.MinecraftClientData.getInstance();
-        final org.mtr.core.data.Position anchorA = org.mtr.mod.Init.blockPosToPosition(posStart);
-        final org.mtr.core.data.Position anchorB = org.mtr.mod.Init.blockPosToPosition(posEnd);
+        final org.mtr.core.data.Position anchorA = cn.jstxjf_.rte.bridge.MtrBridge.position(posStart);
+        final org.mtr.core.data.Position anchorB = cn.jstxjf_.rte.bridge.MtrBridge.position(posEnd);
         final boolean manual = cn.jstxjf_.rte.data.RailChainSelection.resolve(anchorA, anchorB) != null;
 
         ImGui.text(t("gui.rte.chain.title"));

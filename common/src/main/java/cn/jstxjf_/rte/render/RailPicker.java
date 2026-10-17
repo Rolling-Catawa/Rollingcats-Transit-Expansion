@@ -6,6 +6,7 @@ import cn.jstxjf_.rte.util.RailRebuildHelper;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import org.mtr.mapping.holder.*;
+import net.minecraft.core.BlockPos;
 import org.mtr.mod.client.MinecraftClientData;
 import org.mtr.core.data.Rail;
 import net.minecraft.client.Minecraft;
@@ -218,11 +219,11 @@ public class RailPicker {
         }
         lastAngleSyncMillis = now;
         final World world = new World(minecraft.level);
-        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosEnd), pickedRail);
-        if (!RailRebuildHelper.needsWorldNodeAngleRebuild(cn.jstxjf_.rte.bridge.MtrTypes.level(world), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosEnd), resolvedRail)) {
+        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(pickedPosStart, pickedPosEnd, pickedRail);
+        if (!RailRebuildHelper.needsWorldNodeAngleRebuild(cn.jstxjf_.rte.bridge.MtrTypes.level(world), pickedPosStart, pickedPosEnd, resolvedRail)) {
             return;
         }
-        final Rail rebuilt = RailRebuildHelper.rebuildFromWorldNodeAngles(cn.jstxjf_.rte.bridge.MtrTypes.level(world), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(pickedPosEnd), resolvedRail);
+        final Rail rebuilt = RailRebuildHelper.rebuildFromWorldNodeAngles(cn.jstxjf_.rte.bridge.MtrTypes.level(world), pickedPosStart, pickedPosEnd, resolvedRail);
         if (rebuilt != null && rebuilt != resolvedRail) {
             PacketUpdateRail.sendUpdateC2S(resolvedRail, rebuilt);
             pickedRail = rebuilt;

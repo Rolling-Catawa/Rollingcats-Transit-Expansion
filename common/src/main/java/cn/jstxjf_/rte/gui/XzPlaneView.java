@@ -7,10 +7,8 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.level.Level;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockEntity;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
-import org.mtr.mapping.holder.World;
 import org.mtr.mod.client.MinecraftClientData;
 
 import javax.annotation.Nullable;
@@ -76,8 +74,8 @@ class XzPlaneView {
 
     private void renderDirectNode(GuiGraphics graphics, Level level, BlockPos pos, Rail rail, int color) {
         try {
-            BlockEntity be = new World(level).getBlockEntity(pos);
-            if (be != null && be.data instanceof BlockDirectNode.BlockEntityDirectNode dn && dn.isBound()) {
+            final Object be = level.getBlockEntity(pos);
+            if (be instanceof BlockDirectNode.BlockEntityDirectNode dn && dn.isBound()) {
                 int[] s = camera.xzToScreen(pos.getX() + 0.5, pos.getZ() + 0.5);
                 double angle = dn.getAngleRadians();
                 double ppb = camera.pixelsPerBlock();

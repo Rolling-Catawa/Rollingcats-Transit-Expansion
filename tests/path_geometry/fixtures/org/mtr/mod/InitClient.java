@@ -1,1 +1,0 @@
-package org.mtr.mod; public class InitClient {public static final Registry REGISTRY_CLIENT=new Registry(); public static class Registry {public void sendPacketToServer(Object p){}}}

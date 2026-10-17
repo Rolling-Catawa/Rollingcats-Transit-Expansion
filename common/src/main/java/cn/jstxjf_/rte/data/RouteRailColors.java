@@ -523,7 +523,7 @@ public final class RouteRailColors {
         if (GENERATED_PATH_COLORS.isEmpty() && now - lastPathRequestMillis > 10000) {
             lastPathRequestMillis = now;
             try {
-                org.mtr.mod.InitClient.REGISTRY_CLIENT.sendPacketToServer(
+                cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(
                     new cn.jstxjf_.rte.network.PacketRequestRoutePathColors());
             } catch (Exception ignored) {
             }

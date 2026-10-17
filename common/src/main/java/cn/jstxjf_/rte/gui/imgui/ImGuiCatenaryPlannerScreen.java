@@ -8,7 +8,7 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 
 import java.util.Locale;
 
@@ -63,7 +63,7 @@ public class ImGuiCatenaryPlannerScreen extends net.minecraft.client.gui.screens
         params.blockVertical = blockVertical[0];
         params.blockLongitudinal = blockLongitudinal[0];
         params.yawOffset = yawOffset[0];
-        plan = CatenaryPlan.build(posStart.data, posEnd.data, params);
+        plan = CatenaryPlan.build(posStart, posEnd, params);
     }
 
     @Override

@@ -1,7 +1,7 @@
 package cn.jstxjf_.rte.client.gui;
 
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.mtr.mapping.holder.Screen;
 
 import java.util.function.Supplier;

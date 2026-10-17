@@ -11,7 +11,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.mtr.mapping.holder.Screen;
 import org.mtr.mapping.holder.World;
 
@@ -106,7 +106,7 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
 
     @Override
     public void tick() {
-        Rail fresh = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
+        Rail fresh = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
         if (fresh != null) rail = fresh;
         camera.orient(planeMode == PlaneMode.XZ, rail);
     }
@@ -525,7 +525,7 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
     }
 
     private void build() {
-        rail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
+        rail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
         if (minecraft == null || minecraft.level == null || rail == null || !(((Object) rail) instanceof RailExtraSupplier extra)) return;
         final World world = new World(minecraft.level);
         final CurveFitting.Result result = CurveFitting.fit(world == null ? null : world.data, rail, xzPoints, yPoints);
@@ -542,10 +542,10 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
         float startDirDeg = (float) Math.toDegrees(result.angleStart());
         float endDirDeg = (float) Math.toDegrees(result.angleEnd() + Math.PI);
         if (canWriteNodeAngle(posStart)) {
-            PacketReplaceRailNode.sendUpdateC2S(world.data, posStart.data, startDirDeg, true, true);
+            PacketReplaceRailNode.sendUpdateC2S(world.data, posStart, startDirDeg, true, true);
         }
         if (canWriteNodeAngle(posEnd)) {
-            PacketReplaceRailNode.sendUpdateC2S(world.data, posEnd.data, endDirDeg, true, true);
+            PacketReplaceRailNode.sendUpdateC2S(world.data, posEnd, endDirDeg, true, true);
         }
         setStatus(Component.translatable("gui.rte.curve_fitting.built").getString(), false);
     }
@@ -570,7 +570,7 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
     }
 
     private void switchToNextMode() {
-        rail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
+        rail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
         if (rail == null || !(((Object) rail) instanceof RailExtraSupplier extra)) return;
         extra.setPathModeRaw(RailExtraSupplier.PATH_MODE_ORIGINAL);
         extra.setBezier(null);

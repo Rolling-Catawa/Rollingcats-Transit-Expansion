@@ -86,7 +86,7 @@ public final class VehiclePathCache {
         }
         REQUESTED.put(vehicleId, now);
         try {
-            org.mtr.mod.InitClient.REGISTRY_CLIENT.sendPacketToServer(
+            cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(
                 new cn.jstxjf_.rte.network.PacketRequestVehiclePath(vehicleId));
         } catch (Exception ignored) {
         }

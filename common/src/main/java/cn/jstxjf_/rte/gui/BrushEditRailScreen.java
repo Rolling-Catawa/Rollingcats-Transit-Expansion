@@ -4,7 +4,7 @@ import cn.jstxjf_.rte.gui.imgui.ImGuiBrushEditRailScreen;
 import cn.jstxjf_.rte.gui.imgui.RteImGuiHost;
 import cn.jstxjf_.rte.render.RailPicker;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.mtr.mapping.holder.Screen;
 
 public final class BrushEditRailScreen {

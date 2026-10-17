@@ -19,11 +19,9 @@ import imgui.type.ImString;
 import net.minecraft.network.chat.Component;
 import org.mtr.core.data.Rail;
 import org.mtr.core.data.TransportMode;
-import org.mtr.mapping.holder.BlockEntity;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.mtr.mapping.holder.BlockState;
 import org.mtr.mapping.holder.CompoundTag;
-import org.mtr.mapping.holder.World;
 import cn.jstxjf_.rte.data.RailModelProperties;
 import cn.jstxjf_.rte.data.RailModelRegistry;
 
@@ -142,17 +140,16 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         if (client.level == null) {
             return;
         }
-        final World clientWorld = new World(client.level);
-        final BlockEntity blockEntity = clientWorld.getBlockEntity(posStart);
-        if (blockEntity != null && blockEntity.data instanceof BlockDirectNode.BlockEntityDirectNode directNode) {
+        final Object blockEntity = client.level.getBlockEntity(posStart);
+        if (blockEntity instanceof BlockDirectNode.BlockEntityDirectNode directNode) {
             if (ImGui.button(t("gui.rte.brush_edit_rail.adjust_angle") + "###brush_adjust_angle")) {
                 client.setScreen(DirectNodeScreen.createScreen(directNode, () -> reopen(), this::rebuildPickedRailFromWorldNodes));
             }
         } else if (pickedRail.getTransportMode() == TransportMode.TRAIN) {
-            final BlockState startState = clientWorld.getBlockState(posStart);
-            if (startState != null && startState.getBlock().data instanceof org.mtr.mod.block.BlockNode) {
+            final net.minecraft.world.level.block.state.BlockState startState = client.level.getBlockState(posStart);
+            if (cn.jstxjf_.rte.bridge.MtrBridge.isNode(startState)) {
                 if (ImGui.button(t("gui.rte.brush_edit_rail.switch_to_direct_node") + "###brush_to_direct")) {
-                    PacketReplaceRailNode.sendUpdateC2S(client.level, posStart.data, startState.data, this::reopen);
+                    PacketReplaceRailNode.sendUpdateC2S(client.level, posStart, startState, this::reopen);
                 }
             }
         }
@@ -547,7 +544,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         ImGui.textDisabled(t("gui.rte.imgui.roll_origin_hint",
             railExtra.getExtraPosition1() == null ? "?" : railExtra.getExtraPosition1().getX() + "," + railExtra.getExtraPosition1().getY() + "," + railExtra.getExtraPosition1().getZ()));
 
-        final Rail resolvedRail = cn.jstxjf_.rte.util.RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), pickedRail);
+        final Rail resolvedRail = cn.jstxjf_.rte.util.RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
         final Float alignP1 = resolvedRail == null ? null : RailExtraSupplier.neighborEdgeRollForAlignment(resolvedRail, true);
         final Float alignP2 = resolvedRail == null ? null : RailExtraSupplier.neighborEdgeRollForAlignment(resolvedRail, false);
         if (alignP1 != null || alignP2 != null) {
@@ -629,8 +626,8 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         if (client.level == null) {
             return;
         }
-        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), pickedRail);
-        final Rail rebuilt = RailRebuildHelper.rebuildFromWorldNodeAngles(client.level, cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), resolvedRail);
+        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
+        final Rail rebuilt = RailRebuildHelper.rebuildFromWorldNodeAngles(client.level, posStart, posEnd, resolvedRail);
         if (rebuilt != null && rebuilt != resolvedRail) {
             PacketUpdateRail.sendUpdateC2S(resolvedRail, rebuilt);
         }
@@ -702,7 +699,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
     }
 
     private void rte$pickFromRail() {
-        final Rail resolved = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), pickedRail);
+        final Rail resolved = RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
         if (!(((Object) resolved) instanceof cn.jstxjf_.rte.data.RailExtraSupplier source)) {
             return;
         }
@@ -763,7 +760,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
             return;
         }
         final CompoundTag tag = RailBrushHelper.getBrushTag();
-        final Rail resolved = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), pickedRail);
+        final Rail resolved = RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
         if (tag != null && resolved != null) {
             if (!RailBrushHelper.applyBrushToPickedRail(posStart, posEnd, resolved, tag, false)) {
                 PacketUpdateRail.sendUpdateC2S(resolved);

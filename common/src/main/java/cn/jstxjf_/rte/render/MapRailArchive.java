@@ -203,7 +203,7 @@ public final class MapRailArchive {
 
     private static void requestPage(int page) {
         try {
-            org.mtr.mod.InitClient.REGISTRY_CLIENT.sendPacketToServer(
+            cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(
                 new cn.jstxjf_.rte.network.PacketRequestAllRails(page));
         } catch (Exception ignored) {
         }

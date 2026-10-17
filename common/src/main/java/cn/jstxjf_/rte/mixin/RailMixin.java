@@ -15,7 +15,6 @@ import org.mtr.core.data.RailMath;
 import org.mtr.core.data.TransportMode;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.mtr.core.tool.Angle;
-import org.mtr.mapping.holder.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.Mixin;
@@ -97,8 +96,6 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Unique private float rte$collisionYOffset = -0.25F;
     @Unique private float rte$collisionSideOffset = 0F;
     @Unique private BezierCurve rte$bezier = null;
-    @Unique private BlockPos rte$posStartCache = null;
-    @Unique private BlockPos rte$posEndCache = null;
     @Unique private double rte$angle1Rad = Double.NaN;
     @Unique private double rte$angle2Rad = Double.NaN;
     @Unique private double rte$nodeXOffset1 = 0;
@@ -227,32 +224,6 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Override public boolean hasNodeOffset() {
         return hasNodeYOffset() || Math.abs(rte$nodeXOffset1) > 1E-6 || Math.abs(rte$nodeZOffset1) > 1E-6
                 || Math.abs(rte$nodeXOffset2) > 1E-6 || Math.abs(rte$nodeZOffset2) > 1E-6;
-    }
-
-    @Override
-    public BlockPos getPosStart() {
-        if (rte$posStartCache != null) return rte$posStartCache;
-        Position p1 = rte$accessor().rte$getPosition1();
-        if (p1 != null) {
-            rte$posStartCache = new BlockPos((int)p1.getX(), (int)p1.getY(), (int)p1.getZ());
-            return rte$posStartCache;
-        }
-        org.mtr.core.tool.Vector pos = railMath.getPosition(0, false);
-        rte$posStartCache = new BlockPos((int)Math.floor(pos.x), (int)Math.floor(pos.y), (int)Math.floor(pos.z));
-        return rte$posStartCache;
-    }
-
-    @Override
-    public BlockPos getPosEnd() {
-        if (rte$posEndCache != null) return rte$posEndCache;
-        Position p2 = rte$accessor().rte$getPosition2();
-        if (p2 != null) {
-            rte$posEndCache = new BlockPos((int)p2.getX(), (int)p2.getY(), (int)p2.getZ());
-            return rte$posEndCache;
-        }
-        org.mtr.core.tool.Vector pos = railMath.getPosition(railMath.getLength(), false);
-        rte$posEndCache = new BlockPos((int)Math.floor(pos.x), (int)Math.floor(pos.y), (int)Math.floor(pos.z));
-        return rte$posEndCache;
     }
 
     @Override

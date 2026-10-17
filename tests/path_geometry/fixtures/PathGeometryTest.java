@@ -4,7 +4,6 @@ import cn.jstxjf_.rte.render.train.VehiclePathCache;
 import org.mtr.core.data.*;
 import org.mtr.core.tool.Angle;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.tool.*;
 import java.util.*;
 
 public class PathGeometryTest {
@@ -12,15 +11,15 @@ public class PathGeometryTest {
     private static void check(boolean ok,String label){checks++;if(!ok)throw new AssertionError(label);}
     private static void near(double a,double b,String label){check(Double.isFinite(a)&&Math.abs(a-b)<1e-6,label+": "+a+" != "+b);}
     private static void point(ScriptVector a, org.mtr.core.tool.Vector b,String label){near(a.x,b.x,label+" x");near(a.y,b.y,label+" y");near(a.z,b.z,label+" z");}
-    private static PacketVehiclePath roundtrip(PacketVehiclePath p){PacketBufferSender s=new PacketBufferSender();p.write(s);return new PacketVehiclePath(new PacketBufferReceiver(s.bytes()));}
+    private static PacketVehiclePath roundtrip(PacketVehiclePath p){PacketBufferSender s=new PacketBufferSender();p.encode(s);return new PacketVehiclePath(new PacketBufferReceiver(s.bytes()));}
     private static void reject(Runnable r,String label){boolean rejected=false;try{r.run();}catch(IllegalArgumentException e){rejected=true;}check(rejected,label);}
     public static void main(String[] args) {
         PacketBufferSender oldRequest=new PacketBufferSender();oldRequest.writeLong(99);
         var request=new cn.jstxjf_.rte.network.PacketRequestVehiclePath(new PacketBufferReceiver(oldRequest.bytes()));
-        PacketBufferSender negotiated=new PacketBufferSender();request.write(negotiated);
+        PacketBufferSender negotiated=new PacketBufferSender();request.encode(negotiated);
         PacketBufferReceiver legacyFields=new PacketBufferReceiver(negotiated.bytes());
         check(legacyFields.readLong()==99&&!legacyFields.readBoolean(), "old request gets legacy response capability");
-        PacketBufferSender newRequest=new PacketBufferSender();new cn.jstxjf_.rte.network.PacketRequestVehiclePath(99).write(newRequest);
+        PacketBufferSender newRequest=new PacketBufferSender();new cn.jstxjf_.rte.network.PacketRequestVehiclePath(99).encode(newRequest);
         PacketBufferReceiver modernFields=new PacketBufferReceiver(newRequest.bytes());
         check(modernFields.readLong()==99&&modernFields.readBoolean(), "new request opts into geometry");
         PathData example=null;

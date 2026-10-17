@@ -9,7 +9,6 @@ import org.mtr.core.data.Rail;
 import org.mtr.core.data.TransportMode;
 import org.mtr.core.tool.Angle;
 import org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList;
-import org.mtr.mapping.holder.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.util.Mth;
 
@@ -174,10 +173,6 @@ public interface RailExtraSupplier {
     boolean couldSwitchModeTo(int mode);
 
     void sendUpdateC2S();
-
-    BlockPos getPosStart();
-
-    BlockPos getPosEnd();
 
     void setExtraAngle1Rad(double rad);
 

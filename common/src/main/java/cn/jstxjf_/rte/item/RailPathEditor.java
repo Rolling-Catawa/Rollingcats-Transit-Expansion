@@ -92,7 +92,7 @@ public class RailPathEditor extends ItemExtension {
             return;
         }
 
-        final Screen screen = RailPathEditorScreen.createScreen(posStart, posEnd, rail, null);
+        final Screen screen = RailPathEditorScreen.createScreen(posStart.data, posEnd.data, rail, null);
         if (screen != null) {
             MinecraftClient.getInstance().openScreen(screen);
         }

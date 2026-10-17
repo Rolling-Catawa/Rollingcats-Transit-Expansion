@@ -6,7 +6,7 @@ import cn.jstxjf_.rte.network.PacketUpdateRail;
 import cn.jstxjf_.rte.util.RailRebuildHelper;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.mtr.mapping.holder.Screen;
 
 import net.minecraft.client.Minecraft;
@@ -51,7 +51,7 @@ public class RailPathEditorScreen extends net.minecraft.client.gui.screens.Scree
             cn.jstxjf_.rte.gui.imgui.RteImGuiHost.notifyUnavailable();
             return parent != null ? parent.get() : null;
         }
-        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
+        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
         if (!((Object) resolvedRail instanceof RailExtraSupplier extra)) {
             return parent != null ? parent.get() : null;
         }
@@ -330,7 +330,7 @@ public class RailPathEditorScreen extends net.minecraft.client.gui.screens.Scree
     }
 
     protected void changeMode() {
-        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
+        final Rail resolvedRail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
         if (!((Object) resolvedRail instanceof RailExtraSupplier resolvedExtra)) return;
         final int nextMode = getNextMode(resolvedExtra.getPathMode());
         if (nextMode == RailExtraSupplier.PATH_MODE_CURVE_FITTING) {

@@ -99,7 +99,7 @@ public final class VehicleMarkerCache {
         }
         lastRequestMillis = now;
         try {
-            org.mtr.mod.InitClient.REGISTRY_CLIENT.sendPacketToServer(
+            cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(
                 new cn.jstxjf_.rte.network.PacketRequestVehicleMarkers(minX, minZ, maxX, maxZ));
         } catch (Exception ignored) {
         }

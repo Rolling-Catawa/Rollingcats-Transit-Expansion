@@ -13,13 +13,13 @@ with tempfile.TemporaryDirectory(prefix='rte-path-test-') as tmp:
     root=Path(tmp)
     (root/'logs').mkdir()
     shutil.copytree(Path(__file__).parent/'fixtures',root,dirs_exist_ok=True)
-    for name in ('scripting/compat/PathGeometryCodec','scripting/compat/PathDataCompat','scripting/compat/RailCompat','scripting/engine/ScriptBackend','scripting/engine/RhinoScriptBackend','scripting/engine/GraalScriptBackend','scripting/compat/LegacyConnectionCache','network/PacketVehiclePath','render/train/VehiclePathCache'):
+    for name in ('scripting/compat/PathGeometryCodec','scripting/compat/PathDataCompat','scripting/compat/RailCompat','scripting/engine/ScriptBackend','scripting/engine/RhinoScriptBackend','scripting/engine/GraalScriptBackend','scripting/compat/LegacyConnectionCache','network/PacketVehiclePath','render/train/VehiclePathCache','bridge/network/RtePacketReader','bridge/network/RtePacketWriter'):
         target=root/'cn/jstxjf_/rte'/f'{name}.java'
         target.parent.mkdir(parents=True,exist_ok=True)
         shutil.copyfile(repo/'common/src/main/java/cn/jstxjf_/rte'/f'{name}.java',target)
     request=repo/'common/src/main/java/cn/jstxjf_/rte/network/PacketRequestVehiclePath.java'
     text=request.read_text(encoding='utf-8-sig')
-    text=text[:text.index('    @Override\n    public void runServer')]+'}\n'
+    text=text[:text.index('    @Override\n    protected void handleServer')]+'}\n'
     (root/'cn/jstxjf_/rte/network/PacketRequestVehiclePath.java').write_text(text,encoding='utf-8')
     cp=os.pathsep.join(map(str,[root/'out',jar,*logging]))
     args=root/'sources.txt'

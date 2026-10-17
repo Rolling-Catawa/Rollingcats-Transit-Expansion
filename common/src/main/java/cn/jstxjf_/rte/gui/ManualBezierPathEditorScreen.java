@@ -12,7 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
 import org.mtr.core.data.Position;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.mtr.mapping.holder.Screen;
 import org.mtr.mapping.holder.World;
 
@@ -82,7 +82,7 @@ public class ManualBezierPathEditorScreen extends net.minecraft.client.gui.scree
         super(Component.translatable("tooltip.rte.rail.path_mode.manual_bezier"));
         this.posStart = posStart;
         this.posEnd = posEnd;
-        this.rail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
+        this.rail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
         this.parent = parent == null ? () -> null : parent;
         initControlPoints();
     }
@@ -401,7 +401,7 @@ public class ManualBezierPathEditorScreen extends net.minecraft.client.gui.scree
     }
 
     private void switchToNextMode() {
-        rail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
+        rail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
         if (rail == null || !(((Object) rail) instanceof RailExtraSupplier extra)) return;
         extra.setPathModeRaw(RailExtraSupplier.PATH_MODE_CURVE_FITTING);
         extra.setBezier(null);
@@ -557,7 +557,7 @@ public class ManualBezierPathEditorScreen extends net.minecraft.client.gui.scree
     }
 
     private void build() {
-        rail = RailRebuildHelper.resolveClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), rail);
+        rail = RailRebuildHelper.resolveClientRail(posStart, posEnd, rail);
         if (minecraft == null || minecraft.level == null || rail == null
                 || !(((Object) rail) instanceof RailExtraSupplier extra)) return;
         if (controlPoints.size() < 4 || (controlPoints.size() - 1) % 3 != 0) {

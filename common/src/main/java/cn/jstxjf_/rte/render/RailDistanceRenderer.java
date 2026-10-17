@@ -92,7 +92,7 @@ public class RailDistanceRenderer {
             : translate("gui.rte.rail_stat.disabled");
         addRow(rows, "gui.rte.rail_stat.collision", collision);
 
-        final org.mtr.mapping.holder.BlockPos aimed = RailPicker.pickedPosStart;
+        final net.minecraft.core.BlockPos aimed = RailPicker.pickedPosStart;
         final boolean aimedAtSecond = aimed != null && aimed.getX() == p2.getX() && aimed.getY() == p2.getY() && aimed.getZ() == p2.getZ();
         renderStatsAtPosition(aimedAtSecond ? p2 : p1, matrices, vertexConsumers, rows);
     }

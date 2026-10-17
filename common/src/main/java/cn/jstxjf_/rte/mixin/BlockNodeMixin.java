@@ -69,8 +69,8 @@ public abstract class BlockNodeMixin {
 
         Rail pickedRail = closestEntry.get().getValue();
         Position endPos = closestEntry.get().getKey();
-        BlockPos pickedPosStart = pos;
-        BlockPos pickedPosEnd = new BlockPos((int)endPos.getX(), (int)endPos.getY(), (int)endPos.getZ());
+        net.minecraft.core.BlockPos pickedPosStart = pos.data;
+        net.minecraft.core.BlockPos pickedPosEnd = new net.minecraft.core.BlockPos((int)endPos.getX(), (int)endPos.getY(), (int)endPos.getZ());
 
         RailPicker.pickedRail = pickedRail;
         RailPicker.pickedPosStart = pickedPosStart;

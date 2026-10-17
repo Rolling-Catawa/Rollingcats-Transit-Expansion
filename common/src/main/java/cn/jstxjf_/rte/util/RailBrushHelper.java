@@ -6,7 +6,7 @@ import cn.jstxjf_.rte.network.PacketUpdateHoldingItem;
 import cn.jstxjf_.rte.network.PacketUpdateRail;
 import cn.jstxjf_.rte.render.RailPicker;
 import org.mtr.core.data.Rail;
-import org.mtr.mapping.holder.BlockPos;
+import net.minecraft.core.BlockPos;
 import org.mtr.mapping.holder.ClientPlayerEntity;
 import org.mtr.mapping.holder.CompoundTag;
 import org.mtr.mapping.holder.Hand;
@@ -40,7 +40,7 @@ public final class RailBrushHelper {
             return false;
         }
 
-        Rail antiRail = RailRebuildHelper.findClientRail(cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posEnd), cn.jstxjf_.rte.bridge.MtrTypes.blockPos(posStart));
+        Rail antiRail = RailRebuildHelper.findClientRail(posEnd, posStart);
 
         boolean propertyUpdated = false;
 

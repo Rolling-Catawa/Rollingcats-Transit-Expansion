@@ -95,7 +95,9 @@
     "RenderVehiclesOcclusionMixin",
     "OscillationMixin",
     "RenderRailsNodeScanMixin",
-    "RenderRailsNodeInvoker"
+    "RenderRailsNodeInvoker",
+    "ClientWorldSwitchMixin",
+    "InitClientAccessor"
   ],
   "mixins": [
     "AngleMixin",

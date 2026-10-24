@@ -36,16 +36,6 @@ public class RenderVehiclesMixin {
 
     private static final ThreadLocal<RenderVehicleCarFrameState> RTE_CAR_FRAME_STATE = new ThreadLocal<>();
 
-    /**
-     * MTR uses an open doorway twice: its full-height box is needed for platform
-     * detection and door-side selection, but the same box is also inserted into
-     * the player's riding-floor list.  Legacy doorway synthesis is based on the
-     * animated door leaf, so that box is normally about two blocks tall.  Feeding
-     * it to riding collision makes its top act as the floor and launches the
-     * player above the car.  Preserve the original doorway everywhere else and
-     * replace only the riding collision argument with a thin threshold at the
-     * doorway's bottom edge.
-     */
     @ModifyArg(
         method = "lambda$render$11",
         at = @At(
@@ -69,7 +59,6 @@ public class RenderVehiclesMixin {
             box.getMaxXMapped(), minY, box.getMaxZMapped()
         );
     }
-
 
     @Inject(method = "render", at = @At("HEAD"))
     private static void rte$renderHead(long millisElapsed, Vector3d cameraShakeOffset, CallbackInfo ci) {
@@ -200,8 +189,6 @@ public class RenderVehiclesMixin {
         }
         model.render(effectiveSmt, vehicle, light, arr, index, list, flag);
     }
-
-
 
     @Inject(method = "lambda$render$14", at = @At("HEAD"), require = 0)
     private static void rte$beginCarFrame(
@@ -334,9 +321,6 @@ public class RenderVehiclesMixin {
             PositionAndRotation positionAndRotation, boolean useOffset,
             double vehicleLength, double width, double height, double yOffset, double zOffset,
             double oscillationAmount, boolean isOnRoute, CallbackInfo ci) {
-        // canHaveLight distinguishes MTR's gangway call from the barrier call.
-        // ANTE/NTE commits drawConnModel only from renderConnection, never from
-        // renderBarrier.
         if (canHaveLight && shouldRender1 && previousConnectionPositions instanceof PreviousConnectionPositionsAccessor accessor) {
             final Vector prevPos1 = accessor.rte$getPosition1();
             final Vector prevPos2 = accessor.rte$getPosition2();
@@ -345,9 +329,6 @@ public class RenderVehiclesMixin {
             ScriptedTrainRenderers.renderConnectionIfScripted(canHaveLight, prevPos1, prevPos2, prevPos3, prevPos4, positionAndRotation, useOffset, vehicleLength, width, height, yOffset, zOffset, oscillationAmount, isOnRoute);
         }
 
-        // A legacy scripted connector is the complete visual, not an overlay.
-        // Keep the script commit above, then prevent MTR 4's connector material
-        // from being rendered over it.
         if (ScriptedTrainRenderers.shouldSuppressNativeConnection(canHaveLight)) {
             ci.cancel();
         }

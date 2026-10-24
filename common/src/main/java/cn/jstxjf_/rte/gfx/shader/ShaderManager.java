@@ -27,11 +27,9 @@ public class ShaderManager {
     public static Matrix4f currentBatchCameraMatrix;
     public static ShaderInstance currentBatchShaderInstance;
 
-
     public static final VertexFormatElement MC_ELEMENT_MATRIX =
             new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.GENERIC, 16);
 
-    // MTR 1.20+
     public static final VertexFormat MC_FORMAT_ENTITY_MAT = new VertexFormat(ImmutableMap.<String, VertexFormatElement>builder()
             .put("Position", DefaultVertexFormat.ELEMENT_POSITION).put("Color", DefaultVertexFormat.ELEMENT_COLOR)
             .put("UV0", DefaultVertexFormat.ELEMENT_UV0).put("UV1", DefaultVertexFormat.ELEMENT_UV1).put("UV2", DefaultVertexFormat.ELEMENT_UV2)

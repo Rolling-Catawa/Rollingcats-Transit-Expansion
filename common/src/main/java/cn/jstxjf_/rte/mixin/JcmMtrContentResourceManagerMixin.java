@@ -15,21 +15,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.io.Reader;
 import java.util.Map;
 
-/**
- * MTR 3 inline vehicle scripts need RTE's legacy train/door/path wrappers.
- * JCM may still parse them so its compatibility API can validate the files,
- * but it must not also create and render a second script instance for the same
- * legacy vehicle.
- */
 @Pseudo
 @Mixin(targets = "com.lx862.mtrscripting.mod.resource.MTRContentResourceManager", remap = false)
 public abstract class JcmMtrContentResourceManagerMixin {
 
-    /**
-     * RTE owns MTR 3 inline vehicle scripts. Hiding only their inline payload
-     * from JCM prevents duplicate renderers and lets RTE repair legacy resource
-     * paths, while preserving JCM's modern vehicle and explicit script_id path.
-     */
     @Redirect(
         method = "lambda$readMtrCustomResources$3",
         at = @At(

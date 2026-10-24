@@ -167,4 +167,3 @@ public class RailModelRegistry {
         return new RailModelProperties(key, (MutableComponent) Component.translatable(obj.get("name").getAsString()), rawModel, repeatInterval, yOffset, script, group);
     }
 }
-

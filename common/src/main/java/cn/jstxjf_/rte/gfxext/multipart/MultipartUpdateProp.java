@@ -48,7 +48,7 @@ public class MultipartUpdateProp {
         this.trainOnRoute = vehicle.getIsOnRoute();
         this.carIndex = 0;
 
-        TransportMode mode = vehicle.getTransportMode(); // Use vehicle directly
+        TransportMode mode = vehicle.getTransportMode();
         this.trainCars = (mode.hasPitchAscending || mode.hasPitchDescending) ? 1 : 1; 
     }
 }

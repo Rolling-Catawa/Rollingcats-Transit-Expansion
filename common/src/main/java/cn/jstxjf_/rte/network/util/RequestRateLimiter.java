@@ -1,12 +1,10 @@
 package cn.jstxjf_.rte.network.util;
 
-
 import net.minecraft.server.level.ServerPlayer;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** Lightweight per-player limiter for server-side query packets. */
 public final class RequestRateLimiter {
 
     public enum Channel {

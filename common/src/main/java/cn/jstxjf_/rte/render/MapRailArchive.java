@@ -370,7 +370,6 @@ public final class MapRailArchive {
             }
             RTE.LOGGER.info("[MapArchive] loaded {} rails from {}", ENTRIES.size(), currentFile.getFileName());
         } catch (Exception e) {
-            // Never retain a partially read archive after corruption or truncation.
             ENTRIES.clear();
             RTE.LOGGER.warn("[MapArchive] load failed", e);
         }

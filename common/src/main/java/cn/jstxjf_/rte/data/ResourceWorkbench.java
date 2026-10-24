@@ -649,7 +649,6 @@ public final class ResourceWorkbench {
         }
     }
 
-
     private static java.util.Map<String, List<float[]>> readInlineParts(JsonObject model) {
         final java.util.Map<String, List<float[]>> groupToOffsets = new java.util.HashMap<>();
         if (model == null || !model.has("parts") || !model.get("parts").isJsonArray()) {

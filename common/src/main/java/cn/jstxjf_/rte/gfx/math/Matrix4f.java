@@ -159,7 +159,6 @@ public class Matrix4f implements Posture {
         rotateZYX(vec.z(), vec.y(), vec.x());
     }
 
-    // Helper for Euler angles
     int index(int p_27642_, int p_27643_) {
       return p_27643_ * 4 + p_27642_;
     }
@@ -219,8 +218,6 @@ public class Matrix4f implements Posture {
     }
 
     public Vector3f getEulerAnglesYXZ() {
-        // JOML doesn't provide getEulerAnglesYXZ, compute manually
-        // Extract from rotation matrix: R = Ry * Rx * Rz
         float m00 = impl.m00(), m01 = impl.m01(), m02 = impl.m02();
         float m10 = impl.m10(), m11 = impl.m11(), m12 = impl.m12();
         float m20 = impl.m20(), m21 = impl.m21(), m22 = impl.m22();

@@ -1,6 +1,5 @@
 package cn.jstxjf_.rte.scripting.compat;
 
-/** Public-field ABI used by MTR 3 PIDS and train scripts. */
 @SuppressWarnings("unused")
 public final class ScheduleEntryCompat implements Comparable<ScheduleEntryCompat> {
 

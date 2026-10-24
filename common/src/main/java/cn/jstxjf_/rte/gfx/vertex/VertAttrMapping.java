@@ -32,7 +32,6 @@ public class VertAttrMapping {
                     break;
             }
         }
-        // Align stride to 4 bytes
         if (strideVertex % 4 != 0) {
             paddingVertex = 4 - strideVertex % 4;
             strideVertex += paddingVertex;

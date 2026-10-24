@@ -20,7 +20,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.lang.reflect.Field;
 import java.util.Locale;
 
-/** Restores the side information that MTR 4's MTR 3 converter discards. */
 @Mixin(value = ModelPropertiesPart.class, remap = false)
 public abstract class ModelPropertiesPartLegacyMixin implements LegacyDoorMetadata {
 

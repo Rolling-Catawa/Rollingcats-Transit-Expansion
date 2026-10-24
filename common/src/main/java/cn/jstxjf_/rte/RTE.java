@@ -15,10 +15,7 @@ public class RTE {
     public static final Logger LOGGER = LoggerFactory.getLogger("RTE");
     public static final JsonParser JSON_PARSER = new JsonParser();
 
-    // RTE's own Registry instance (NOT Init.REGISTRY from MTR)
-    // This ensures RTE blocks/items are properly registered before freeze
     public static final Registry REGISTRY = new Registry();
-
 
     public static void init() {
         BuildStamp.logOnce();

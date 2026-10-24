@@ -10,13 +10,6 @@ public interface ConfigResponder {
     String key();
     void init(Map<String, String> map);
 
-    /**
-     * Registers both ordinary responders and ANTE-style composite JavaScript
-     * responders.  Composite responders initialise several child keys but the
-     * old Cloth screen was the only code able to discover their nested widget
-     * definitions.  RTE keeps those child values visible/editable using safe
-     * text fallbacks instead of dropping the controls entirely.
-     */
     static void registerInto(Map<String, String> configs, Map<String, ConfigResponder> responders,
                              ConfigResponder responder) {
         if (responder == null || configs == null || responders == null) {
@@ -37,11 +30,6 @@ public interface ConfigResponder {
         }
     }
 
-    /**
-     * Records keys inspected while a responder installs defaults. This also
-     * discovers composite child responders when their values were already
-     * persisted, where comparing the map before/after init would miss them.
-     */
     final class InitTrackingMap extends AbstractMap<String, String> {
         private final Map<String, String> delegate;
         private final Set<String> touchedKeys = new LinkedHashSet<>();
@@ -123,7 +111,6 @@ public interface ConfigResponder {
             return key;
         }
 
-
         public TextField setTransformer(Function<String, String> transformer) { this.transformer = transformer; return this; }
         public TextField setErrorSupplier(Function<String, Optional<Component>> errorSupplier) { this.errorSupplier = errorSupplier; return this; }
         public TextField setDefaultValue(String defaultValue) { this.defaultValue = defaultValue; return this; }
@@ -171,7 +158,6 @@ public interface ConfigResponder {
             return key;
         }
 
-
         public CycleToggle setDefaultValue(int defaultValue) { this.defaultValue = defaultValue; return this; }
         public CycleToggle setName(Component name) { this.name = name; return this; }
         public CycleToggle setSaveConsumer(Consumer<Integer> saveConsumer) { this.saveConsumer = saveConsumer; return this; }
@@ -218,7 +204,6 @@ public interface ConfigResponder {
         public String key() {
             return key;
         }
-
 
         public BooleanToggle setDefaultValue(boolean defaultValue) { this.defaultValue = defaultValue; return this; }
         public BooleanToggle setName(Component name) { this.name = name; return this; }
@@ -284,7 +269,6 @@ public interface ConfigResponder {
             return min + (max - min) * level / step;
         }
 
-
         public DoubleSlider setDefaultValue(double defaultValue) { this.defaultValue = defaultValue; return this; }
         public DoubleSlider setName(Component name) { this.name = name; return this; }
         public DoubleSlider setSaveConsumer(Consumer<Double> saveConsumer) { this.saveConsumer = saveConsumer; return this; }
@@ -296,6 +280,4 @@ public interface ConfigResponder {
         public DoubleSlider setStep(int step) { this.step = step; return this; }
     }
 
-
 }
-

@@ -21,7 +21,6 @@ public class Quaternionf {
         this.impl = new org.joml.Quaternionf(other.impl);
     }
 
-    // Adaptor for MTR 4 / JOML
     public Quaternionf(org.joml.Quaternionf joml) {
         this.impl = new org.joml.Quaternionf(joml);
     }

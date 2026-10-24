@@ -20,7 +20,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
-// Simple logger replacement to avoid external libs
 class Logging {
     public static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger("SowcerExt");
 }
@@ -185,7 +184,6 @@ public class CsvModelLoader {
                         break;
                     case "setrendertype":
                     case "setrendertypeall":
-                        // extension
                         if (tokens[0].equals("setrendertypeall")) {
                             for (RawMesh mesh : builtMeshList) {
                                 mesh.setRenderType(tokens[1]);
@@ -194,16 +192,13 @@ public class CsvModelLoader {
                         buildingMesh.setRenderType(tokens[1]);
                         break;
                     case "setbillboard":
-                        // extension
                         buildingMesh.setMatixProcess(VertAttrState.BILLBOARD);
                         break;
                     case "setisglcoords":
-                        // extension
                         isGLCoords = tokens[1].equals("true");
                         break;
                     case "uvmirror":
                     case "uvmirrorall":
-                        // extension
                         Integer[] uvMirrorParams = parseParams(tokens, new Integer[]{0, 0}, Integer::parseInt);
                         if (tokens[0].equals("uvmirrorall")) {
                             for (RawMesh mesh : builtMeshList) {
@@ -228,7 +223,7 @@ public class CsvModelLoader {
         model.sourceLocation = objLocation;
         for (RawMesh mesh : builtMeshList) {
             if (!isGLCoords) {
-                mesh.applyScale(-1, 1, 1); // Convert DirectX coords to OpenGL coords
+                mesh.applyScale(-1, 1, 1);
             }
             if (atlasManager != null) atlasManager.applyToMesh(mesh);
             model.append(mesh);
@@ -274,21 +269,17 @@ public class CsvModelLoader {
         buildingMesh.faces.add(new Face(new int[]{v + 6, v + 1, v + 5}));
     }
 
-    // create cylinder
     private static void createCylinder(RawMesh buildingMesh, int n, float r1, float r2, float h) {
-        // parameters
         boolean uppercap = r1 > 0.0;
         boolean lowercap = r2 > 0.0;
         int m = (uppercap ? 1 : 0) + (lowercap ? 1 : 0);
         r1 = Math.abs(r1);
         r2 = Math.abs(r2);
         float ns = h >= 0.0F ? 1.0F : -1.0F;
-        // initialization
         float d = (float) (2.0 * Math.PI / n);
         float g = 0.5F * h;
         float t = 0.0F;
         float a = (float) (h != 0.0 ? Math.atan((r2 - r1) / h) : 0.0);
-        // vertices and normals
         int v = buildingMesh.vertices.size();
         for (int i = 0; i < n; i++) {
             float dx = (float) Math.cos(t);
@@ -305,7 +296,6 @@ public class CsvModelLoader {
             buildingMesh.vertices.add(new Vertex(new Vector3f(lx, -g, lz), normal));
             t += d;
         }
-        // faces
 
         for (int i = 0; i < n; i++) {
             int i0 = (2 * i + 2) % (2 * n);
@@ -324,10 +314,8 @@ public class CsvModelLoader {
                     verts.add(verts.get(verts.size() - 2));
                 }
                 if (i == 0 & lowercap) {
-                    // lower cap
                     verts.add(v + 2 * j + 1);
                 } else {
-                    // upper cap
                     verts.add(v + 2 * (n - j - 1));
                 }
             }

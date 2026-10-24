@@ -10,7 +10,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Prevents malformed camera/frustum data from trapping the render thread forever. */
 @Mixin(Frustum.class)
 public class FrustumSafetyMixin {
 
@@ -43,7 +42,6 @@ public class FrustumSafetyMixin {
                 RTE.LOGGER.warn("[FrustumSafety] aborted invalid camera-frustum offset loop (finite={}, iterations={})",
                     finite, rte$frustumOffsetIterations);
             }
-            // FrustumIntersection.INSIDE. Vanilla stops offsetting on this value.
             return -2;
         }
         return intersection.intersectAab(minX, minY, minZ, maxX, maxY, maxZ);

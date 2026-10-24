@@ -98,11 +98,6 @@ public class CustomResourceLoaderMixin {
                         train.add("base_train_type", train.get("base_type"));
                     }
                     rte$attachScriptOnlyBody(train);
-                    // MTR 3 accepted mixed-case BVE sound base names, while
-                    // MTR 4 feeds the value directly into ResourceLocation.
-                    // Resource locations have required lowercase paths since
-                    // 1.13, so one bad legacy train (for example vityazITP)
-                    // otherwise aborts conversion of the whole resource file.
                     if (train.has("bve_sound_base_id") && train.get("bve_sound_base_id").isJsonPrimitive()) {
                         final String soundBaseId = train.get("bve_sound_base_id").getAsString();
                         train.addProperty("bve_sound_base_id", soundBaseId.toLowerCase(java.util.Locale.ROOT));

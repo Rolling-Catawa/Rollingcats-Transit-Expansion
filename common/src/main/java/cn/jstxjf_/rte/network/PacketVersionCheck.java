@@ -70,7 +70,6 @@ public class PacketVersionCheck extends RtePacket {
         cn.jstxjf_.rte.bridge.network.RteNetwork.sendToPlayer(player, new PacketVersionCheck());
     }
 
-    /** Client-only linkage is isolated from the packet class loaded by dedicated servers. */
     private static final class ClientHandler {
 
         private static void apply(String remoteVersion, int remoteProtocolVersion,

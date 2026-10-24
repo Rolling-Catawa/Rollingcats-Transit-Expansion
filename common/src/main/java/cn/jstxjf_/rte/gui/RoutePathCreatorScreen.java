@@ -46,7 +46,6 @@ public class RoutePathCreatorScreen extends Screen {
     private boolean refreshingFields = false;
     private int selectionAnchor = -1;
 
-
     private final imgui.type.ImString imRailType = new imgui.type.ImString(64);
     private final imgui.type.ImString imDwellTime = new imgui.type.ImString(16);
     private final imgui.type.ImString imRouteName = new imgui.type.ImString(128);
@@ -578,9 +577,6 @@ public class RoutePathCreatorScreen extends Screen {
         refreshingFields = false;
     }
 
-
-
-
     private void changePage(int delta) {
         currentPage = Math.max(0, Math.min(maxPage(), currentPage + delta));
         refreshSelectedFields();
@@ -605,7 +601,6 @@ public class RoutePathCreatorScreen extends Screen {
         pullData();
         init();
     }
-
 
     private void createRoute() {
         if (getValidationError() != null) {
@@ -671,7 +666,6 @@ public class RoutePathCreatorScreen extends Screen {
     private Integer getSelectedIndex() {
         return selectedParts.stream().sorted().findFirst().orElse(null);
     }
-
 
     private ItemStack getStack() {
         return minecraft.player == null ? ItemStack.EMPTY : minecraft.player.getItemInHand(hand);

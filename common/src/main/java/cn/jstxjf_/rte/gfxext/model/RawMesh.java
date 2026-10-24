@@ -1,6 +1,5 @@
 package cn.jstxjf_.rte.gfxext.model;
 
-// Recompile force
 import cn.jstxjf_.rte.gfx.batch.MaterialProp;
 import cn.jstxjf_.rte.gfx.model.Mesh;
 import cn.jstxjf_.rte.gfx.object.IndexBuf;
@@ -102,7 +101,6 @@ public class RawMesh {
         faces.addAll(newFaces);
     }
 
-    /** Removes duplicate vertices and faces from the mesh. */
     public transient boolean dedupeSuppressed;
 
     public void distinct() {
@@ -137,7 +135,6 @@ public class RawMesh {
         faces.addAll(distinctFaces);
     }
 
-    /** Generates normals for vertices without a normal vector. Produces duplicate vertices. */
     public void generateNormals() {
         boolean anyMissing = false;
         for (Vertex vertex : vertices) {
@@ -225,27 +222,22 @@ public class RawMesh {
         for (int i = 0; i < vertices.size(); ++i) {
             if (mapping.sources.get(VertAttrType.POSITION).inVertBuf()) {
                 Vector3f pos = vertices.get(i).position;
-                // vertBuf.position(getVertBufPos(mapping, i, VertAttrType.POSITION));
                 vertBuf.putFloat(pos.x()).putFloat(pos.y()).putFloat(pos.z());
             }
             if (mapping.sources.get(VertAttrType.COLOR).inVertBuf()) {
-                // vertBuf.position(getVertBufPos(mapping, i, VertAttrType.COLOR));
                 vertBuf.putInt(vertices.get(i).color);
             }
             if (mapping.sources.get(VertAttrType.UV_TEXTURE).inVertBuf()) {
                 float u = vertices.get(i).u;
                 float v = vertices.get(i).v;
-                // vertBuf.position(getVertBufPos(mapping, i, VertAttrType.UV_TEXTURE));
                 vertBuf.putFloat(u).putFloat(v);
             }
             if (mapping.sources.get(VertAttrType.UV_LIGHTMAP).inVertBuf()) {
-                // vertBuf.position(getVertBufPos(mapping, i, VertAttrType.UV_LIGHTMAP));
                 vertBuf.putInt(vertices.get(i).light);
             }
             if (mapping.sources.get(VertAttrType.NORMAL).inVertBuf()) {
                 Vector3f mojNormal = vertices.get(i).normal.copy();
                 mojNormal.normalize();
-                // vertBuf.position(getVertBufPos(mapping, i, VertAttrType.NORMAL));
                 vertBuf.put((byte) (mojNormal.x() * 0x7F)).put((byte) (mojNormal.y() * 0x7F)).put((byte) (mojNormal.z() * 0x7F));
             }
             for (int k = 0; k < mapping.paddingVertex; k++) vertBuf.put((byte)0);

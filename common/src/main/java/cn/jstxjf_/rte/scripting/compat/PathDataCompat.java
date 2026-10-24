@@ -21,7 +21,6 @@ public final class PathDataCompat {
     public final int stopIndex;
     public final double startDistance;
     public final double endDistance;
-    /** MTR 3 field names, retaining the actual traversal direction. */
     public final Position startingPos;
     public final Position endingPos;
 
@@ -30,7 +29,6 @@ public final class PathDataCompat {
         this.rail = new RailCompat(pathData.getRail(), pathData.reversePositions);
         this.reversePositions = pathData.reversePositions;
         this.dwellTimeMillis = pathData.getDwellTime();
-        // MTR 3 stores this value in half-seconds (10 game ticks).
         this.dwellTime = this.dwellTimeMillis / 500;
         this.savedRailBaseIdLong = pathData.getSavedRailBaseId();
         this.savedRailBaseId = this.savedRailBaseIdLong;
@@ -156,7 +154,6 @@ public final class PathDataCompat {
         return pathData != null && startingPos.equals(pathData.endingPos) && endingPos.equals(pathData.startingPos);
     }
 
-    /** Deterministic equivalent of MTR 3 PathData#getRailProduct. */
     public UUID getRailProduct() {
         final long start = blockPosAsLong(startingPos);
         final long end = blockPosAsLong(endingPos);

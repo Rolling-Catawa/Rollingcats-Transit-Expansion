@@ -11,11 +11,6 @@ public class PlatformCompat {
     public final String name;
     public final int color;
     public final TransportMode transportMode;
-    /**
-     * MTR 3 exposes dwellTime as a public field in half-seconds.  It is not
-     * ticks and it is not seconds: the old UI divided it by two before
-     * displaying seconds and TrainServer multiplied it by ten to get ticks.
-     */
     public final long dwellTime;
 
     private final Platform delegate;

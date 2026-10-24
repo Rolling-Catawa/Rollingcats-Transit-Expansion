@@ -42,12 +42,6 @@ public class ResourceUtil {
         return location;
     }
 
-    /**
-     * Canonicalises paths supplied by old OBJ/MTL resource packs before they
-     * reach {@link ResourceLocation}.  MTR 3's loaders tolerated duplicate
-     * slashes, leading slashes and Windows separators; modern Minecraft does
-     * not, and rejects the whole material instead of merely normalising it.
-     */
     public static String normalizeResourcePath(String path) {
         if (path == null) {
             return "_";

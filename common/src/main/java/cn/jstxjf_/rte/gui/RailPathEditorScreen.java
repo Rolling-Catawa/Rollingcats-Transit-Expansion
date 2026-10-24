@@ -45,7 +45,6 @@ public class RailPathEditorScreen extends net.minecraft.client.gui.screens.Scree
         return true;
     }
 
-
     public static Screen createScreen(BlockPos posStart, BlockPos posEnd, Rail rail, Supplier<Screen> parent) {
         if (!cn.jstxjf_.rte.gui.imgui.RteImGuiHost.isAvailable()) {
             cn.jstxjf_.rte.gui.imgui.RteImGuiHost.notifyUnavailable();
@@ -560,7 +559,6 @@ public class RailPathEditorScreen extends net.minecraft.client.gui.screens.Scree
             }
         }
     }
-
 
     private int[] worldToScreen(double wx, double wy, double wz) {
         final double[] exact = worldToScreenExact(wx, wy, wz);

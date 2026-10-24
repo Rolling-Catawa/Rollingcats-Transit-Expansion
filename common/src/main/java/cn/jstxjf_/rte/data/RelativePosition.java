@@ -26,7 +26,6 @@ public class RelativePosition {
         int nx = x, nz = z;
         int steps = direction.get2DDataValue();
 
-
         for (int i = steps; i > 0; i--) {
             int temp = nx;
             nx = -nz;

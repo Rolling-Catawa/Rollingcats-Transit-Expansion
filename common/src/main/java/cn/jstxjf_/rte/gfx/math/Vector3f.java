@@ -261,7 +261,6 @@ public class Vector3f {
         return x;
     }
     
-    // Tiny helper class to avoid importing Mth
     private static class Mth {
         public static float mulAdd(float a, float b, float c) {
              return a * b + c;

@@ -100,4 +100,3 @@ public class MtrModelRegistryUtil {
         return obj.get("preloadBbModel").getAsBoolean();
     }
 }
-

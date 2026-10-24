@@ -91,4 +91,3 @@ public abstract class VehicleExtensionMixin implements TrainExtraSupplier {
         return Float.isFinite(result) ? result : 0;
     }
 }
-

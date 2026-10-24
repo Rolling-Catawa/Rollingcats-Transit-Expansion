@@ -148,14 +148,6 @@ public final class RawPackAliases {
                 recoverWholePack |= isLegacyAssetPath(entryName);
             }
 
-            // A number of old MTR packs were produced by archivers which put
-            // mixed-case names in the local ZIP header and different, cleaned
-            // names in the central directory.  Minecraft can discover the
-            // mixed-case JSON index but then cannot resolve perfectly legal
-            // lower-case OBJ/PNG paths referenced by it.  If one legacy path
-            // proves that the archive needs recovery, expose every asset from
-            // that archive through the bottom-priority virtual pack.  Normal
-            // resources still win; these aliases are fallback-only.
             for (final String entryName : entryNames) {
                 register(zipPath, true, entryName, recoverWholePack);
             }

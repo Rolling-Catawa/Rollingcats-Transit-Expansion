@@ -22,7 +22,7 @@ public class PacketScreen extends RtePacket {
 
     private final long posLong;
     private final int screenId;
-    private final int extra; // e.g., hand ordinal for item screens
+    private final int extra;
 
     public PacketScreen(RtePacketReader receiver) {
         this.posLong = receiver.readLong();

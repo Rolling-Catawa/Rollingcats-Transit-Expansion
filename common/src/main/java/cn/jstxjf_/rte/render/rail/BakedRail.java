@@ -76,7 +76,7 @@ public class BakedRail {
         modelKey = explicitModelKey;
 
         RailModelProperties prop = getProperties();
-        color = AttrUtil.argbToBgr(RailType.getRailColor(rail) | 0xFF000000); // Fixed
+        color = AttrUtil.argbToBgr(RailType.getRailColor(rail) | 0xFF000000);
 
         if (!modelKey.equals("null") && genChunkMap) {
             final boolean reverse = ((RailExtraSupplier) (Object)rail).getRenderReversed();

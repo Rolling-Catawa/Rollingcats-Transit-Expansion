@@ -72,7 +72,6 @@ public class TrainDrawCalls extends AbstractDrawCalls {
         }
     }
 
-
     public void commitCar(int car, DrawScheduler drawScheduler, Matrix4f basePose, Matrix4f worldPose, int light) {
         if (car >= 0 && car < carDrawLists.length) {
             for (ClusterDrawCall clusterDrawCall : carDrawLists[car]) {

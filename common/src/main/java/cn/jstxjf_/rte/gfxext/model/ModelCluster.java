@@ -61,7 +61,6 @@ public class ModelCluster implements Closeable {
     }
 
     public ModelCluster(RawModel source, VertAttrMapping mapping) {
-        // Untracked variant
         this.translucentParts = new RawModel();
         this.opaqueParts = new RawModel();
         for (RawMesh mesh : source.meshList.values()) {
@@ -173,7 +172,6 @@ public class ModelCluster implements Closeable {
         uploadedOpaqueParts.close();
         uploadedTranslucentParts.close();
     }
-
 
     public void replaceTexture(String oldTexture, ResourceLocation newTexture) {
         uploadedOpaqueParts.replaceTexture(oldTexture, newTexture);

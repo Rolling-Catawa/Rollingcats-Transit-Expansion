@@ -66,28 +66,16 @@ public class ClientConfig {
     public static boolean scriptDebugOverlay = false;
     public static boolean vanillaVehicleMode = false;
     public static boolean legacyVariationCarFilter = true;
-    // AUTO keeps old Nashorn/Rhino-style packs working while allowing modern
-    // JavaScript syntax (default parameters, classes, optional chaining, ...)
-    // to run on GraalJS. Forcing every pack onto Rhino breaks otherwise valid
-    // mixed resource-pack stacks.
     public static String scriptEngine = "auto";
     public static boolean closeCouplingGap = false;
     public static boolean overrideMtrScreens = false;
     public static boolean compatAsked = false;
     public static boolean rteBrushEditing = true;
     public static boolean reportMissingResourcePacks = false;
-    // MTR 4's legacy converter already changes an MTR 3 model length L to
-    // VehicleCar.length=L+1, exactly matching MTR 3's TrainType spacing.
-    // Any non-zero value here is therefore an *additional* visual gap.
     public static double legacyCouplingGap = 0.0;
     public static boolean builtinGangway = true;
     public static boolean forceGangwayOnAllCars = true;
     public static boolean mirrorReversedDoorways = false;
-    /**
-     * Reconstruct doorway bounds for pre-MTR-4 vehicle models.  This is kept
-     * separate from legacyWalkways: doorway bounds drive platform-side door
-     * selection, while synthetic walkable floors can alter player collision.
-     */
     public static boolean legacyDoorways = false;
     public static boolean legacyWalkways = false;
 
@@ -378,7 +366,6 @@ public class ClientConfig {
     public static void clearCustomResponders() {
         customResponders.clear();
     }
-
 
     public interface ConfigGroup {
         String key();

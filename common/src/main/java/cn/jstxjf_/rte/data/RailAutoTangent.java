@@ -21,7 +21,6 @@ public final class RailAutoTangent {
     private static final double MIN_REFINE_RAD = Math.toRadians(0.5);
     private static final double MIN_CONTINUATION_SCORE = 0.3;
 
-
     public static void apply(Level world, BlockPos posStart, BlockPos posEnd) {
         if (!RTEConfig.enableAutoTangent) {
             return;

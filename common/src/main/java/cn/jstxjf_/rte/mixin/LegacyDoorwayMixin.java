@@ -36,7 +36,6 @@ public class LegacyDoorwayMixin {
         return modelProperties;
     }
 
-
     private static final java.util.Map<String, String> RTE_DISPLAY_TYPE_ALIASES = java.util.Map.of(
         "NEXT_STATION_PLAIN", "NEXT_STATION",
         "NEXT_STATION_NORMAL", "NEXT_STATION",

@@ -28,7 +28,6 @@ public class ClientDataCompat {
 
     public static final DataCacheCompat DATA_CACHE = new DataCacheCompat();
 
-    /** MTR 3 schedule ABI, reconstructed from live MTR 4 vehicle timetables. */
     public static final ScriptLongMap<Set<ScheduleEntryCompat>> SCHEDULES_FOR_PLATFORM = new ScriptLongMap<>();
     private static final Map<Long, List<PlatformSchedule>> VEHICLE_SCHEDULES = new ConcurrentHashMap<>();
 

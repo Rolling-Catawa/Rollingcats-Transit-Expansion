@@ -35,7 +35,6 @@ public final class CurveFitting {
             return Result.reject("Draw both XZ and Y curves first");
         }
 
-
         final ArrayList<DrawPoint> xz = mergeNearbyT(sortedCopy(xzPoints), 0.01);
         final ArrayList<DrawPoint> y = mergeNearbyT(sortedCopy(yPoints), 0.01);
         final ArrayList<DrawPoint> samples = buildFitSamples(p1, p2, xz, y);
@@ -44,10 +43,8 @@ public final class CurveFitting {
         final double distance = Math.max(start.distanceTo(end), 1);
         final ArrayList<DrawPoint> knots = simplifySamples(samples, Math.max(0.35, distance / 120D), 24);
 
-
         final double maxTurn = maxTurnDegrees(knots);
         if (maxTurn > MAX_TURN_DEGREES) {
-
 
             return Result.reject(String.format(java.util.Locale.ROOT, "Turn angle %.1f deg is too large", maxTurn));
         }
@@ -59,12 +56,10 @@ public final class CurveFitting {
         final BezierCurve curve = new BezierCurve(0.1, controls);
         if (!Double.isFinite(curve.getLength()) || curve.getLength() < 1) {
 
-
             return Result.reject("Fitted curve has invalid length");
         }
         double maxAllowed = Math.max(100, distance * 10);
         if (curve.getLength() > maxAllowed) {
-
 
             return Result.reject(String.format(java.util.Locale.ROOT, "Curve too long: %.0f blocks (max %.0f)", curve.getLength(), maxAllowed));
         }
@@ -72,7 +67,6 @@ public final class CurveFitting {
         final BezierCurve.Vec3 c2 = controls.size() > 2 ? controls.get(controls.size() - 2) : end;
         double angleStart = Math.atan2(c1.z - start.z, c1.x - start.x);
         double angleEnd = Math.atan2(end.z - c2.z, end.x - c2.x);
-
 
         return Result.accept(curve, angleStart, angleEnd);
     }

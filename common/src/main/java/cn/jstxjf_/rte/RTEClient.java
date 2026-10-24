@@ -110,7 +110,6 @@ public class RTEClient {
             }
         }
 
-
         if (KeyMappings.RAIL_EDIT_KEY != null) {
             while (KeyMappings.RAIL_EDIT_KEY.consumeClick()) {
                 final Minecraft client = getMinecraft();
@@ -156,7 +155,6 @@ public class RTEClient {
             reloadResourcesWithFeedback(client);
         }
     }
-
 
     private static long rte$nextSelfTestMillis = 0;
     private static int rte$selfTestRuns = 0;

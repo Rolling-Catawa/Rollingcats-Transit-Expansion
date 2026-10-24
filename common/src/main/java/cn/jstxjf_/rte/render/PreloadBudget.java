@@ -5,7 +5,6 @@ import cn.jstxjf_.rte.RTE;
 
 public final class PreloadBudget {
 
-
     private static int granted;
     private static boolean exhausted;
 

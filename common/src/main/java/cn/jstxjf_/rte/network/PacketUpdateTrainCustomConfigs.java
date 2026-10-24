@@ -98,4 +98,3 @@ public class PacketUpdateTrainCustomConfigs extends RtePacket {
         return null;
     }
 }
-

@@ -3,7 +3,6 @@ package cn.jstxjf_.rte.render.train;
 import org.mtr.core.data.Vehicle;
 import net.minecraft.world.phys.Vec3;
 
-// Placeholder for TrainRendererBase replacement
 public class NoopTrainRenderer {
 
     public static final NoopTrainRenderer INSTANCE = new NoopTrainRenderer();

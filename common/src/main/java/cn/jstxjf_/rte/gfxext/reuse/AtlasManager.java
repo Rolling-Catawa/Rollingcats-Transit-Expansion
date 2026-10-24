@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
-// Helper class for resolving paths same as ObjModelLoader
 class ResourceUtil {
     public static ResourceLocation resolveRelativePath(ResourceLocation base, String path, String ext) {
         String basePath = base.getPath();
@@ -37,7 +36,6 @@ public class AtlasManager {
 
     public HashSet<ResourceLocation> noAtlasList = new HashSet<>();
     
-    // GSON parser
     private static final JsonParser JSON_PARSER = new JsonParser();
 
     public void load(ResourceManager resourceManager, ResourceLocation atlasConf) throws IOException {

@@ -27,17 +27,12 @@ def check(condition: bool, message: str) -> None:
 check(MTR3_SPACING == 22.0, "line 4 MTR 3 spacing")
 check(MTR4_CONVERTED_LENGTH == MTR3_SPACING, "converter already retains spacing")
 
-# No additional coupling pad: MTR 4 centre spacing and scripting spacing are
-# both the exact MTR 3 value.
 additional_gap = 0.0
 centre_spacing = MTR4_CONVERTED_LENGTH + 2 * additional_gap
 script_spacing = MTR4_CONVERTED_LENGTH + 2 * additional_gap
 check(centre_spacing == MTR3_SPACING, "centre spacing parity")
 check(script_spacing == centre_spacing, "script/render spacing parity")
 
-# The public TrainWrapper ABI also keeps MTR 3's units and encodings.  A
-# converted 22 x 3 VehicleCar originated from baseTrainType train_21_3;
-# 80 km/h is rail-type ordinal 3; and speed limits are blocks per tick.
 base_train_type = f"train_{round(MTR4_CONVERTED_LENGTH - 1)}_3"
 check(base_train_type == "train_21_3", "base train type reconstruction")
 legacy_manual_limits = [20, 40, 60, 80, 120, 160, 200, 300]
@@ -45,8 +40,6 @@ check(min(range(len(legacy_manual_limits)), key=lambda i: abs(legacy_manual_limi
       "manual speed ordinal parity")
 check(abs((80 / 3600) * 50 - 80 / 72) < 1e-12, "rail speed unit parity")
 
-# The old body-based scan used (convertedLength - 1) / 2 = 10.5 and missed a
-# platform block at the last metre. MTR 3 and the corrected scan both use 11.
 old_cells = scanned_longitudinal_cells((MTR4_CONVERTED_LENGTH - 1) / 2)
 mtr3_cells = scanned_longitudinal_cells(MTR3_SPACING / 2)
 new_cells = scanned_longitudinal_cells(centre_spacing / 2)
@@ -54,9 +47,6 @@ check(10 in old_cells and 11 not in old_cells, "old scan reproduces end miss")
 check(11 in mtr3_cells, "MTR 3 reaches platform at car end")
 check(new_cells == mtr3_cells, "corrected scan matches MTR 3")
 
-# dlmtr_5/doorlight.js shows red on cars where a side is false while any car
-# on that side is true. Consistent per-car scanning therefore produces only
-# the intended right-side active lights at a right-side platform.
 right_open = [True] * 6
 left_open = [False] * 6
 any_right = any(right_open)
@@ -65,10 +55,6 @@ red_right = [not value and any_right for value in right_open]
 red_left = [not value and any_left for value in left_open]
 check(not any(red_right) and not any(red_left), "no false red door lights")
 
-# ANTE places a gangway at the midpoint of the two lower face corners.  MTR 4
-# supplies all four face corners; averaging all four would lift a 3 m model by
-# 1.5 m.  The adapter must retain the lower-edge midpoint and derive yaw/pitch
-# from the two adjacent car faces.
 face_a = [(1.0, 0.0, 2.0), (1.0, 3.0, 2.0), (-1.0, 3.0, 2.0), (-1.0, 0.0, 2.0)]
 face_b = [(2.0, 0.5, 8.0), (2.0, 3.5, 8.0), (0.0, 3.5, 8.0), (0.0, 0.5, 8.0)]
 
@@ -91,8 +77,6 @@ pitch = -math.atan2(dy, horizontal)
 check(abs(yaw - math.atan2(1.0, 6.0)) < 1e-9, "gangway yaw from actual faces")
 check(abs(pitch + math.atan2(0.5, math.sqrt(37))) < 1e-9, "gangway pitch from actual faces")
 
-# A displaced direct node keeps its block/grid identity while the effective
-# rail geometry and vehicle path use the fractional endpoint heights.
 base_length = 10.0
 y_offset_1 = 0.25
 y_offset_2 = -0.75

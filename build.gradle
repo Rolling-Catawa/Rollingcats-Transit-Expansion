@@ -37,7 +37,6 @@ subprojects {
     apply plugin: 'maven-publish'
 
     base {
-        // Set up a suffixed format for the mod jar names, e.g. `example-fabric`.
         archivesName = "$rootProject.archives_name-$project.name"
     }
 
@@ -50,25 +49,14 @@ subprojects {
         maven { url 'https://maven.shedaniel.me/' }
         mavenCentral()
         maven { url 'https://maven.fabricmc.net/' }
-        // Add repositories to retrieve artifacts from in here.
-        // You should only use this when depending on other mods because
-        // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-        // See https://docs.gradle.org/current/userguide/declaring_repositories.html
-        // for more information about repositories.
     }
 
     dependencies {
         minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
-        // mappings "net.fabricmc:yarn:$rootProject.yarn_version:v2"
         mappings loom.officialMojangMappings()
     }
 
     java {
-        // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-        // if it is present.
-        // If you remove this line, sources will not be generated.
-        // sources are not published (All Rights Reserved)
-        // withSourcesJar()
 
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -78,7 +66,6 @@ subprojects {
         it.options.release = 17
     }
 
-    // Configure Maven publishing.
     publishing {
         publications {
             mavenJava(MavenPublication) {
@@ -87,18 +74,11 @@ subprojects {
             }
         }
 
-        // See https://docs.gradle.org/current/userguide/publishing_maven.html for information on how to set up publishing.
         repositories {
-            // Add repositories to publish to here.
-            // Notice: This block does NOT have the same function as the block in the top level.
-            // The repositories here will be used for publishing your artifact, not for
-            // retrieving dependencies.
         }
     }
 }
 
-// ---- build stamp ----
-// Evaluated once at configuration time so every subproject shares one id.
 ext.rteStamp = {
     def exec = { String... cmd ->
         try {
@@ -131,16 +111,6 @@ ext.rteStamp = {
     ]
 }()
 
-// ---------------------------------------------------------------------------
-// collectJars —— 把各平台的发布用 jar 收集到 build/dist
-//
-//   ./gradlew collectJars
-//
-// 多 MC 版本构建会产出同名 jar，故统一重命名为
-//   rte-<平台>-<模组版本>+<MC版本>.jar
-// 与 MTR 自身的命名约定一致，避免不同版本互相覆盖。
-// 同时输出 CHECKSUMS.txt，含体积与 SHA-256，便于发布页核对。
-// ---------------------------------------------------------------------------
 
 def rteDistDir = layout.buildDirectory.dir('dist')
 def rteJavaHome = System.getProperty('java.home')

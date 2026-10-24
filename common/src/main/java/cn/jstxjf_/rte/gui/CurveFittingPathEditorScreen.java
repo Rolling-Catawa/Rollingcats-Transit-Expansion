@@ -49,7 +49,6 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
         return true;
     }
 
-
     private enum PlaneMode { XZ, Y }
     private enum Tool { DRAW, DELETE }
 
@@ -77,7 +76,6 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
     private String statusMessage = "";
     private boolean statusIsError = false;
     private long statusTime = 0;
-
 
     @Nullable
     private Rail hoveredRail = null;
@@ -666,8 +664,6 @@ public class CurveFittingPathEditorScreen extends net.minecraft.client.gui.scree
         int tw = font.width(coordText);
         GuiDrawUtil.drawText(coordText, mouseX - tw / 2.0, mouseY - 14, 0xFFDDDDDD);
     }
-
-
 
     private boolean isInCanvas(double x, double y) {
         return x >= 0 && x < width - 128 && y >= 0 && y < height;

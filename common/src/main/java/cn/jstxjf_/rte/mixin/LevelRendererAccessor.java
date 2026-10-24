@@ -10,4 +10,3 @@ public interface LevelRendererAccessor {
     @Accessor("cullingFrustum")
     Frustum getCullingFrustum();
 }
-

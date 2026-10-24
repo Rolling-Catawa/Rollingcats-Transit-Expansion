@@ -350,8 +350,6 @@ public class GraphicsTexture implements Closeable {
         }
     }
 
-
-
     private static final long GPU_UPLOAD_INTERVAL_NANOS = 33_000_000L;
     private static final java.util.Set<GraphicsTexture> PENDING_UPLOADS =
         java.util.concurrent.ConcurrentHashMap.newKeySet();

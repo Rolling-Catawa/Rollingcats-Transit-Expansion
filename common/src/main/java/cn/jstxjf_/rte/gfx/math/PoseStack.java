@@ -3,10 +3,6 @@ package cn.jstxjf_.rte.gfx.math;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-/**
- * Sowcer's internal PoseStack independent of Minecraft's MatrixStack.
- * Used for batching operations.
- */
 public class PoseStack implements Posture {
 
     private final Deque<Pose> poseStack = new ArrayDeque<>();

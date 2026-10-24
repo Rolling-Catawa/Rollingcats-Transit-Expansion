@@ -8,4 +8,3 @@ public interface IRoute {
     List<PathData> getPathData();
     void setPathData(List<PathData> pathData);
 }
-

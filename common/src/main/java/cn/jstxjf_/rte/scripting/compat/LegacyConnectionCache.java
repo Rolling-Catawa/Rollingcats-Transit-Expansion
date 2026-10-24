@@ -18,11 +18,6 @@ public final class LegacyConnectionCache {
             var size = typeof path.size === "function" ? path.size() : path.length;
             if (!size) return;
 
-            // NTE exposed Train.path directly. MTR 4 can replace this snapshot
-            // after the connection script has cached it, including with a path
-            // of the same length. Compare the actual source/list contents, not
-            // just the segment count, while retaining the stable array when the
-            // snapshot is unchanged.
             conn.pathDatas = path;
             var source = train.rte$getPathSource();
             if (conn.__rtePathSource && source.equals(conn.__rtePathSource)) return;

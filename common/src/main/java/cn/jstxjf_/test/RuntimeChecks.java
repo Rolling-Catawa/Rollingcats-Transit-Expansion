@@ -129,9 +129,6 @@ public final class RuntimeChecks {
                         + Math.pow(c0.position.y - c1.position.y, 2)
                         + Math.pow(c0.position.z - c1.position.z, 2));
                 final double convertedLength = first.getLength();
-                // LegacyVehicleResource stores original MTR 3 length + 1 in
-                // VehicleCar.length.  Compare against the original body length
-                // rather than mistaking the converted spacing for body size.
                 final double bodyLength = legacy ? convertedLength - 1 : convertedLength;
                 final double bodyGap = centreToCentre - bodyLength;
                 final double mtr3 = legacy ? 1.0 : bodyGap;

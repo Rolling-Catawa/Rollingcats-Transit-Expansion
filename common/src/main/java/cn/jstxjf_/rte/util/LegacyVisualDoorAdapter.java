@@ -8,7 +8,6 @@ import org.mtr.mapping.holder.Box;
 import org.mtr.mod.data.VehicleExtension;
 import org.mtr.mod.resource.ModelProperties;
 
-/** Supplies per-side, render-only doorway markers for converted MTR 3 parts. */
 public final class LegacyVisualDoorAdapter {
 
     public static final Box LEFT = new Box(-0.125, 0, 0, -0.0625, 0.0625, 0.0625);

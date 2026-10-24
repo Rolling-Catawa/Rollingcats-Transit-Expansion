@@ -20,32 +20,21 @@ import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.function.Function;
 
-/** Properties regarding material. Set during model loading. Affects batching. */
 public class MaterialProp {
 
-    /** Name of the shader program. Must be loaded in ShaderManager. */
     public String shaderName = "";
-    /** The texture to use. Null disables texture. */
     public ResourceLocation texture;
 
-    /** The vertex attribute values to use for those specified with VertAttrSrc MATERIAL. */
     public VertAttrState attrState = new VertAttrState();
 
-    /** If blending should be set up. True for entity_translucent_* and beacon_beam when translucent is true. */
     public boolean translucent = false;
-    /** If depth buffer should be written to. False for beacon_beam when translucent is true, true for everything else. */
     public boolean writeDepthBuf = true;
-    /** If the renderer should remove rotation components from model and view matrices.
-     *  Results in faces on the XY plane always facing the camera. */
-    // public boolean billboard = false;
 
     public boolean cutoutHack = false;
 
     public boolean cull = true;
 
-    /** Count of rolling sign sub-textures horizontally. */
     public int sheetElementsU = 0;
-    /** Count of rolling sign sub-textures vertically. */
     public int sheetElementsV = 0;
 
     public MaterialProp() {
@@ -79,33 +68,29 @@ public class MaterialProp {
     public static final ResourceLocation WHITE_TEXTURE_LOCATION = new ResourceLocation("minecraft:textures/misc/white.png");
 
     public void setupCompositeState() {
-        // RenderSystem.enableTexture(); // Removed as per macro for > 1.19
         if (texture != null) {
-            // TextureManager textureManager = Minecraft.getInstance().getTextureManager();
-            // textureManager.getTexture(texture).setFilter(false, false);
             RenderSystem.setShaderTexture(0, texture);
         } else {
             RenderSystem.setShaderTexture(0, WHITE_TEXTURE_LOCATION);
         }
 
-        // HACK: To make cutout transparency on beacon_beam work
         if (translucent || cutoutHack) {
-            RenderSystem.enableBlend(); // TransparentState
+            RenderSystem.enableBlend();
             RenderSystem.blendFuncSeparate(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA,
                     GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
         } else {
             RenderSystem.disableBlend();
         }
-        RenderSystem.enableDepthTest(); // DepthTestState
+        RenderSystem.enableDepthTest();
         RenderSystem.depthFunc(GL33.GL_LEQUAL);
         if (cull) {
             RenderSystem.enableCull();
         } else {
             RenderSystem.disableCull();
         }
-        Minecraft.getInstance().gameRenderer.lightTexture().turnOnLightLayer(); // LightmapState
-        Minecraft.getInstance().gameRenderer.overlayTexture().setupOverlayColor(); // OverlayState
-        RenderSystem.depthMask(writeDepthBuf); // WriteMaskState
+        Minecraft.getInstance().gameRenderer.lightTexture().turnOnLightLayer();
+        Minecraft.getInstance().gameRenderer.overlayTexture().setupOverlayColor();
+        RenderSystem.depthMask(writeDepthBuf);
     }
 
     public RenderType getBlazeRenderType() {

@@ -235,7 +235,7 @@ public final class DashboardMapCache {
     }
 
     private static void ensureLoaded(String worldId, String dim) {
-        final String marker = worldId + " " + dim;
+        final String marker = worldId + " " + dim;
         if (!LOADED_DIMENSIONS.add(marker)) return;
         loadDimension(worldId, dim);
     }

@@ -890,9 +890,6 @@ public class SliceTaskCanvasScreen extends Screen {
         lump.replacement = true;
     }
 
-
-
-
     private void filterInventory(String search) {
         filteredStates.clear();
         if (search == null || search.isBlank()) {
@@ -917,7 +914,6 @@ public class SliceTaskCanvasScreen extends Screen {
         }
         inventoryScroll = 0;
     }
-
 
     private String getBrushStatus() {
         if (brushState == null) {

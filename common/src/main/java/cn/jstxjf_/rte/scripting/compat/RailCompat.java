@@ -85,7 +85,6 @@ public final class RailCompat {
                 : this.isSavedRail ? (rail.isPlatform() ? "PLATFORM" : "SIDING") : "NORMAL";
         }
 
-        /** MTR 3 field aliases retained for scripts reading RailType directly. */
         public final boolean hasSavedRail;
         public final double maxBlocksPerTick;
         public final boolean canAccelerate;

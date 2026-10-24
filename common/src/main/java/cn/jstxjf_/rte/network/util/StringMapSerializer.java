@@ -52,8 +52,6 @@ public class StringMapSerializer {
     }
 
     public static String serializeToString(Map<String, String> map) throws IOException {
-        // RTE Improvement: Use Base64 or ISO_8859_1 to safely store binary in String.
-        // Using ISO_8859_1 preserves byte values 1:1.
         return serializeIn(map).toString(StandardCharsets.ISO_8859_1.name());
     }
 

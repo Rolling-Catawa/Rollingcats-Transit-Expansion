@@ -297,7 +297,6 @@ public interface RailExtraSupplier {
         return result;
     }
 
-
     static float getRollAngleRaw(Object rail, double value) {
         return getRollAngle(rail, value);
     }

@@ -196,14 +196,9 @@ public class FunctionScript {
             }
         }
         
-        // Optimization: Merge consecutive constant updates if possible
-        // (Implementation note: Basic stack-based folding is handled in Notation.java)
-
-
-
         InstructionSet = Arrays.copyOf(InstructionSet, i);
         Constants = Arrays.copyOf(Constants, c);
-        Stack = new double[256]; // Default size
+        Stack = new double[256];
     }
 
     public boolean isStatic() {
@@ -233,7 +228,6 @@ public class FunctionScript {
         return (float) Executor.ExecuteFunctionScript(this, prop, elapsedTime, currentState, 0);
     }
     
-    // Package-private access for Executor
     Instructions[] getInstructionSet() { return InstructionSet; }
     double[] getConstants() { return Constants; }
     double[] getStack() { return Stack; }

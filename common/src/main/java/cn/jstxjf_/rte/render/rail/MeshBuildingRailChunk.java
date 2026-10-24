@@ -5,7 +5,7 @@ import cn.jstxjf_.rte.data.RailModelProperties;
 import cn.jstxjf_.rte.gfx.batch.BatchManager;
 import cn.jstxjf_.rte.gfx.batch.EnqueueProp;
 import cn.jstxjf_.rte.gfx.batch.ShaderProp;
-import cn.jstxjf_.rte.gfx.batch.MaterialProp; // Added import
+import cn.jstxjf_.rte.gfx.batch.MaterialProp;
 import cn.jstxjf_.rte.gfx.math.Matrix4f;
 import cn.jstxjf_.rte.gfx.math.Vector3f;
 import cn.jstxjf_.rte.gfx.model.Model;
@@ -20,8 +20,7 @@ import cn.jstxjf_.rte.render.rail.RailRenderDispatcher;
 import cn.jstxjf_.rte.RTE;
 
 import net.minecraft.client.renderer.LightTexture;
-// import net.minecraft.world.level.LightLayer;
-import org.mtr.mapping.holder.LightType; // Fixed
+import org.mtr.mapping.holder.LightType;
 import org.mtr.mapping.holder.BlockPos;
 import org.mtr.mapping.holder.World;
 import net.minecraft.world.phys.Vec3;

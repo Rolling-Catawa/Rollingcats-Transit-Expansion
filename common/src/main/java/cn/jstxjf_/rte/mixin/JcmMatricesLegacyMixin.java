@@ -8,11 +8,6 @@ import org.spongepowered.asm.mixin.Shadow;
 
 import java.util.Stack;
 
-/**
- * Restores the Matrices#setIdentity method used by MTR 3 resource-pack
- * scripts. JCM 2.2.4 exposes its own Matrices implementation but omits that
- * legacy API, which otherwise makes every such vehicle fail while parsing.
- */
 @Pseudo
 @Mixin(targets = "com.lx862.mtrscripting.core.util.Matrices", remap = false)
 public abstract class JcmMatricesLegacyMixin {

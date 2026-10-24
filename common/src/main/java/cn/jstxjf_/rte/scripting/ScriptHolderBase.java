@@ -233,7 +233,6 @@ public abstract class ScriptHolderBase {
             name, engine, engineType, materialized.size(), functions.keySet());
     }
 
-
     public void reload(ResourceManager resourceManager) throws Exception {
         close();
         load(name, contextTypeName, resourceManager, scripts, config, key, functionNames);

@@ -15,8 +15,6 @@ import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.List;
 
-// Use standard Java IO/Net for reading resources in 1.20
-
 public class NmbModelLoader {
 
     public static RawModel loadModel(ResourceManager resourceManager, ResourceLocation location, AtlasManager atlasManager) throws IOException {

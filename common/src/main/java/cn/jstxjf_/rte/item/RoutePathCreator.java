@@ -437,7 +437,6 @@ public class RoutePathCreator extends ItemExtension {
         );
     }
 
-    /** Avoid linking the GUI screen while this item is registered on a dedicated server. */
     private static final class ClientHandler {
 
         private static void openScreen(boolean mainHand) {

@@ -48,7 +48,6 @@ public class ManualBezierPathEditorScreen extends net.minecraft.client.gui.scree
         return true;
     }
 
-
     private enum PlaneMode { XZ, Y }
 
     private static final int CURVE_SAMPLES = 200;
@@ -76,7 +75,6 @@ public class ManualBezierPathEditorScreen extends net.minecraft.client.gui.scree
     private float savedPitch;
     private boolean savedFlying;
     private boolean savedHideGui;
-
 
     public ManualBezierPathEditorScreen(BlockPos posStart, BlockPos posEnd, Rail rail, Supplier<Screen> parent) {
         super(Component.translatable("tooltip.rte.rail.path_mode.manual_bezier"));
@@ -815,8 +813,6 @@ public class ManualBezierPathEditorScreen extends net.minecraft.client.gui.scree
             }
         }
     }
-
-
 
     private double[] screenToWorld(double mouseX, double mouseY) {
         double ppb = pixelsPerBlock();

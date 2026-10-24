@@ -21,12 +21,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class RailChunkBase implements Closeable {
 
-    /*
-     * Rail deformation is CPU-heavy. An unbounded cached pool used to create 30+
-     * workers while entering a world, starving the render thread precisely when
-     * vehicle and chunk models were being uploaded. The outer chunk queue already
-     * provides enough parallel work, so keep a small, bounded worker set.
-     */
     private static final AtomicInteger WORKER_ID = new AtomicInteger();
     private static final int WORKER_COUNT = Math.max(1,
         Math.min(4, Runtime.getRuntime().availableProcessors() / 3));
@@ -39,7 +33,7 @@ public abstract class RailChunkBase implements Closeable {
     protected static ConcurrentLinkedQueue<Runnable> UPLOAD_QUEUE = new ConcurrentLinkedQueue<>();
 
     public Long chunkId;
-    public AABB boundingBox; // Use Mapped AABB if possible, but standard is fine for internal logic
+    public AABB boundingBox;
     public HashMap<BakedRail, ArrayList<Matrix4f>> containingRails = new HashMap<>();
     public HashMap<BakedRail, ArrayList<Matrix4f>> containingRailsWriting = new HashMap<>();
 
@@ -78,12 +72,6 @@ public abstract class RailChunkBase implements Closeable {
     public boolean isEven() { 
         return ((int)(chunkId >> 32) + (int)(chunkId & 0xFFFFFFFFL)) % 2 == 0;
     }
-
-    /*
-    public ChunkPos getChunkPos() {
-        return new ChunkPos((int)(chunkId >> 32) << BakedRail.POS_SHIFT, (int)(chunkId & 0xFFFFFFFFL) << BakedRail.POS_SHIFT);
-    }
-    */
 
     public boolean containsYSection(int yMin, int yMax) {
         return (yMin << 4) <= boundingBox.maxY && (yMax << 4) >= boundingBox.minY;

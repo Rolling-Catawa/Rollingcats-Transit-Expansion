@@ -48,7 +48,6 @@ public abstract class VehicleResourceCarFilterMixin {
         return ClientConfig.legacyVariationCarFilter && carCount == 1 && carIndex == 0;
     }
 
-
     private int rte$syntheticCarIndex(int carIndex, int carCount) {
         if (!ClientConfig.legacyVariationCarFilter || carCount != 1 || carIndex != 0) {
             return -1;

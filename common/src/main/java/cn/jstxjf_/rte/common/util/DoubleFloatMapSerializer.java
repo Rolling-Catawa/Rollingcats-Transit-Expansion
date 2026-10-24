@@ -19,7 +19,6 @@ public class DoubleFloatMapSerializer {
                     float value = Float.parseFloat(kv[1]);
                     map.put(key, value);
                 } catch (NumberFormatException e) {
-                    // ignore invalid pairs
                 }
             }
         }
@@ -37,4 +36,3 @@ public class DoubleFloatMapSerializer {
         return sb.substring(0, sb.length() - 1);
     }
 }
-

@@ -51,7 +51,6 @@ public class ObjModelLoader {
     }
 
     public static RawModel loadModel(ResourceManager resourceManager, ResourceLocation objLocation, AtlasManager atlasManager) throws IOException {
-        // resourceManager.getResource(objLocation).get().open() for 1.20
         Obj srcObj = ObjReader.read(ResourceUtil.open(resourceManager, objLocation));
         Map<String, Mtl> materials = loadMaterials(resourceManager, srcObj, objLocation);
 
@@ -361,4 +360,3 @@ public class ObjModelLoader {
     }
 
 }
-

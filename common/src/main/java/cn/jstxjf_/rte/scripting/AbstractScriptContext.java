@@ -15,6 +15,7 @@ public abstract class AbstractScriptContext {
     public long rte$deadSinceNanos = 0;
     public long lastExecuteDuration = 0;
     public long nextRenderNanos = 0;
+    public int rte$texturesThisCall = 0;
     public OrderedMap<String, Object> debugInfo = new OrderedMap<>();
 
     public final java.util.Map<String, ScriptUseBox> useBoxes = new java.util.concurrent.ConcurrentHashMap<>();

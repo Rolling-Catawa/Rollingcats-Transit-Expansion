@@ -70,6 +70,7 @@ public class GraphicsTexture implements Closeable {
     private static final long CREATION_REPORT_INTERVAL_MILLIS = 10000;
     private static final int CREATION_REPORT_THRESHOLD = 20;
     private static final int RUNAWAY_CREATION_LIMIT = 2048;
+    private static final int PER_CALL_CREATION_LIMIT = 512;
 
     private static void recordCreation() {
         final long now = System.currentTimeMillis();
@@ -80,6 +81,11 @@ public class GraphicsTexture implements Closeable {
             reportCreations();
         }
         final String script = cn.jstxjf_.rte.scripting.ScriptHolderBase.currentScriptName();
+        final cn.jstxjf_.rte.scripting.AbstractScriptContext owner = cn.jstxjf_.rte.scripting.ScriptHolderBase.currentContext();
+        if (owner != null && ++owner.rte$texturesThisCall > PER_CALL_CREATION_LIMIT) {
+            throw new IllegalStateException("Script " + script + " created more than " + PER_CALL_CREATION_LIMIT
+                + " GraphicsTexture objects in a single call; refusing further creation (likely an endless loop in the script)");
+        }
         final int created = CREATIONS.computeIfAbsent(script, k -> new java.util.concurrent.atomic.AtomicInteger()).incrementAndGet();
         if (created > RUNAWAY_CREATION_LIMIT && !"?".equals(script)) {
             throw new IllegalStateException("Script " + script + " created more than " + RUNAWAY_CREATION_LIMIT

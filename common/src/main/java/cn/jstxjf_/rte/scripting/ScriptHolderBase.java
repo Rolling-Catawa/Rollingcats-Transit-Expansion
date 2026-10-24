@@ -490,6 +490,7 @@ public abstract class ScriptHolderBase {
             allArgs[2] = scriptCtx.getWrapperObject();
             System.arraycopy(args, 0, allArgs, 3, args.length);
 
+            scriptCtx.rte$texturesThisCall = 0;
             backend.invoke(functions, allArgs);
 
             if (finishCallback != null) finishCallback.run();

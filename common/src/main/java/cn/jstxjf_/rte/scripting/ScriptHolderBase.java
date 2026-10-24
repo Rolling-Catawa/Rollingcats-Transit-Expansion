@@ -426,6 +426,8 @@ public abstract class ScriptHolderBase {
         }
     }
 
+    private volatile java.util.concurrent.CompletableFuture<Void> rte$inFlight;
+
     private void rte$recoverIfStalled() {
         if (!rte$engineBusy.get() || System.nanoTime() - rte$dispatchedNanos < RTE_STALL_NANOS) {
             return;
@@ -444,7 +446,11 @@ public abstract class ScriptHolderBase {
             }
             RTE.LOGGER.warn("[Script] {} was stuck waiting for a dropped call; recovering", name);
             rte$generation.incrementAndGet();
-            rte$engineBusy.set(false);
+            final java.util.concurrent.CompletableFuture<Void> abandoned = rte$inFlight;
+            if (abandoned != null) {
+                abandoned.complete(null);
+            }
+            rte$drainNext();
         }
     }
 
@@ -452,6 +458,7 @@ public abstract class ScriptHolderBase {
                                    java.util.concurrent.CompletableFuture<Void> completion, Object... args) {
         final long generation = rte$generation.incrementAndGet();
         rte$dispatchedNanos = System.nanoTime();
+        rte$inFlight = completion;
         try {
             SCRIPT_THREAD.submit(() -> rte$run(generation, functions, scriptCtx, finishCallback, completion, args));
             return completion;
@@ -605,6 +612,7 @@ public abstract class ScriptHolderBase {
             RTE_ACTIVE_CONTEXTS.add(scriptCtx);
             rte$reportThroughput();
         }
+        rte$recoverIfStalled();
         if (!(scriptCtx.scriptStatus == null || scriptCtx.scriptStatus.isDone())) {
             RTE_BUSY_SKIPPED.incrementAndGet();
             return;

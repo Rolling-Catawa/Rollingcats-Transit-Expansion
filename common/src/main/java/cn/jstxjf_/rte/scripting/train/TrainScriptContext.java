@@ -96,7 +96,8 @@ public class TrainScriptContext extends AbstractScriptContext {
 
     @Override
     public boolean isBearerAlive() {
-        return MinecraftClientData.getInstance().vehicles.stream().anyMatch(vehicle -> vehicle.getId() == train.getId());
+        return MinecraftClientData.getInstance().vehicles.stream().anyMatch(vehicle -> vehicle.getId() == train.getId()
+            && ScriptedTrainRenderers.hasUnit(vehicle, unitStart, unitCount));
     }
 
     public void extraFinished() {

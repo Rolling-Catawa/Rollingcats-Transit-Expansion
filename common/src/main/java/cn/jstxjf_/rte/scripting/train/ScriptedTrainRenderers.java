@@ -531,6 +531,12 @@ public final class ScriptedTrainRenderers {
         }
     }
 
+    public static boolean hasUnit(VehicleExtension vehicle, int unitStart, int unitCount) {
+        final UnitLayout layout = unitLayout(vehicle);
+        return unitStart >= 0 && unitStart < layout.start.length
+            && layout.start[unitStart] == unitStart && layout.count[unitStart] == unitCount;
+    }
+
     public static TrainScriptContext contextForCar(VehicleExtension vehicle, int carIndex) {
         final UnitLayout layout = unitLayout(vehicle);
         if (carIndex < 0 || carIndex >= layout.start.length || layout.start[carIndex] < 0) {

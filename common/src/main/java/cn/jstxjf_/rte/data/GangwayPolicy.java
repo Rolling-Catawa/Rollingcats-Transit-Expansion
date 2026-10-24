@@ -140,7 +140,7 @@ public final class GangwayPolicy {
     private static final String[] VARIATION_SUFFIXES =
         {"_cab_1", "_cab_2", "_cab_3", "_trailer", "_cab1", "_cab2", "_cab3"};
 
-    static String normalise(String trainId) {
+    public static String normalise(String trainId) {
         String key = trainId.toLowerCase(Locale.ROOT);
         if (key.startsWith(CUSTOM_PREFIX)) {
             key = key.substring(CUSTOM_PREFIX.length());

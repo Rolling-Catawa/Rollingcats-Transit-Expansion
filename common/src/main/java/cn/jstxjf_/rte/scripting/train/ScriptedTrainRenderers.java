@@ -62,6 +62,7 @@ public final class ScriptedTrainRenderers {
     public static void clear() {
         CONTEXTS.clear();
         UNIT_LAYOUTS.clear();
+        cn.jstxjf_.rte.render.train.TrainUnits.clear();
         CAR_FRAME_STATES.clear();
         CONNECTIONS_RENDERED_THIS_PASS.clear();
         DOOR_SIDE_STATES.clear();
@@ -496,11 +497,10 @@ public final class ScriptedTrainRenderers {
     }
 
     public static void dropDeadContexts() {
-        if (!UNIT_LAYOUTS.isEmpty()) {
-            final java.util.Set<Long> alive = new java.util.HashSet<>();
-            org.mtr.mod.client.MinecraftClientData.getInstance().vehicles.forEach(vehicle -> alive.add(vehicle.getId()));
-            UNIT_LAYOUTS.keySet().removeIf(id -> !alive.contains(id));
-        }
+        final java.util.Set<Long> aliveVehicleIds = new java.util.HashSet<>();
+        org.mtr.mod.client.MinecraftClientData.getInstance().vehicles.forEach(vehicle -> aliveVehicleIds.add(vehicle.getId()));
+        UNIT_LAYOUTS.keySet().removeIf(id -> !aliveVehicleIds.contains(id));
+        cn.jstxjf_.rte.render.train.TrainUnits.retainVehicles(aliveVehicleIds);
         synchronized (CONTEXTS) {
             CONTEXTS.entrySet().removeIf(entry -> {
                 final TrainScriptContext context = entry.getValue();

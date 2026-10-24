@@ -25,7 +25,9 @@ public abstract class VehicleResourceCarFilterMixin {
         final int realIndex = cn.jstxjf_.rte.render.train.CurrentVehicleTracker.getCar();
         final int realCount = cn.jstxjf_.rte.render.train.CurrentVehicleTracker.getCarCount();
         if (realIndex >= 0 && realCount > 0 && realIndex < realCount) {
-            return realIndex;
+            final org.mtr.mod.data.VehicleExtension vehicle = cn.jstxjf_.rte.render.train.CurrentVehicleTracker.get();
+            return vehicle == null ? realIndex
+                : realIndex - cn.jstxjf_.rte.render.train.TrainUnits.layout(vehicle).start(realIndex);
         }
         final int synthetic = rte$syntheticCarIndex(carIndex, carCount);
         return synthetic < 0 ? value : synthetic;
@@ -39,7 +41,9 @@ public abstract class VehicleResourceCarFilterMixin {
         final int realIndex = cn.jstxjf_.rte.render.train.CurrentVehicleTracker.getCar();
         final int realCount = cn.jstxjf_.rte.render.train.CurrentVehicleTracker.getCarCount();
         if (realIndex >= 0 && realCount > 0 && realIndex < realCount) {
-            return realCount;
+            final org.mtr.mod.data.VehicleExtension vehicle = cn.jstxjf_.rte.render.train.CurrentVehicleTracker.get();
+            return vehicle == null ? realCount
+                : cn.jstxjf_.rte.render.train.TrainUnits.layout(vehicle).count(realIndex);
         }
         return rte$syntheticCarIndex(carIndex, carCount) < 0 ? value : SYNTHETIC_CAR_COUNT;
     }

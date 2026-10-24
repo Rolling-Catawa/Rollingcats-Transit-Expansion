@@ -500,6 +500,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         ImGui.indent();
         if (ImGui.sliderFloat(t("gui.rte.brush_edit_rail.offset_input") + "###roll_offset", rollOffset, offset.min, offset.max, "%.4f m")) {
             railExtra.setRollingOffset(rollOffset[0]);
+            rte$refreshPreview();
             RailBrushHelper.updateBrushTag(tag -> tag.putFloat("RollingOffset", rollOffset[0]), false);
         }
 
@@ -601,6 +602,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
             map.put((double) node[0], node[1]);
         }
         railExtra.setRollAngleMap(map);
+        rte$refreshPreview();
         final double length = railExtra.getLength();
         final Map<Double, Float> normalized = new HashMap<>();
         for (final Map.Entry<Double, Float> entry : map.entrySet()) {
@@ -657,6 +659,15 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         });
         if (railExtra != null) {
             railExtra.setModelKeys(keys);
+            rte$refreshPreview();
+        }
+    }
+
+    private void rte$refreshPreview() {
+        try {
+            cn.jstxjf_.rte.RTEClient.railRenderDispatcher.evictRailByHexId(pickedRail.getHexId());
+            cn.jstxjf_.rte.RTEClient.railRenderDispatcher.evictRailByHexId(railExtra.getTransposition().getHexId());
+        } catch (Exception ignored) {
         }
     }
 

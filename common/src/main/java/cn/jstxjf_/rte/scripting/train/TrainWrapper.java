@@ -53,9 +53,18 @@ public class TrainWrapper {
     private List<PlatformInfo> thisRoutePlatforms = List.of();
     private List<PlatformInfo> nextRoutePlatforms = List.of();
     private double rte$scriptRailProgress = 0;
+    private double rte$unitRailProgress = 0;
+    private final int unitStart;
+    private final int unitCount;
 
     public TrainWrapper(VehicleExtension train) {
-        final int carCount = train.vehicleExtraData.immutableVehicleCars.size();
+        this(train, 0, train.vehicleExtraData.immutableVehicleCars.size());
+    }
+
+    public TrainWrapper(VehicleExtension train, int unitStart, int unitCount) {
+        this.unitStart = unitStart;
+        this.unitCount = unitCount;
+        final int carCount = unitCount;
         this.doorLeftOpen = new boolean[carCount];
         this.doorRightOpen = new boolean[carCount];
         this.lastWorldPose = new Matrix4f[carCount];
@@ -90,6 +99,7 @@ public class TrainWrapper {
     public void reset() {
         rte$pruneStaleCaches();
         rte$scriptRailProgress = ((TrainExtraSupplier) train).getVehicleRailProgress();
+        rte$unitRailProgress = rte$scriptRailProgress - rte$unitFrontOffset();
         final long platformFingerprint = rte$computePlatformFingerprint();
         final long now = System.currentTimeMillis();
         final boolean rebuildPlatforms = platformFingerprint != rte$platformFingerprint
@@ -153,12 +163,6 @@ public class TrainWrapper {
 
     private long rte$lastScheduleFingerprint = Long.MIN_VALUE;
 
-    /**
-     * MTR 4 no longer exposes ClientData.SCHEDULES_FOR_PLATFORM.  Recreate
-     * the MTR 3 view from the vehicle's fixed siding departure and the same
-     * timetable function used by the simulator, rather than fabricating an
-     * ETA from the current speed.
-     */
     private void rte$publishLegacySchedules() {
         long fingerprint = train.getId();
         final cn.jstxjf_.rte.mixin.VehicleAccessor accessor;
@@ -344,7 +348,6 @@ public class TrainWrapper {
         return 1000.0;
     }
 
-
     public List<PlatformInfo> getAllPlatforms() {
         return rte$clamped(allPlatforms);
     }
@@ -437,8 +440,6 @@ public class TrainWrapper {
         }
         return false;
     }
-
-
 
     public PlatformInfo getPlatformRelative(int offset, boolean allowDifferentRoute) {
         final int index = getAllPlatformsNextIndex() + offset;
@@ -571,20 +572,17 @@ public class TrainWrapper {
         }
     }
 
-
     public String trainTypeId() {
-        return train.vehicleExtraData.immutableVehicleCars.isEmpty() ? "" : train.vehicleExtraData.immutableVehicleCars.get(0).getVehicleId();
+        final List<VehicleCar> cars = rte$unitCars();
+        return cars.isEmpty() ? "" : cars.get(0).getVehicleId();
     }
 
     public String baseTrainType() {
-        final List<VehicleCar> cars = train.vehicleExtraData.immutableVehicleCars;
+        final List<VehicleCar> cars = rte$unitCars();
         if (cars.isEmpty()) {
             return "";
         }
 
-        // MTR 3 exposed the geometry descriptor (for example train_21_3), not
-        // the custom vehicle resource id.  MTR 4's legacy resource converter
-        // adds one block to the old spacing when it creates VehicleCar.length.
         final VehicleCar car = cars.get(0);
         final boolean convertedLegacy = cn.jstxjf_.rte.data.GangwayPolicy.isLegacyFormat(trainTypeId());
         final int legacyLength = Math.max(1, (int) Math.round(car.getLength() - (convertedLegacy ? 1 : 0)));
@@ -597,7 +595,7 @@ public class TrainWrapper {
     }
 
     public double spacing() {
-        final var cars = train.vehicleExtraData.immutableVehicleCars;
+        final List<VehicleCar> cars = rte$unitCars();
         if (cars.isEmpty()) {
             return 0;
         }
@@ -610,9 +608,6 @@ public class TrainWrapper {
                 (cn.jstxjf_.rte.mixin.VehicleCarAccessor) (Object) cars.get(0);
             final cn.jstxjf_.rte.mixin.VehicleCarAccessor next =
                 (cn.jstxjf_.rte.mixin.VehicleCarAccessor) (Object) cars.get(1);
-            // This is the actual centre-to-centre distance used by MTR 4.
-            // In particular, do not add legacyCouplingGap a second time: the
-            // Vehicle mixin has already exposed it as both cars' coupling pads.
             return length
                 + cn.jstxjf_.rte.data.CouplingPaddingPolicy.getEffectivePadding(
                     cars.get(0), here.rte$getCouplingPadding2())
@@ -624,11 +619,12 @@ public class TrainWrapper {
     }
 
     public double width() {
-        return train.vehicleExtraData.immutableVehicleCars.isEmpty() ? 0 : train.vehicleExtraData.immutableVehicleCars.get(0).getWidth();
+        final List<VehicleCar> cars = rte$unitCars();
+        return cars.isEmpty() ? 0 : cars.get(0).getWidth();
     }
 
     public int trainCars() {
-        return train.vehicleExtraData.immutableVehicleCars.size();
+        return rte$unitCars().size();
     }
 
     public float accelerationConstant() {
@@ -644,8 +640,6 @@ public class TrainWrapper {
     }
 
     public int maxManualSpeed() {
-        // MTR 3 serialised this as the ordinal of WOODEN..DIAMOND, while MTR 4
-        // stores metres per millisecond.  Preserve the old script ABI.
         final double speedKilometersPerHour = train.vehicleExtraData.getMaxManualSpeed() * 3600;
         final int[] legacyLimits = {20, 40, 60, 80, 120, 160, 200, 300};
         int closest = 0;
@@ -664,7 +658,6 @@ public class TrainWrapper {
         return (int) ((TrainExtraSupplier) train).getManualToAutomaticTime();
     }
 
-    /** MTR 3/NTE name for the current manual power/brake controller level. */
     public int manualNotch() {
         try {
             return train.vehicleExtraData.getPowerLevel();
@@ -673,7 +666,6 @@ public class TrainWrapper {
         }
     }
 
-    /** Exposes the ANTE roll sampler to packs which use it directly. */
     public float getRollAngleAt(double railProgress) {
         try {
             return supplier.getRollAngleAt(railProgress);
@@ -725,11 +717,6 @@ public class TrainWrapper {
         final long vehicleId = train.getId();
         final List<cn.jstxjf_.rte.scripting.compat.PathDataCompat> serverPath =
             cn.jstxjf_.rte.render.train.VehiclePathCache.getGeometry(vehicleId);
-        // MTR 4 may expose the expected number of client path entries without
-        // the RailMath geometry NTE scripts sample. A segment-count heuristic
-        // therefore leaves connection scripts on a plausible but unusable path.
-        // Request the authoritative snapshot whenever there is no fresh,
-        // completely decoded geometry; requestIfDue rate-limits per vehicle.
         if (serverPath == null) {
             cn.jstxjf_.rte.render.train.VehiclePathCache.requestIfDue(vehicleId);
         }
@@ -757,7 +744,52 @@ public class TrainWrapper {
     private List<cn.jstxjf_.rte.scripting.compat.PathDataCompat> rte$pathView;
 
     public double railProgress() {
-        return rte$scriptRailProgress;
+        return rte$unitRailProgress;
+    }
+
+    public int unitStart() {
+        return unitStart;
+    }
+
+    public int unitCount() {
+        return unitCount;
+    }
+
+    private List<VehicleCar> rte$unitCars() {
+        final List<VehicleCar> cars = train.vehicleExtraData.immutableVehicleCars;
+        final int from = Math.max(0, Math.min(unitStart, cars.size()));
+        final int to = Math.max(from, Math.min(unitStart + unitCount, cars.size()));
+        return from == 0 && to == cars.size() ? cars : cars.subList(from, to);
+    }
+
+    private double rte$unitFrontOffset() {
+        final List<VehicleCar> cars = train.vehicleExtraData.immutableVehicleCars;
+        final int size = cars.size();
+        if (unitStart == 0 && unitCount >= size || unitStart >= size) {
+            return 0;
+        }
+        final double[] front = new double[size];
+        double position = 0;
+        for (int i = 0; i < size; i++) {
+            if (i > 0) {
+                position += cars.get(i - 1).getTotalLength(true, false) + rte$effectivePadding1(cars.get(i));
+            }
+            front[i] = position;
+        }
+        if (isReversed()) {
+            final int last = size - 1;
+            final int unitLast = Math.min(unitStart + unitCount, size) - 1;
+            return front[last] + cars.get(last).getLength() - front[unitLast] - cars.get(unitLast).getLength();
+        }
+        return front[unitStart] - front[0];
+    }
+
+    private static double rte$effectivePadding1(VehicleCar car) {
+        if (cn.jstxjf_.rte.ClientConfig.closeCouplingGap) {
+            return 0;
+        }
+        return cn.jstxjf_.rte.data.CouplingPaddingPolicy.getEffectivePadding(car,
+            ((cn.jstxjf_.rte.mixin.VehicleCarAccessor) (Object) car).rte$getCouplingPadding1());
     }
 
     public double getRailProgress(int car) {
@@ -793,7 +825,7 @@ public class TrainWrapper {
         }
         rte$nextConnProbe = now + 2000;
         try {
-            final int cars = train.vehicleExtraData.immutableVehicleCars.size();
+            final int cars = trainCars();
             final java.util.List<cn.jstxjf_.rte.scripting.compat.PathDataCompat> path = rte$sharedSnapshot();
             if (path.isEmpty()) {
                 cn.jstxjf_.rte.RTE.LOGGER.info("[ConnProbe] {} path empty", train.getHexId());
@@ -876,13 +908,9 @@ public class TrainWrapper {
         }
         final cn.jstxjf_.rte.scripting.compat.PathDataCompat current = path.get(railIndex);
         if (current.rail.canAccelerate()) {
-            // MTR 3 uses blocks/tick; MTR 4 uses metres/millisecond.
             return (float) (current.getSpeedLimitMetersPerMillisecond() * MILLIS_PER_TICK);
         }
 
-        // Platform, siding and turn-back rails inherited the immediately
-        // preceding acceleratable limit in MTR 3.  Otherwise they used the
-        // transport mode's default, never slowing an already faster vehicle.
         final float inherited = railIndex > 0 && path.get(railIndex - 1).rail.canAccelerate()
             ? (float) (path.get(railIndex - 1).getSpeedLimitMetersPerMillisecond() * MILLIS_PER_TICK)
             : (float) (transportMode().defaultSpeedMetersPerMillisecond * MILLIS_PER_TICK);
@@ -991,7 +1019,7 @@ public class TrainWrapper {
         }
         final int idx = getAllPlatformsNextIndex();
         if (idx < 0 || idx >= allPlatforms.size()) return -1;
-        return allPlatforms.get(idx).distance - railProgress();
+        return allPlatforms.get(idx).distance - rte$scriptRailProgress;
     }
 
     private double rte$stoppingPoint() {
@@ -1080,7 +1108,7 @@ public class TrainWrapper {
         final double lastDist = thisRoutePlatforms.get(thisRoutePlatforms.size() - 1).distance;
         final double range = lastDist - firstDist;
         if (range <= 0) return 0;
-        return Math.max(0, Math.min(1, (railProgress() - firstDist) / range));
+        return Math.max(0, Math.min(1, (rte$scriptRailProgress - firstDist) / range));
     }
 
     public boolean isAtTerminus() {
@@ -1094,7 +1122,7 @@ public class TrainWrapper {
 
     public float pathSpeedLimit() {
         final java.util.List<cn.jstxjf_.rte.scripting.compat.PathDataCompat> basis = rte$indexBasis();
-        final int idx = getRailIndex(railProgress(), false);
+        final int idx = getRailIndex(rte$scriptRailProgress, false);
         if (idx < 0 || idx >= basis.size()) return 0;
         return (float) (basis.get(idx).getSpeedLimitMetersPerMillisecond() * 3600000.0);
     }
@@ -1124,13 +1152,15 @@ public class TrainWrapper {
     }
 
     public double getCarLength(int car) {
-        if (car < 0 || car >= train.vehicleExtraData.immutableVehicleCars.size()) return 0;
-        return train.vehicleExtraData.immutableVehicleCars.get(car).getLength();
+        final List<VehicleCar> cars = rte$unitCars();
+        if (car < 0 || car >= cars.size()) return 0;
+        return cars.get(car).getLength();
     }
 
     public double getCarBogieLength(int car) {
-        if (car < 0 || car >= train.vehicleExtraData.immutableVehicleCars.size()) return 0;
-        return train.vehicleExtraData.immutableVehicleCars.get(car).getBogie1Position();
+        final List<VehicleCar> cars = rte$unitCars();
+        if (car < 0 || car >= cars.size()) return 0;
+        return cars.get(car).getBogie1Position();
     }
 
     public Vector3f getCarWorldPosition(int car) {
@@ -1239,7 +1269,6 @@ public class TrainWrapper {
         return platform != null ? new PlatformCompat(platform) : new PlatformCompat(platformId);
     }
 
-
     private List<PlatformInfo> buildSchedulePlatforms() {
         final cn.jstxjf_.rte.scripting.compat.SidingCompat sidingCompat = siding();
         final Siding siding = sidingCompat == null ? null : sidingCompat.getMtr4Siding();
@@ -1345,9 +1374,6 @@ public class TrainWrapper {
         while (iterator.hasNext()) {
             final PlatformInfo platformInfo = iterator.next();
             final long platformId = platformInfo.platform == null ? 0 : (long) platformInfo.platform.id;
-            // A route may legitimately visit the same platform again.  Only
-            // collapse the shared route-boundary entry that points to the
-            // exact same physical stop along the vehicle path.
             final String occurrence = platformId + "@" + Math.round(platformInfo.distance * 1000);
             if (platformId != 0 && !seen.add(occurrence)) {
                 iterator.remove();
@@ -1515,7 +1541,7 @@ public class TrainWrapper {
     }
 
     private int findNextPlatformIndex(List<PlatformInfo> platforms) {
-        final double progress = railProgress();
+        final double progress = rte$scriptRailProgress;
         for (int i = 0; i < platforms.size(); i++) {
             if (platforms.get(i).distance >= progress) {
                 return i;
@@ -1625,7 +1651,6 @@ public class TrainWrapper {
         public final String destinationName;
         public double distance;
         public final boolean reverseAtPlatform;
-        /** MTR 3 schedule field; route-local, not global platform order. */
         public final int currentStationIndex;
 
         public PlatformInfo(Long routeId, RouteCompat route, Station station, Platform platform,

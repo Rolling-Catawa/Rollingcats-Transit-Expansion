@@ -36,24 +36,46 @@ public class TrainScriptContext extends AbstractScriptContext {
     private TrainDrawCalls scriptResultWriting;
     public final DrawCallMap[] drawCalls;
 
+    public final int unitStart;
+    public final int unitCount;
+
     public TrainScriptContext(VehicleExtension train) {
+        this(train, 0, train.vehicleExtraData.immutableVehicleCars.size());
+    }
+
+    public TrainScriptContext(VehicleExtension train, int unitStart, int unitCount) {
         this.train = train;
-        this.scriptResult = new TrainDrawCalls(train.vehicleExtraData.immutableVehicleCars.size());
-        this.scriptResultWriting = new TrainDrawCalls(train.vehicleExtraData.immutableVehicleCars.size());
-        this.trainExtra = new TrainWrapper(train);
-        this.trainExtraWriting = new TrainWrapper(train);
-        this.drawCalls = new DrawCallMap[train.vehicleExtraData.immutableVehicleCars.size()];
+        this.unitStart = unitStart;
+        this.unitCount = unitCount;
+        this.scriptResult = new TrainDrawCalls(unitCount);
+        this.scriptResultWriting = new TrainDrawCalls(unitCount);
+        this.trainExtra = new TrainWrapper(train, unitStart, unitCount);
+        this.trainExtraWriting = new TrainWrapper(train, unitStart, unitCount);
+        this.drawCalls = new DrawCallMap[unitCount];
         for (int i = 0; i < drawCalls.length; i++) {
             drawCalls[i] = new DrawCallMap();
         }
     }
 
-    public void commitCar(int car, DrawScheduler drawScheduler, Matrix4f basePose, Matrix4f worldPose, int light) {
+    public int localCar(int globalCar) {
+        final int local = globalCar - unitStart;
+        return local >= 0 && local < unitCount ? local : -1;
+    }
+
+    public void commitCar(int globalCar, DrawScheduler drawScheduler, Matrix4f basePose, Matrix4f worldPose, int light) {
+        final int car = localCar(globalCar);
+        if (car < 0) {
+            return;
+        }
         drawCalls[car].commit(drawScheduler, basePose, worldPose, light);
         scriptResult.commitCar(car, drawScheduler, basePose, worldPose, light);
     }
 
-    public void commitConn(int car, DrawScheduler drawScheduler, Matrix4f connPose, Matrix4f worldPose, int light) {
+    public void commitConn(int globalCar, DrawScheduler drawScheduler, Matrix4f connPose, Matrix4f worldPose, int light) {
+        final int car = localCar(globalCar);
+        if (car < 0 || car + 1 >= unitCount) {
+            return;
+        }
         scriptResult.commitConn(car, drawScheduler, connPose, worldPose, light);
     }
 

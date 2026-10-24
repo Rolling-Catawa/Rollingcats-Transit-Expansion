@@ -32,10 +32,8 @@ import java.util.Set;
 
 public final class ScriptedTrainRenderers {
 
-
     private static final Map<Long, TrainScriptContext> CONTEXTS = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<Long, CarFrameState> CAR_FRAME_STATES = new HashMap<>();
-    /** MTR 4 calls the connection renderer once per model layer and barrier. */
     private static final Set<Long> CONNECTIONS_RENDERED_THIS_PASS = new java.util.HashSet<>();
     private static final Map<Long, DoorSideState> DOOR_SIDE_STATES = new HashMap<>();
     private static final ThreadLocal<ConnectionFrameState> CONNECTION_FRAME_STATE = new ThreadLocal<>();
@@ -63,6 +61,7 @@ public final class ScriptedTrainRenderers {
 
     public static void clear() {
         CONTEXTS.clear();
+        UNIT_LAYOUTS.clear();
         CAR_FRAME_STATES.clear();
         CONNECTIONS_RENDERED_THIS_PASS.clear();
         DOOR_SIDE_STATES.clear();
@@ -82,19 +81,7 @@ public final class ScriptedTrainRenderers {
         CONNECTION_FRAME_STATE.remove();
     }
 
-    /**
-     * MTR 3/NTE allowed a resource pack to select an empty native connector
-     * (usually {@code mtr:entity/air}) and draw its own OBJ from JavaScript.
-     * MTR 4 still calls RenderVehicles.renderConnection for that car pair.  It
-     * must be cancelled with the vehicle id captured by the enclosing render
-     * lambda; the old ThreadLocal "current car" lookup can point at another car
-     * when the queued connection is rendered and allowed the wrong MTR texture
-     * to cover the pack's model.
-     */
     public static boolean shouldSuppressNativeConnection(boolean canHaveLight) {
-        // MTR routes gangways and safety barriers through the same private
-        // helper. NTE's scripted connector replaces only renderConnection;
-        // renderBarrier remains native and must not be deleted with it.
         if (!canHaveLight) {
             return false;
         }
@@ -107,6 +94,10 @@ public final class ScriptedTrainRenderers {
                 state.vehicle.vehicleExtraData.immutableVehicleCars.size() - 1));
             final String vehicleId = state.vehicle.vehicleExtraData.immutableVehicleCars
                 .get(car).getVehicleId();
+            final UnitLayout layout = unitLayout(state.vehicle);
+            if (car > 0 && layout.start[car] >= 0 && layout.start[car - 1] >= 0 && !layout.sameUnit(car - 1, car)) {
+                return true;
+            }
             return cn.jstxjf_.rte.ClientConfig.autoGangwayPolicy
                 && cn.jstxjf_.rte.data.GangwayPolicy.isSelfHandled(vehicleId);
         } catch (Throwable ignored) {
@@ -145,10 +136,15 @@ public final class ScriptedTrainRenderers {
             return;
         }
         final String connVehicleId = connVehicle.vehicleExtraData.immutableVehicleCars.get(frameState.carIndex).getVehicleId();
-        final TrainScriptContext context = CONTEXTS.get(contextKey(connVehicle.getId(), connVehicleId));
+        final UnitLayout layout = unitLayout(connVehicle);
+        if (!layout.sameUnit(frameState.carIndex - 1, frameState.carIndex)) {
+            return;
+        }
+        final TrainScriptContext context = contextForCar(connVehicle, frameState.carIndex);
         if (context == null) {
             return;
         }
+        final int localConn = context.localCar(frameState.carIndex - 1);
 
         final long connectionKey = getStateKey(connVehicle.getId(), frameState.carIndex - 1);
         if (!CONNECTIONS_RENDERED_THIS_PASS.add(connectionKey)) {
@@ -171,20 +167,11 @@ public final class ScriptedTrainRenderers {
         final int exteriorLight = LightmapTextureManager.pack(clientWorld.getLightLevel(LightType.getBlockMapped(), blockPosConnection), clientWorld.getLightLevel(LightType.getSkyMapped(), blockPosConnection));
         final int interiorLight = canHaveLight && isOnRoute ? org.mtr.mapping.mapper.GraphicsHolder.getDefaultLight() : exteriorLight;
         synchronized (context) {
-            // NTE commits drawConnModel from the real connection callback. The
-            // lower face edges contain MTR 4's exact car lengths,
-            // resource-defined offsets, pitch and body oscillation; deriving
-            // this pose from car centres is only an approximation and fails on
-            // mixed consists. The lower edge (rather than the face centroid)
-            // also preserves NTE's floor-level connector origin.
             context.commitConn(frameState.carIndex - 1, RTEClient.drawScheduler,
                 rte$createConnectionPose(connVehicle, useOffset,
                     prevPos1, prevPos4, thisPos1, thisPos4),
                 createViewPose(), exteriorLight);
-            context.scriptResult.commitConnStretchTexture(frameState.carIndex - 1, useOffset, Vector3d.getZeroMapped(), exteriorLight, interiorLight, prevPos1, prevPos2, prevPos3, prevPos4, thisPos1, thisPos2, thisPos3, thisPos4);
-            // A pack-owned connector is authoritative.  Do not consult the
-            // global CurrentVehicleTracker here: MTR queues connectors and the
-            // tracker may already point at another car by execution time.
+            context.scriptResult.commitConnStretchTexture(localConn, useOffset, Vector3d.getZeroMapped(), exteriorLight, interiorLight, prevPos1, prevPos2, prevPos3, prevPos4, thisPos1, thisPos2, thisPos3, thisPos4);
             if (!cn.jstxjf_.rte.data.GangwayPolicy.hasDeclaredConnection(connVehicleId)
                     && (!cn.jstxjf_.rte.ClientConfig.autoGangwayPolicy
                     || !cn.jstxjf_.rte.data.GangwayPolicy.isSelfHandled(connVehicleId))) {
@@ -201,8 +188,6 @@ public final class ScriptedTrainRenderers {
     private static Matrix4f rte$createConnectionPose(VehicleExtension vehicle, boolean useOffset,
                                                       Vector prevPos1, Vector prevPos4,
                                                       Vector thisPos1, Vector thisPos4) {
-        // Positions 1 and 4 are the lower corners in MTR 4, just like ANTE's
-        // connectPos is calculated from the floor-level centre of each car end.
         final double prevX = (prevPos1.x + prevPos4.x) * 0.5;
         final double prevY = (prevPos1.y + prevPos4.y) * 0.5;
         final double prevZ = (prevPos1.z + prevPos4.z) * 0.5;
@@ -214,7 +199,6 @@ public final class ScriptedTrainRenderers {
         if (useOffset) {
             pose = createViewPose();
         } else {
-            // Riding render coordinates are relative to MTR's render origin.
             pose = new Matrix4f();
             final Vector3d mtrOffset = RenderUtil.mtrRenderOffset;
             if (mtrOffset != null) {
@@ -398,11 +382,18 @@ public final class ScriptedTrainRenderers {
         }
         carFrameState.renderPass = currentRenderPass;
 
-        final long scriptContextKey = contextKey(vehicle.getId(), vehicleId);
-        TrainScriptContext context = CONTEXTS.computeIfAbsent(scriptContextKey, ignored -> new TrainScriptContext(vehicle));
+        final UnitLayout layout = unitLayout(vehicle);
+        final int unitStart = layout.start[carIndex];
+        final int unitCount = layout.count[carIndex];
+        if (unitStart < 0) {
+            return;
+        }
+        final int localCar = carIndex - unitStart;
+        final long scriptContextKey = contextKey(vehicle.getId(), unitStart, unitCount);
+        TrainScriptContext context = CONTEXTS.computeIfAbsent(scriptContextKey, ignored -> new TrainScriptContext(vehicle, unitStart, unitCount));
         if (context.disposed) {
             context.releaseResources();
-            context = new TrainScriptContext(vehicle);
+            context = new TrainScriptContext(vehicle, unitStart, unitCount);
             CONTEXTS.put(scriptContextKey, context);
         }
         context.rebind(vehicle);
@@ -453,16 +444,16 @@ public final class ScriptedTrainRenderers {
             rte$traceCarPosition(vehicle, carIndex, positionAndRotation);
         }
         final DoorSideState doorSideState = resolveDoorSides(vehicle, carIndex, positionAndRotation, currentDoorValue);
-        writingWrapper.doorLeftOpen[carIndex] = doorSideState.leftOpen;
-        writingWrapper.doorRightOpen[carIndex] = doorSideState.rightOpen;
+        writingWrapper.doorLeftOpen[localCar] = doorSideState.leftOpen;
+        writingWrapper.doorRightOpen[localCar] = doorSideState.rightOpen;
         rte$probeDoorSides(vehicleId, carIndex, currentDoorValue, doorSideState, currentWrapper);
         rte$probeCarGaps(vehicle, carIndex);
-        if (carIndex == 0) {
+        if (localCar == 0) {
             currentWrapper.rte$probeConnAngles();
         }
-        writingWrapper.lastWorldPose[carIndex] = carPose.copy();
-        writingWrapper.lastCarPosition[carIndex] = carPose.getTranslationPart();
-        writingWrapper.lastCarRotation[carIndex] = new Vector3f(0, (float) positionAndRotation.yaw, (float) positionAndRotation.pitch);
+        writingWrapper.lastWorldPose[localCar] = carPose.copy();
+        writingWrapper.lastCarPosition[localCar] = carPose.getTranslationPart();
+        writingWrapper.lastCarRotation[localCar] = new Vector3f(0, (float) positionAndRotation.yaw, (float) positionAndRotation.pitch);
 
         synchronized (context) {
             if (writingWrapper.shouldRender) {
@@ -471,19 +462,17 @@ public final class ScriptedTrainRenderers {
             }
         }
 
-        if (carIndex == vehicle.vehicleExtraData.immutableVehicleCars.size() - 1) {
-            final java.util.Set<Long> ranContexts = new java.util.HashSet<>();
-            for (int c = 0; c < vehicle.vehicleExtraData.immutableVehicleCars.size(); c++) {
-                final String carTypeId = vehicle.vehicleExtraData.immutableVehicleCars.get(c).getVehicleId();
-                final ScriptHolderBase carHolder = ScriptedCustomTrains.getScript(carTypeId);
+        if (carIndex == layout.lastScripted) {
+            for (int c = 0; c < layout.start.length; c++) {
+                if (layout.start[c] != c) {
+                    continue;
+                }
+                final ScriptHolderBase carHolder = ScriptedCustomTrains.getScript(
+                    vehicle.vehicleExtraData.immutableVehicleCars.get(c).getVehicleId());
                 if (carHolder == null) {
                     continue;
                 }
-                final long carContextKey = contextKey(vehicle.getId(), carTypeId);
-                if (!ranContexts.add(carContextKey)) {
-                    continue;
-                }
-                final TrainScriptContext carContext = CONTEXTS.get(carContextKey);
+                final TrainScriptContext carContext = CONTEXTS.get(contextKey(vehicle.getId(), c, layout.count[c]));
                 if (carContext != null) {
                     rte$reinitOnPathChange(carContext);
                     carContext.extraFinished();
@@ -507,6 +496,11 @@ public final class ScriptedTrainRenderers {
     }
 
     public static void dropDeadContexts() {
+        if (!UNIT_LAYOUTS.isEmpty()) {
+            final java.util.Set<Long> alive = new java.util.HashSet<>();
+            org.mtr.mod.client.MinecraftClientData.getInstance().vehicles.forEach(vehicle -> alive.add(vehicle.getId()));
+            UNIT_LAYOUTS.keySet().removeIf(id -> !alive.contains(id));
+        }
         synchronized (CONTEXTS) {
             CONTEXTS.entrySet().removeIf(entry -> {
                 final TrainScriptContext context = entry.getValue();
@@ -537,14 +531,94 @@ public final class ScriptedTrainRenderers {
         }
     }
 
-    public static TrainScriptContext contextFor(long vehicleId, String vehicleTypeId) {
-        return CONTEXTS.get(contextKey(vehicleId, vehicleTypeId));
+    public static TrainScriptContext contextForCar(VehicleExtension vehicle, int carIndex) {
+        final UnitLayout layout = unitLayout(vehicle);
+        if (carIndex < 0 || carIndex >= layout.start.length || layout.start[carIndex] < 0) {
+            return null;
+        }
+        return CONTEXTS.get(contextKey(vehicle.getId(), layout.start[carIndex], layout.count[carIndex]));
     }
 
-    private static long contextKey(long vehicleId, String vehicleTypeId) {
-        return vehicleId * 1000003L + (vehicleTypeId == null ? 0 : vehicleTypeId.hashCode());
+    private static long contextKey(long vehicleId, int unitStart, int unitCount) {
+        return vehicleId * 1000003L + unitStart * 1009L + unitCount;
     }
 
+    private static final Map<Long, UnitLayout> UNIT_LAYOUTS = new java.util.concurrent.ConcurrentHashMap<>();
+
+    static final class UnitLayout {
+        final Object cars;
+        final int[] start;
+        final int[] count;
+        final int lastScripted;
+
+        private UnitLayout(Object cars, int[] start, int[] count) {
+            this.cars = cars;
+            this.start = start;
+            this.count = count;
+            int last = -1;
+            for (int i = 0; i < start.length; i++) {
+                if (start[i] >= 0) {
+                    last = i;
+                }
+            }
+            this.lastScripted = last;
+        }
+
+        boolean sameUnit(int carA, int carB) {
+            return carA >= 0 && carB >= 0 && carA < start.length && carB < start.length
+                && start[carA] >= 0 && start[carA] == start[carB];
+        }
+    }
+
+    static UnitLayout unitLayout(VehicleExtension vehicle) {
+        final java.util.List<VehicleCar> cars = vehicle.vehicleExtraData.immutableVehicleCars;
+        final UnitLayout cached = UNIT_LAYOUTS.get(vehicle.getId());
+        if (cached != null && cached.cars == cars) {
+            return cached;
+        }
+        final int size = cars.size();
+        final int[] start = new int[size];
+        final int[] count = new int[size];
+        ScriptHolderBase previousHolder = null;
+        String previousId = null;
+        int currentStart = -1;
+        for (int i = 0; i < size; i++) {
+            final String id = cars.get(i).getVehicleId();
+            final ScriptHolderBase holder = ScriptedCustomTrains.getScript(id);
+            if (holder == null) {
+                start[i] = -1;
+                currentStart = -1;
+                previousHolder = null;
+                previousId = null;
+                continue;
+            }
+            if (currentStart < 0 || holder != previousHolder || rte$isHeadCar(id) || rte$isTailCar(previousId)) {
+                currentStart = i;
+            }
+            start[i] = currentStart;
+            previousHolder = holder;
+            previousId = id;
+        }
+        for (int i = 0; i < size; i++) {
+            if (start[i] >= 0) {
+                count[start[i]]++;
+            }
+        }
+        for (int i = 0; i < size; i++) {
+            count[i] = start[i] >= 0 ? count[start[i]] : 0;
+        }
+        final UnitLayout layout = new UnitLayout(cars, start, count);
+        UNIT_LAYOUTS.put(vehicle.getId(), layout);
+        return layout;
+    }
+
+    private static boolean rte$isHeadCar(String vehicleTypeId) {
+        return vehicleTypeId != null && (vehicleTypeId.endsWith("_cab_1") || vehicleTypeId.endsWith("_cab_3"));
+    }
+
+    private static boolean rte$isTailCar(String vehicleTypeId) {
+        return vehicleTypeId != null && (vehicleTypeId.endsWith("_cab_2") || vehicleTypeId.endsWith("_cab_3"));
+    }
 
     public static Matrix4f createBasePose(VehicleExtension vehicle, int carIndex, PositionAndRotation positionAndRotation) {
         final Matrix4f pose = new Matrix4f();
@@ -559,7 +633,6 @@ public final class ScriptedTrainRenderers {
         pose.translate(0, 2, 0);
         return pose;
     }
-
 
     public static Matrix4f renderPoseFor(VehicleExtension vehicle, int carIndex,
                                         PositionAndRotation positionAndRotation,
@@ -610,13 +683,6 @@ public final class ScriptedTrainRenderers {
         return (vehicleId << 8) ^ carIndex;
     }
 
-    /**
-     * Legacy train scripts expect per-car, per-side door state. MTR only exposes a
-     * train-wide door progress here, so treating progress as both sides opening is
-     * incorrect at single-sided platforms. Resolve the physical platform side and
-     * cache it briefly; this keeps the scan off the per-frame hot path while still
-     * following a train that stops at a different platform.
-     */
     public static boolean[] doorSidesOf(VehicleExtension vehicle, int carIndex, PositionAndRotation positionAndRotation) {
         try {
             final float doorValue = (float) vehicle.persistentVehicleData.getDoorValue();
@@ -643,10 +709,6 @@ public final class ScriptedTrainRenderers {
         }
 
         try {
-            // MTR 3 scans the full centre-to-centre spacing, not the visible
-            // body length.  This matters for the end-most metre of a platform
-            // and prevents a long train from reporting a patchwork of open and
-            // closed cars to scripts such as dlmtr_5/doorlight.js.
             final double halfLength = Math.max(1, rte$doorScanSpacing(vehicle, carIndex) / 2);
             final double yaw = positionAndRotation.yaw;
             final double pitch = positionAndRotation.pitch;
@@ -767,8 +829,6 @@ public final class ScriptedTrainRenderers {
         } catch (Throwable ignored) {
         }
     }
-
-
 
     private static final class CarFrameState {
         private int renderPass;

@@ -65,10 +65,11 @@ public final class VehicleInteraction {
         for (int car = 0; car < carCount; car++) {
             final VehicleCar vehicleCar = vehicle.vehicleExtraData.immutableVehicleCars.get(car);
             final String vehicleTypeId = vehicleCar.getVehicleId();
-            final TrainScriptContext context = ScriptedTrainRenderers.contextFor(vehicle.getId(), vehicleTypeId);
+            final TrainScriptContext context = ScriptedTrainRenderers.contextForCar(vehicle, car);
             if (context == null || context.useBoxes.isEmpty()) {
                 continue;
             }
+            final int localCar = context.localCar(car);
             final ScriptHolderBase holder = ScriptedCustomTrains.getScript(vehicleTypeId);
             if (holder == null) {
                 continue;
@@ -87,7 +88,7 @@ public final class VehicleInteraction {
                 new org.joml.Vector3f((float) look.x, (float) look.y, (float) look.z)).normalize();
 
             for (final ScriptUseBox box : context.useBoxes.values()) {
-                if (box.car != car) {
+                if (box.car != localCar) {
                     continue;
                 }
                 final double distance = box.intersect(

@@ -365,11 +365,10 @@ public abstract class ScriptHolderBase {
         rte$recoverIfStalled();
         if (!rte$engineBusy.compareAndSet(false, true)) {
             RTE_BUSY_SKIPPED.incrementAndGet();
-            rte$enqueue(functions, scriptCtx, finishCallback, args);
-            return null;
+            return rte$enqueue(functions, scriptCtx, finishCallback, args);
         }
 
-        return rte$dispatch(functions, scriptCtx, finishCallback, args);
+        return rte$dispatch(functions, scriptCtx, finishCallback, new java.util.concurrent.CompletableFuture<>(), args);
     }
 
     private static final class PendingCall {
@@ -377,27 +376,33 @@ public abstract class ScriptHolderBase {
         final AbstractScriptContext scriptCtx;
         final Runnable finishCallback;
         final Object[] args;
+        final java.util.concurrent.CompletableFuture<Void> completion;
 
         PendingCall(List<Object> functions, AbstractScriptContext scriptCtx,
-                    Runnable finishCallback, Object[] args) {
+                    Runnable finishCallback, Object[] args, java.util.concurrent.CompletableFuture<Void> completion) {
             this.functions = functions;
             this.scriptCtx = scriptCtx;
             this.finishCallback = finishCallback;
             this.args = args;
+            this.completion = completion;
         }
     }
 
     private final java.util.LinkedHashMap<AbstractScriptContext, PendingCall> rte$pending =
         new java.util.LinkedHashMap<>();
 
-    private void rte$enqueue(List<Object> functions, AbstractScriptContext scriptCtx,
-                             Runnable finishCallback, Object[] args) {
+    private Future<?> rte$enqueue(List<Object> functions, AbstractScriptContext scriptCtx,
+                                  Runnable finishCallback, Object[] args) {
         synchronized (rte$pending) {
-            if (rte$pending.size() >= RTE_PENDING_CAP && !rte$pending.containsKey(scriptCtx)) {
-                return;
+            final PendingCall existing = rte$pending.get(scriptCtx);
+            if (existing == null && rte$pending.size() >= RTE_PENDING_CAP) {
+                return null;
             }
-            rte$pending.put(scriptCtx, new PendingCall(functions, scriptCtx, finishCallback, args));
+            final java.util.concurrent.CompletableFuture<Void> completion =
+                existing != null ? existing.completion : new java.util.concurrent.CompletableFuture<>();
+            rte$pending.put(scriptCtx, new PendingCall(functions, scriptCtx, finishCallback, args, completion));
             RTE_QUEUE_DEPTH.set(rte$pending.size());
+            return completion;
         }
     }
 
@@ -415,8 +420,9 @@ public abstract class ScriptHolderBase {
             RTE_QUEUE_DEPTH.set(rte$pending.size());
         }
         try {
-            rte$dispatch(next.functions, next.scriptCtx, next.finishCallback, next.args);
+            rte$dispatch(next.functions, next.scriptCtx, next.finishCallback, next.completion, next.args);
         } catch (Throwable t) {
+            next.completion.complete(null);
             rte$engineBusy.set(false);
         }
     }
@@ -443,22 +449,25 @@ public abstract class ScriptHolderBase {
         }
     }
 
-    private Future<?> rte$dispatch(List<Object> functions, AbstractScriptContext scriptCtx,
-                                   Runnable finishCallback, Object... args) {
+    private Future<?> rte$dispatch(List<Object> functions, AbstractScriptContext scriptCtx, Runnable finishCallback,
+                                   java.util.concurrent.CompletableFuture<Void> completion, Object... args) {
         final long generation = rte$generation.incrementAndGet();
         rte$dispatchedNanos = System.nanoTime();
         try {
-            return SCRIPT_THREAD.submit(() -> rte$run(generation, functions, scriptCtx, finishCallback, args));
+            SCRIPT_THREAD.submit(() -> rte$run(generation, functions, scriptCtx, finishCallback, completion, args));
+            return completion;
         } catch (java.util.concurrent.RejectedExecutionException e) {
+            completion.complete(null);
             rte$engineBusy.set(false);
             return null;
         }
     }
 
     private void rte$run(long generation, List<Object> functions, AbstractScriptContext scriptCtx,
-                         Runnable finishCallback, Object[] args) {
+                         Runnable finishCallback, java.util.concurrent.CompletableFuture<Void> completion, Object[] args) {
         synchronized (rte$runLock) {
             if (generation != rte$generation.get()) {
+                completion.complete(null);
                 return;
             }
             rte$runningThread = Thread.currentThread();
@@ -499,6 +508,7 @@ public abstract class ScriptHolderBase {
             rte$runningThread = null;
             RTE_CURRENT_SCRIPT.remove();
             RTE_CURRENT_CONTEXT.remove();
+            completion.complete(null);
             rte$drainNext();
         }
     }
@@ -671,6 +681,7 @@ public abstract class ScriptHolderBase {
         }
         functions.clear();
         synchronized (rte$pending) {
+            rte$pending.values().forEach(pending -> pending.completion.complete(null));
             rte$pending.clear();
         }
         rte$engineBusy.set(false);

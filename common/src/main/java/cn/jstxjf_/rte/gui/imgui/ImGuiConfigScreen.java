@@ -18,7 +18,10 @@ public class ImGuiConfigScreen extends ImGuiScreenBase {
 
     private final ImInt railInterval = new ImInt(ClientConfig.railDistanceRendererInterval);
     private final ImInt mtrMeshDedupeLimit = new ImInt(ClientConfig.mtrMeshDedupeFaceLimit);
-    private final ImInt maxTextureSize = new ImInt(ClientConfig.maxTextureSize);
+    private static final int[] TEXTURE_SIZES = {512, 1024, 2048, 4096};
+    private static final String[] TEXTURE_SIZE_LABELS = {"512", "1024", "2048", "4096"};
+    private final ImInt textureSizeIndex = new ImInt(textureSizeIndexOf(ClientConfig.maxTextureSize));
+    private boolean textureReloadPending;
     private final ImInt scriptTextureLimit = new ImInt(ClientConfig.scriptTextureLimit);
     private final ImInt bbModelPreloadLimit = new ImInt(ClientConfig.bbModelPreloadLimit);
     private final ImInt preloadHeapCeiling = new ImInt(ClientConfig.preloadHeapCeilingPercent);
@@ -122,12 +125,25 @@ public class ImGuiConfigScreen extends ImGuiScreenBase {
             dirty = true;
         }
 
-        if (ImGui.inputInt(t("gui.rte.config.client.max_texture_size") + "###cfg_maxtex", maxTextureSize)) {
-            ClientConfig.maxTextureSize = Math.max(0, Math.min(16384, maxTextureSize.get()));
-            maxTextureSize.set(ClientConfig.maxTextureSize);
+        final boolean downsample = ClientConfig.maxTextureSize > 0;
+        if (ImGui.checkbox(t("gui.rte.config.client.texture_downsample") + "###cfg_downsample", downsample)) {
+            ClientConfig.maxTextureSize = downsample ? 0 : TEXTURE_SIZES[textureSizeIndex.get()];
             ClientConfig.save();
+            textureReloadPending = true;
         }
-        ImGui.textDisabled(t("gui.rte.config.client.max_texture_size.hint"));
+        if (ClientConfig.maxTextureSize > 0) {
+            if (ImGui.combo(t("gui.rte.config.client.texture_downsample_size") + "###cfg_downsample_size", textureSizeIndex, TEXTURE_SIZE_LABELS)) {
+                ClientConfig.maxTextureSize = TEXTURE_SIZES[textureSizeIndex.get()];
+                ClientConfig.save();
+                textureReloadPending = true;
+            }
+        }
+        ImGui.textDisabled(t("gui.rte.config.client.texture_downsample.hint"));
+        if (textureReloadPending && ImGui.button(t("gui.rte.config.client.texture_downsample.apply") + "###cfg_downsample_apply")) {
+            textureReloadPending = false;
+            final Minecraft client = Minecraft.getInstance();
+            client.execute(client::reloadResourcePacks);
+        }
         if (ImGui.inputInt(t("gui.rte.config.client.script_texture_limit") + "###cfg_scripttex", scriptTextureLimit)) {
             ClientConfig.scriptTextureLimit = Math.max(0, Math.min(4096, scriptTextureLimit.get()));
             scriptTextureLimit.set(ClientConfig.scriptTextureLimit);
@@ -200,6 +216,16 @@ public class ImGuiConfigScreen extends ImGuiScreenBase {
             dirty = true;
         }
         ImGui.spacing();
+    }
+
+    private static int textureSizeIndexOf(int size) {
+        int best = 2;
+        for (int i = 0; i < TEXTURE_SIZES.length; i++) {
+            if (size > 0 && Math.abs(TEXTURE_SIZES[i] - size) < Math.abs(TEXTURE_SIZES[best] - size)) {
+                best = i;
+            }
+        }
+        return best;
     }
 
     private interface BoolSetter {

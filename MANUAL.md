@@ -340,7 +340,7 @@ config/rte/mapcache/<世界标识>.rtemap
 | `mtrMeshDedupeFaceLimit` | `2000` | 同上，但作用于 MTR 车辆网格。**不要调成 0** —— 实测「全量去重」反而因 HashMap 开销撑爆堆 |
 | `translucentSort` | 开 | 半透明面排序 |
 | `shaderCompatMode` | 关 | 光影兼容模式。开启后关闭 RTE 的渲染优化，用于排查与光影包的冲突 |
-| `maxTextureSize` | `2048` | 超过此边长的贴图在读取时降采样到 2 的幂次以内。老包常带 8K 贴图，限到 2048/4096 可省下大量显存与堆 |
+| `maxTextureSize` | `2048` | 贴图降采样：超过此边长的贴图在读取时按 2 的倍数缩小，0 为关闭。老包常带 8K 贴图，限到 2048/4096 可省下大量显存与堆。O 键界面“贴图降采样”可开关并选 512/1024/2048/4096，点“立即应用”重新加载资源即生效 |
 | `scriptTextureLimit` | `512` | 脚本动态贴图缓存上限 |
 | `enableBbModelPreload` | 关 | BBMODEL 预加载（即上表首行的「BBMODEL 预加载优化」） |
 | `bbModelPreloadLimit` | `24` | 预加载的车辆数量上限 |

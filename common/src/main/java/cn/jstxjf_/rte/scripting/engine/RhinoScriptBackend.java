@@ -13,6 +13,16 @@ import java.util.function.Predicate;
 
 public class RhinoScriptBackend implements ScriptBackend {
 
+    private static final long CALL_TIME_LIMIT_NANOS = 3_000_000_000L;
+    private static final int INSTRUCTION_OBSERVER_THRESHOLD = 100_000;
+    private static final ThreadLocal<long[]> CALL_DEADLINE = ThreadLocal.withInitial(() -> new long[1]);
+
+    public static final class ScriptTimeoutError extends Error {
+        public ScriptTimeoutError(String scriptStack) {
+            super(scriptStack, null, false, false);
+        }
+    }
+
     private final ContextFactory contextFactory;
     private final ScriptableObject scope;
 
@@ -39,6 +49,7 @@ public class RhinoScriptBackend implements ScriptBackend {
                 final Context cx = super.makeContext();
                 cx.setLanguageVersion(Context.VERSION_ES6);
                 cx.setOptimizationLevel(-1);
+                cx.setInstructionObserverThreshold(INSTRUCTION_OBSERVER_THRESHOLD);
                 cx.setClassShutter(shutterFilter::test);
                 cx.setWrapFactory(new org.mozilla.javascript.WrapFactory() {
                     @Override
@@ -55,6 +66,15 @@ public class RhinoScriptBackend implements ScriptBackend {
                     }
                 });
                 return cx;
+            }
+
+            @Override
+            protected void observeInstructionCount(Context cx, int instructionCount) {
+                final long deadline = CALL_DEADLINE.get()[0];
+                if (deadline != 0 && System.nanoTime() > deadline) {
+                    CALL_DEADLINE.get()[0] = 0;
+                    throw new ScriptTimeoutError(new org.mozilla.javascript.EvaluatorException("timeout").getScriptStackTrace());
+                }
             }
         };
         final Context cx = contextFactory.enterContext();
@@ -101,11 +121,18 @@ public class RhinoScriptBackend implements ScriptBackend {
                 if (cn.jstxjf_.rte.scripting.ScriptFailureIsolation.shouldSkip(function)) {
                     continue;
                 }
+                final long[] deadline = CALL_DEADLINE.get();
+                deadline[0] = System.nanoTime() + CALL_TIME_LIMIT_NANOS;
                 try {
                     ((Function) function).call(cx, scope, scope, wrapped);
                     cn.jstxjf_.rte.scripting.ScriptFailureIsolation.noteSuccess(function);
+                } catch (ScriptTimeoutError e) {
+                    cn.jstxjf_.rte.scripting.ScriptFailureIsolation.noteTimeout(function,
+                        CALL_TIME_LIMIT_NANOS / 1_000_000L, e.getMessage());
                 } catch (Exception e) {
                     cn.jstxjf_.rte.scripting.ScriptFailureIsolation.note(function, e);
+                } finally {
+                    deadline[0] = 0;
                 }
             }
 

@@ -1,2 +1,2 @@
 package cn.jstxjf_.rte.scripting;
-public class ScriptFailureIsolation {public static boolean shouldSkip(Object o){return false;} public static void noteSuccess(Object o){}public static void note(Object o,Exception e){throw new RuntimeException(e);}}
+public class ScriptFailureIsolation {public static boolean shouldSkip(Object o){return false;} public static void noteSuccess(Object o){}public static void note(Object o,Exception e){throw new RuntimeException(e);}public static void noteTimeout(Object o,long l,String s){throw new RuntimeException(s);}}

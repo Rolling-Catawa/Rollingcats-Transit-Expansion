@@ -33,7 +33,13 @@ import net.minecraft.world.phys.Vec3;
 import org.mtr.core.data.Position;
 import cn.jstxjf_.rte.data.RailModelProperties;
 
+import cn.jstxjf_.rte.gfx.batch.MaterialProp;
+import net.minecraft.Util;
+import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.resources.ResourceLocation;
+
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public class RailRenderDispatcher {
 
@@ -81,6 +87,9 @@ public class RailRenderDispatcher {
 
     private final Set<Rail> currentFrameRails = new LinkedHashSet<>();
     private final java.util.concurrent.ConcurrentLinkedQueue<String> pendingEvictionHexIds = new java.util.concurrent.ConcurrentLinkedQueue<>();
+    private final Set<String> rte$staleHexIds = new HashSet<>();
+    private final Map<ResourceLocation, CompletableFuture<Void>> rte$texturePreloads = new HashMap<>();
+    private boolean rte$waitingForTextures;
     private boolean toolItemsResolved;
     private net.minecraft.world.item.Item brushItem;
     private net.minecraft.world.item.Item compoundCreatorItem;
@@ -116,11 +125,46 @@ public class RailRenderDispatcher {
         String hexId;
         while ((hexId = pendingEvictionHexIds.poll()) != null) {
             rte$forceRailScan = true;
-            final Rail rail = railByHexId.get(hexId);
-            if (rail != null) {
-                removeRail(rail);
+            if (railByHexId.containsKey(hexId)) {
+                rte$staleHexIds.add(hexId);
             }
         }
+    }
+
+    private boolean rte$texturesReady(Rail rail) {
+        boolean ready = true;
+        for (final String key : getModelKeysForRender(rail)) {
+            final RailModelProperties prop = RailModelRegistry.getProperty(key);
+            if (prop == null || prop.rawModel == null) {
+                continue;
+            }
+            for (final MaterialProp material : prop.rawModel.meshList.keySet()) {
+                if (!rte$textureReady(material.texture)) {
+                    ready = false;
+                }
+            }
+        }
+        return ready;
+    }
+
+    private boolean rte$textureReady(ResourceLocation texture) {
+        if (texture == null) {
+            return true;
+        }
+        final CompletableFuture<Void> pending = rte$texturePreloads.get(texture);
+        if (pending != null) {
+            if (!pending.isDone()) {
+                return false;
+            }
+            rte$texturePreloads.remove(texture);
+            return true;
+        }
+        final TextureManager textureManager = Minecraft.getInstance().getTextureManager();
+        if (textureManager.getTexture(texture, null) != null) {
+            return true;
+        }
+        rte$texturePreloads.put(texture, textureManager.preload(texture, Util.backgroundExecutor()));
+        return false;
     }
 
     private void addRail(Rail rail) {
@@ -199,6 +243,9 @@ public class RailRenderDispatcher {
         }
         railRefMap.clear();
         railByHexId.clear();
+        rte$staleHexIds.clear();
+        rte$texturePreloads.clear();
+        rte$waitingForTextures = false;
         for (HashMap<Long, RailChunkBase> chunkMap : railChunkMap.values()) {
             for (RailChunkBase chunk : chunkMap.values()) {
                 chunk.close();
@@ -440,7 +487,7 @@ public class RailRenderDispatcher {
 
     private boolean rte$shouldScanRails(Vec3 cameraPos) {
         final long now = System.currentTimeMillis();
-        if (!rte$forceRailScan && !rte$pendingRailAdds && now < rte$nextRailScanMillis
+        if (!rte$forceRailScan && !rte$pendingRailAdds && !rte$waitingForTextures && now < rte$nextRailScanMillis
                 && Math.abs(cameraPos.x - rte$lastScanX) + Math.abs(cameraPos.z - rte$lastScanZ) <= RAIL_SCAN_MOVE_THRESHOLD) {
             return false;
         }
@@ -453,8 +500,9 @@ public class RailRenderDispatcher {
 
     private void rte$scanRails(DrawScheduler drawScheduler, Vec3 cameraPosEarly, int maxRailDistanceEarly) {
         if (drawScheduler.shaderManager != null && drawScheduler.shaderManager.isReady()) {
+            boolean waitingForTextures = false;
+            HashSet<String> seenThisFrame = new HashSet<>();
             try {
-                HashSet<String> seenThisFrame = new HashSet<>();
                 var positionsToRail = MinecraftClientData.getInstance().positionsToRail;
                 for (var entryStart : positionsToRail.entrySet()) {
                     Position nodePos = entryStart.getKey();
@@ -468,19 +516,29 @@ public class RailRenderDispatcher {
                         if (existing != null) {
                             java.util.List<BakedRail> bakedList = railRefMap.get(existing);
                             BakedRail baked = bakedList == null || bakedList.isEmpty() ? null : bakedList.get(0);
-                            if (baked != null && baked.geometryFingerprint != BakedRail.computeFingerprint(candidate)) {
+                            final boolean changed = rte$staleHexIds.contains(hexId)
+                                || baked != null && baked.geometryFingerprint != BakedRail.computeFingerprint(candidate);
+                            if (!changed) {
+                                registerRail(existing);
+                            } else if (rte$texturesReady(candidate)) {
+                                rte$staleHexIds.remove(hexId);
                                 removeRail(existing);
                                 registerRail(candidate);
                             } else {
+                                waitingForTextures = true;
                                 registerRail(existing);
                             }
-                        } else {
+                        } else if (rte$texturesReady(candidate)) {
                             registerRail(candidate);
+                        } else {
+                            waitingForTextures = true;
                         }
                     }
                 }
             } catch (Exception ignored) {
             }
+            rte$staleHexIds.retainAll(seenThisFrame);
+            rte$waitingForTextures = waitingForTextures;
         }
 
         Set<Rail> railsToAdd = new HashSet<>(currentFrameRails);

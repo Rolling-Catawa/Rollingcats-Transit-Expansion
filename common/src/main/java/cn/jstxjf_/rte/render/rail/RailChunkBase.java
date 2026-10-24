@@ -88,11 +88,13 @@ public abstract class RailChunkBase implements Closeable {
         if (matrices == null) return;
         containingRailsWriting.put(rail, matrices);
         isDirty = true;
+        nextRebuildAllowedMillis = 0;
     }
 
     public void removeRail(BakedRail rail) {
         containingRailsWriting.remove(rail);
         isDirty = true;
+        nextRebuildAllowedMillis = 0;
     }
 
     public void rebuildBuffer(World world) {

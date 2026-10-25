@@ -29,6 +29,7 @@ public class RTEPackets {
         cn.jstxjf_.rte.bridge.network.RteNetwork.register(PacketVehiclePath.class, PacketVehiclePath::new);
         cn.jstxjf_.rte.bridge.network.RteNetwork.register(PacketRequestAllRails.class, PacketRequestAllRails::new);
         cn.jstxjf_.rte.bridge.network.RteNetwork.register(PacketAllRails.class, PacketAllRails::new);
+        cn.jstxjf_.rte.bridge.network.RteNetwork.register(PacketGizmoState.class, PacketGizmoState::new);
         cn.jstxjf_.rte.RTE.REGISTRY.eventRegistry.registerPlayerJoin((minecraftServer, serverPlayerEntity) -> PacketVersionCheck.sendVersionCheckS2C((net.minecraft.server.level.ServerPlayer) serverPlayerEntity.data));
     }
     

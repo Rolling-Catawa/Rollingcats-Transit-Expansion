@@ -4,6 +4,7 @@ import cn.jstxjf_.rte.block.BlockFreeNode;
 import cn.jstxjf_.rte.block.RTEBlocks;
 import cn.jstxjf_.rte.gui.DirectNodeScreen;
 import cn.jstxjf_.rte.network.PacketFreeNodeAction;
+import cn.jstxjf_.rte.network.PacketGizmoState;
 import cn.jstxjf_.rte.render.block.BlockEntityDirectNodeRenderer;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
@@ -84,6 +85,8 @@ public final class FreeNodeEditor {
     private static Clipboard clipboard;
     private static int selectionGrace;
     private static BlockPos deletePending;
+    private static PacketGizmoState lastSentState;
+    private static PacketGizmoState recordedState;
 
     private FreeNodeEditor() {
     }
@@ -101,6 +104,7 @@ public final class FreeNodeEditor {
 
     public static void tick() {
         final Minecraft minecraft = Minecraft.getInstance();
+        syncRecordedState(minecraft);
         if (!isToolActive(minecraft)) {
             hovered = null;
             hoveredHandle = Handle.NONE;
@@ -284,7 +288,7 @@ public final class FreeNodeEditor {
         final Minecraft minecraft = Minecraft.getInstance();
         if (!isToolActive(minecraft)) {
             if (cn.jstxjf_.rte.util.ReplayCompat.recordedPlayerHolds(FreeNodeEditor::isNodeTool)) {
-                renderNodeMarkers(poseStack, false);
+                renderRecorded(poseStack);
             }
             return;
         }
@@ -302,6 +306,84 @@ public final class FreeNodeEditor {
         final Vec3 point = center(node);
         if (point != null) {
             renderGizmo(poseStack, point, node);
+        }
+    }
+
+    public static void applyRecordedState(PacketGizmoState state) {
+        if (cn.jstxjf_.rte.util.ReplayCompat.isInReplay()) {
+            recordedState = state;
+        }
+    }
+
+    private static void syncRecordedState(Minecraft minecraft) {
+        if (minecraft.getConnection() == null || cn.jstxjf_.rte.util.ReplayCompat.isInReplay()) {
+            lastSentState = null;
+            return;
+        }
+        final boolean visible = isEditorActive(minecraft) && selected != null && resolve(selected) != null;
+        final PacketGizmoState state = visible
+                ? new PacketGizmoState(selected, hoveredHandle.ordinal(), activeHandle.ordinal(), dragging,
+                    dragAngleStart, dragRotationDelta, (plusX ? 1 : 0) | (plusY ? 2 : 0) | (plusZ ? 4 : 0))
+                : PacketGizmoState.empty();
+        if (state.equals(lastSentState) || lastSentState == null && state.anchor == null) {
+            return;
+        }
+        lastSentState = state;
+        cn.jstxjf_.rte.bridge.network.RteClientNetwork.sendToServer(state);
+    }
+
+    private static Handle recordedHandle(int ordinal) {
+        final Handle[] handles = Handle.values();
+        return ordinal >= 0 && ordinal < handles.length ? handles[ordinal] : Handle.NONE;
+    }
+
+    private static void renderRecorded(PoseStack poseStack) {
+        final PacketGizmoState state = recordedState;
+        if (state == null || state.anchor == null || resolve(state.anchor) == null) {
+            renderNodeMarkers(poseStack, false);
+            return;
+        }
+        final BlockPos savedSelected = selected;
+        final BlockPos savedHovered = hovered;
+        final Handle savedHoveredHandle = hoveredHandle;
+        final Handle savedActiveHandle = activeHandle;
+        final boolean savedDragging = dragging;
+        final double savedDragScale = dragScale;
+        final double savedAngleStart = dragAngleStart;
+        final double savedRotationDelta = dragRotationDelta;
+        final boolean savedPlusX = plusX;
+        final boolean savedPlusY = plusY;
+        final boolean savedPlusZ = plusZ;
+        try {
+            selected = state.anchor;
+            hovered = null;
+            hoveredHandle = recordedHandle(state.hoveredHandle);
+            activeHandle = recordedHandle(state.activeHandle);
+            dragging = state.dragging;
+            dragScale = 0;
+            dragAngleStart = state.angleStart;
+            dragRotationDelta = state.rotationDelta;
+            plusX = (state.axisSigns & 1) != 0;
+            plusY = (state.axisSigns & 2) != 0;
+            plusZ = (state.axisSigns & 4) != 0;
+            renderNodeMarkers(poseStack, true);
+            final BlockFreeNode.BlockEntityFreeNode node = resolve(selected);
+            final Vec3 point = center(node);
+            if (point != null) {
+                renderGizmo(poseStack, point, node);
+            }
+        } finally {
+            selected = savedSelected;
+            hovered = savedHovered;
+            hoveredHandle = savedHoveredHandle;
+            activeHandle = savedActiveHandle;
+            dragging = savedDragging;
+            dragScale = savedDragScale;
+            dragAngleStart = savedAngleStart;
+            dragRotationDelta = savedRotationDelta;
+            plusX = savedPlusX;
+            plusY = savedPlusY;
+            plusZ = savedPlusZ;
         }
     }
 

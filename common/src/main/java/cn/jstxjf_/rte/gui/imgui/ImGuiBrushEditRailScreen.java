@@ -106,11 +106,11 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
             final boolean has = bt.contains("RenderReversed");
             final imgui.type.ImBoolean mirror = new imgui.type.ImBoolean(has && bt.getBoolean("RenderReversed"));
             if (ImGui.checkbox(t("gui.rte.brush_edit_rail.mirror_direction") + "###brush_mirror", mirror)) {
-                RailBrushHelper.updateBrushTag(tag -> tag.putBoolean("RenderReversed", mirror.get()));
+                rte$updateBrushTag(tag -> tag.putBoolean("RenderReversed", mirror.get()));
             }
             ImGui.sameLine();
             if (has && ImGui.button(t("gui.rte.brush_edit_rail.reset") + "###brush_mirror_reset")) {
-                RailBrushHelper.updateBrushTag(tag -> tag.remove("RenderReversed"));
+                rte$updateBrushTag(tag -> tag.remove("RenderReversed"));
             }
         }
         ImGui.separator();
@@ -119,7 +119,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         }
         ImGui.sameLine();
         if (ImGui.button(t("gui.rte.brush_edit_rail.clear_brush") + "###brush_clear")) {
-            RailBrushHelper.updateBrushTag(tag -> {
+            rte$updateBrushTag(tag -> {
                 for (final String key : new String[]{"ModelKey", "ModelKeys", "VerticalCurveRadius", "RollAngleMap",
                     "RollingOffset", "RailType", "SpeedLimitKph", "OpeningDirection", "RenderReversed",
                     "CollisionEnabled", "CollisionWidth", "CollisionHeight", "CollisionLength", "CollisionSpacing",
@@ -210,7 +210,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         if (railExtra != null) {
             final boolean enabled = brushTag.contains("OpeningDirection");
             if (ImGui.checkbox(t("gui.rte.brush_edit_rail.enable_opening_direction") + "###brush_od_toggle", enabled)) {
-                RailBrushHelper.updateBrushTag(tag -> {
+                rte$updateBrushTag(tag -> {
                     if (!enabled) {
                         tag.putInt("OpeningDirection", railExtra.getOpeningDirection());
                     } else {
@@ -223,7 +223,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
                 final int[] holder = {openingDirection.get()};
                 if (ImGui.sliderInt(t("gui.rte.brush_edit_rail.opening_direction") + "###brush_od", holder, 0, 3)) {
                     openingDirection.set(holder[0]);
-                    RailBrushHelper.updateBrushTag(tag -> tag.putInt("OpeningDirection", holder[0]));
+                    rte$updateBrushTag(tag -> tag.putInt("OpeningDirection", holder[0]));
                 }
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip(t("gui.rte.brush_edit_rail.opening_direction_tooltip"));
@@ -233,7 +233,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
 
         final boolean railTypeEnabled = brushTag.contains("RailType");
         if (ImGui.checkbox(t("gui.rte.brush_edit_rail.enable_rail_type") + "###brush_rt_toggle", railTypeEnabled)) {
-            RailBrushHelper.updateBrushTag(tag -> {
+            rte$updateBrushTag(tag -> {
                 if (!railTypeEnabled) {
                     tag.putString("RailType", railType.get());
                 } else {
@@ -247,7 +247,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
                 ImGui.pushStyleColor(imgui.flag.ImGuiCol.Text, 0.95f, 0.35f, 0.3f, 1f);
             }
             if (ImGui.inputText(t("gui.rte.brush_edit_rail.rail_type") + "###brush_rt", railType) && RailRebuildHelper.isRailTypeValid(railType.get())) {
-                RailBrushHelper.updateBrushTag(tag -> tag.putString("RailType", railType.get()));
+                rte$updateBrushTag(tag -> tag.putString("RailType", railType.get()));
             }
             if (!valid) {
                 ImGui.popStyleColor();
@@ -263,12 +263,12 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
                 if (railKeys.isEmpty() && !modelKey.isEmpty()) {
                     railKeys.add(modelKey);
                 }
-                RailBrushHelper.updateBrushTag(tag -> {
+                rte$updateBrushTag(tag -> {
                     tag.putString("ModelKeys", RailBrushHelper.joinModelKeys(railKeys));
                     tag.putString("ModelKey", railKeys.isEmpty() ? "" : railKeys.get(0));
                 });
             } else {
-                RailBrushHelper.updateBrushTag(tag -> {
+                rte$updateBrushTag(tag -> {
                     tag.remove("ModelKey");
                     tag.remove("ModelKeys");
                 });
@@ -308,7 +308,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
 
         final boolean vcrEnabled = brushTag.contains("VerticalCurveRadius");
         if (ImGui.checkbox(t("gui.rte.brush_edit_rail.enable_vertical_curve_radius") + "###brush_vcr_toggle", vcrEnabled)) {
-            RailBrushHelper.updateBrushTag(tag -> {
+            rte$updateBrushTag(tag -> {
                 if (!vcrEnabled) {
                     tag.putFloat("VerticalCurveRadius", verticalCurveRadius.get());
                 } else {
@@ -318,7 +318,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         }
         if (vcrEnabled) {
             if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.vertical_curve_radius") + "###brush_vcr", verticalCurveRadius)) {
-                RailBrushHelper.updateBrushTag(tag -> tag.putFloat("VerticalCurveRadius", verticalCurveRadius.get()));
+                rte$updateBrushTag(tag -> tag.putFloat("VerticalCurveRadius", verticalCurveRadius.get()));
             }
             for (final String line : verticalValueLines(verticalCurveRadius.get())) {
                 ImGui.textDisabled(line);
@@ -328,7 +328,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         if (railExtra != null) {
             final boolean speedEnabled = brushTag.contains("SpeedLimitKph");
             if (ImGui.checkbox(t("gui.rte.brush_edit_rail.enable_speed_limit") + "###brush_sl_toggle", speedEnabled)) {
-                RailBrushHelper.updateBrushTag(tag -> {
+                rte$updateBrushTag(tag -> {
                     if (!speedEnabled) {
                         tag.putInt("SpeedLimitKph", speedLimitKph.get());
                     } else {
@@ -340,7 +340,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
                 if (ImGui.inputInt(t("gui.rte.brush_edit_rail.speed_limit_kph") + "###brush_sl", speedLimitKph)) {
                     final int value = Math.max(0, speedLimitKph.get());
                     speedLimitKph.set(value);
-                    RailBrushHelper.updateBrushTag(tag -> tag.putInt("SpeedLimitKph", value));
+                    rte$updateBrushTag(tag -> tag.putInt("SpeedLimitKph", value));
                 }
             }
 
@@ -348,7 +348,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
 
             final boolean rollEnabled = brushTag.contains("RollAngleMap");
             if (ImGui.checkbox(t("gui.rte.brush_edit_rail.enable_roll_angle") + "###brush_ra_toggle", rollEnabled)) {
-                RailBrushHelper.updateBrushTag(tag -> {
+                rte$updateBrushTag(tag -> {
                     if (!rollEnabled) {
                         tag.putString("RollAngleMap", cn.jstxjf_.rte.util.DoubleFloatMapSerializer.serializeToString(getNormalizedRollAngleMap()));
                         tag.putFloat("RollingOffset", railExtra.getRollingOffset());
@@ -361,7 +361,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
             }
             ImGui.sameLine();
             if (ImGui.button(t("gui.rte.brush_edit_rail.roll_set_clear") + "###brush_ra_setclear")) {
-                RailBrushHelper.updateBrushTag(tag -> {
+                rte$updateBrushTag(tag -> {
                     tag.putString("RollAngleMap", "");
                     tag.putFloat("RollingOffset", 0f);
                 });
@@ -395,7 +395,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
     private void drawCollisionEditor(CompoundTag brushTag) {
         final boolean apply = brushTag.contains("CollisionEnabled");
         if (ImGui.checkbox(t("gui.rte.brush_edit_rail.enable_collision") + "###brush_collision_apply", apply)) {
-            RailBrushHelper.updateBrushTag(tag -> {
+            rte$updateBrushTag(tag -> {
                 if (apply) {
                     for (final String key : new String[]{"CollisionEnabled", "CollisionWidth", "CollisionHeight",
                         "CollisionLength", "CollisionSpacing", "CollisionYOffset", "CollisionSideOffset", "CollisionColumns"}) {
@@ -419,7 +419,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
 
         final boolean enabled = brushTag.getBoolean("CollisionEnabled");
         if (ImGui.checkbox(t("gui.rte.brush_edit_rail.collision_enabled") + "###brush_collision_enabled", enabled)) {
-            RailBrushHelper.updateBrushTag(tag -> tag.putBoolean("CollisionEnabled", !enabled));
+            rte$updateBrushTag(tag -> tag.putBoolean("CollisionEnabled", !enabled));
         }
         if (!enabled) {
             return;
@@ -427,30 +427,30 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
 
         if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_width") + "###brush_collision_width", collisionWidth)) {
             collisionWidth.set(clamp(collisionWidth.get(), 0.05F, 32F));
-            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionWidth", collisionWidth.get()));
+            rte$updateBrushTag(tag -> tag.putFloat("CollisionWidth", collisionWidth.get()));
         }
         if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_height") + "###brush_collision_height", collisionHeight)) {
             collisionHeight.set(clamp(collisionHeight.get(), 0.05F, 16F));
-            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionHeight", collisionHeight.get()));
+            rte$updateBrushTag(tag -> tag.putFloat("CollisionHeight", collisionHeight.get()));
         }
         if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_length") + "###brush_collision_length", collisionLength)) {
             collisionLength.set(clamp(collisionLength.get(), 0.05F, 16F));
-            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionLength", collisionLength.get()));
+            rte$updateBrushTag(tag -> tag.putFloat("CollisionLength", collisionLength.get()));
         }
         if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_spacing") + "###brush_collision_spacing", collisionSpacing)) {
             collisionSpacing.set(clamp(collisionSpacing.get(), RailCollisionManager.MIN_SPACING, 16F));
-            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionSpacing", collisionSpacing.get()));
+            rte$updateBrushTag(tag -> tag.putFloat("CollisionSpacing", collisionSpacing.get()));
         }
         if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_y_offset") + "###brush_collision_y", collisionYOffset)) {
             collisionYOffset.set(clamp(collisionYOffset.get(), -32F, 32F));
-            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionYOffset", collisionYOffset.get()));
+            rte$updateBrushTag(tag -> tag.putFloat("CollisionYOffset", collisionYOffset.get()));
         }
         if (ImGui.inputFloat(t("gui.rte.brush_edit_rail.collision_side_offset") + "###brush_collision_side", collisionSideOffset)) {
             collisionSideOffset.set(clamp(collisionSideOffset.get(), -32F, 32F));
-            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("CollisionSideOffset", collisionSideOffset.get()));
+            rte$updateBrushTag(tag -> tag.putFloat("CollisionSideOffset", collisionSideOffset.get()));
         }
         if (ImGui.inputText(t("gui.rte.brush_edit_rail.collision_columns") + "###brush_collision_columns", collisionColumns)) {
-            RailBrushHelper.updateBrushTag(tag -> tag.putString("CollisionColumns", collisionColumns.get()));
+            rte$updateBrushTag(tag -> tag.putString("CollisionColumns", collisionColumns.get()));
         }
         ImGui.textDisabled(t("gui.rte.brush_edit_rail.collision_hint"));
     }
@@ -501,7 +501,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         if (ImGui.sliderFloat(t("gui.rte.brush_edit_rail.offset_input") + "###roll_offset", rollOffset, offset.min, offset.max, "%.4f m")) {
             railExtra.setRollingOffset(rollOffset[0]);
             rte$refreshPreview();
-            RailBrushHelper.updateBrushTag(tag -> tag.putFloat("RollingOffset", rollOffset[0]), false);
+            rte$updateBrushTag(tag -> tag.putFloat("RollingOffset", rollOffset[0]), false);
         }
 
         if (ImGui.button("+###roll_add")) {
@@ -608,7 +608,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         for (final Map.Entry<Double, Float> entry : map.entrySet()) {
             normalized.put(length == 0 ? 0 : entry.getKey() / length, entry.getValue());
         }
-        RailBrushHelper.updateBrushTag(tag -> tag.putString("RollAngleMap", cn.jstxjf_.rte.util.DoubleFloatMapSerializer.serializeToString(normalized)), false);
+        rte$updateBrushTag(tag -> tag.putString("RollAngleMap", cn.jstxjf_.rte.util.DoubleFloatMapSerializer.serializeToString(normalized)), false);
     }
 
     private Map<Double, Float> getNormalizedRollAngleMap() {
@@ -653,7 +653,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
 
     private void rte$applyModelKeys(java.util.List<String> keys) {
         final String packed = RailBrushHelper.joinModelKeys(keys);
-        RailBrushHelper.updateBrushTag(tag -> {
+        rte$updateBrushTag(tag -> {
             tag.putString("ModelKeys", packed);
             tag.putString("ModelKey", keys.isEmpty() ? "" : keys.get(0));
         });
@@ -661,6 +661,14 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
             railExtra.setModelKeys(keys);
             rte$refreshPreview();
         }
+    }
+
+    private void rte$updateBrushTag(java.util.function.Consumer<org.mtr.mapping.holder.CompoundTag> modifier) {
+        rte$updateBrushTag(modifier, true);
+    }
+
+    private void rte$updateBrushTag(java.util.function.Consumer<org.mtr.mapping.holder.CompoundTag> modifier, boolean flush) {
+        RailBrushHelper.updateBrushTag(modifier, flush, posStart, posEnd, pickedRail);
     }
 
     private void rte$refreshPreview() {
@@ -714,7 +722,7 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
         if (!(((Object) resolved) instanceof cn.jstxjf_.rte.data.RailExtraSupplier source)) {
             return;
         }
-        RailBrushHelper.updateBrushTag(tag -> {
+        rte$updateBrushTag(tag -> {
             try {
                 final java.util.List<String> modelKeys = source.getModelKeys();
                 if (modelKeys.isEmpty()) {

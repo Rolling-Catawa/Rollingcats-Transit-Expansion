@@ -33,6 +33,9 @@ public final class RailBrushHelper {
             return false;
         }
 
+        final Rail stalePickedRail = pickedRail;
+        pickedRail = RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
+
         final RailExtraSupplier pickedExtra = ((Object) pickedRail) instanceof RailExtraSupplier
             ? (RailExtraSupplier) (Object) pickedRail
             : null;
@@ -157,6 +160,9 @@ public final class RailBrushHelper {
                 } catch (Exception ignored) {}
             }
             PacketUpdateRail.sendUpdateC2S(pickedRail);
+            if (RailPicker.pickedRail == stalePickedRail || RailPicker.pickedRail == pickedRail) {
+                RailPicker.pickedRail = RailRebuildHelper.resolveClientRail(posStart, posEnd, pickedRail);
+            }
             return true;
         }
         return false;
@@ -215,6 +221,10 @@ public final class RailBrushHelper {
     }
 
     public static void updateBrushTag(java.util.function.Consumer<CompoundTag> modifier, boolean flush) {
+        updateBrushTag(modifier, flush, null, null, null);
+    }
+
+    public static void updateBrushTag(java.util.function.Consumer<CompoundTag> modifier, boolean flush, BlockPos posStart, BlockPos posEnd, Rail rail) {
         final ClientPlayerEntity player = MinecraftClient.getInstance().getPlayerMapped();
         if (player == null) {
             return;
@@ -237,7 +247,11 @@ public final class RailBrushHelper {
         final CompoundTag tag = getOrCreateTagElement(stack, BRUSH_TAG);
         modifier.accept(tag);
 
-        applyBrushToPickedRail(tag, false);
+        if (rail != null) {
+            applyBrushToPickedRail(posStart, posEnd, rail, tag, false);
+        } else {
+            applyBrushToPickedRail(tag, false);
+        }
         if (flush) {
             flushBrushTag();
         }

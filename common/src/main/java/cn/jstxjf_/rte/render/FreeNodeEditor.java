@@ -46,7 +46,7 @@ public final class FreeNodeEditor {
     private static final int RING_SEGMENTS = 32;
     private static final int CONE_SEGMENTS = 16;
     private static final int TANGENT_COLOUR = 0xFFFFD23C;
-    private static final long LIVE_SYNC_INTERVAL_MS = 150;
+    private static final long LIVE_SYNC_INTERVAL_MS = 50;
     private static final double SELECT_THRESHOLD = Math.cos(Math.toRadians(1.5));
     private static final Handle[] AXES = {Handle.X, Handle.Y, Handle.Z};
     private static final Handle[] PLANES = {Handle.YZ, Handle.XZ, Handle.XY};

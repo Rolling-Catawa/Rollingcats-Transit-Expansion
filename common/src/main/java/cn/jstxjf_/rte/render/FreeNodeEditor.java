@@ -283,6 +283,9 @@ public final class FreeNodeEditor {
     public static void render(PoseStack poseStack) {
         final Minecraft minecraft = Minecraft.getInstance();
         if (!isToolActive(minecraft)) {
+            if (cn.jstxjf_.rte.util.ReplayCompat.recordedPlayerHolds(FreeNodeEditor::isNodeTool)) {
+                renderNodeMarkers(poseStack, false);
+            }
             return;
         }
         if (dragging) {
@@ -1001,6 +1004,12 @@ public final class FreeNodeEditor {
         final net.minecraft.world.item.Item brush = org.mtr.mod.Items.BRUSH.get().data;
         return minecraft.player.getMainHandItem().is(item) || minecraft.player.getOffhandItem().is(item)
                 || minecraft.player.getMainHandItem().is(brush) || minecraft.player.getOffhandItem().is(brush);
+    }
+
+    private static boolean isNodeTool(net.minecraft.world.item.ItemStack stack) {
+        return stack.is(RTEBlocks.freeNode().asItem())
+                || stack.is(org.mtr.mod.Items.BRUSH.get().data)
+                || stack.getItem() instanceof org.mtr.mod.item.ItemNodeModifierBase;
     }
 
     private static boolean isConnectorActive(Minecraft minecraft) {

@@ -300,7 +300,13 @@ public class RailRenderDispatcher {
                              || checkItemName(mainHand, "ItemNodeModifier")
                              || checkItemName(offHand, "ItemNodeModifier");
 
-        isHoldingRailItemOrBrush = isHoldingRailItem || isHoldingBrush;
+        isHoldingRailItemOrBrush = isHoldingRailItem || isHoldingBrush
+            || cn.jstxjf_.rte.util.ReplayCompat.recordedPlayerHolds(stack -> isHoldingItem(stack, stack, brushItem)
+                || isHoldingItem(stack, stack, compoundCreatorItem)
+                || isHoldingItem(stack, stack, displacementToolItem)
+                || isHoldingItem(stack, stack, railPathEditorItem)
+                || checkItemName(stack, "ItemRailModifier")
+                || checkItemName(stack, "ItemNodeModifier"));
         } else {
             isHoldingRailItem = false;
             isHoldingBrush = false;

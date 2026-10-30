@@ -211,6 +211,11 @@ public class RenderRailsMixin {
                     } else {
                         ci.cancel();
                     }
+                } else if (cn.jstxjf_.rte.render.RoadMarkingRenderer.hasMarking(carrier)) {
+                    RTEClient.railRenderDispatcher.registerRail(carrier);
+                    if (!RailRenderDispatcher.isHoldingRailItemOrBrush) {
+                        ci.cancel();
+                    }
                 }
             }
         }

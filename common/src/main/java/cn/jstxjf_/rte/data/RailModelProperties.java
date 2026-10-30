@@ -31,6 +31,8 @@ public class RailModelProperties {
 
     public float yOffset;
 
+    public java.util.List<RoadMarkingLine> roadMarking;
+
     public RailModelProperties(String key, MutableComponent name, RawModel rawModel, float repeatInterval, float yOffset, ScriptHolderBase script, String group) {
         this.name = name;
         this.key = key;

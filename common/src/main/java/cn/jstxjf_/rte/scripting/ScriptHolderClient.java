@@ -57,6 +57,7 @@ public class ScriptHolderClient extends ScriptHolderBase {
 
         inject(ClientDataCompat.class, "MTRClientData");
         inject(RailCollisionScriptApi.class, "RailCollision");
+        inject(cn.jstxjf_.rte.scripting.compat.TrainCollisionScriptApi.class, "TrainCollision");
         inject(MinecraftClientData.class, "MTRClientData4");
         inject(IBlock.class, "IBlock");
         inject(MinecraftClientHelper.class, "UtilitiesClient");

@@ -78,6 +78,8 @@ public class ClientConfig {
     public static boolean mirrorReversedDoorways = false;
     public static boolean legacyDoorways = false;
     public static boolean legacyWalkways = false;
+    public static boolean trainCollision = false;
+    public static double trainCollisionHeight = 4.0;
 
     public static final EyecandyScreenGroup eyecandyScreenGroup = new EyecandyScreenGroup();
     public static final RollAnglesListEntryGroup rollAnglesListEntryGroup = new RollAnglesListEntryGroup();
@@ -167,6 +169,8 @@ public class ClientConfig {
             mirrorReversedDoorways = getOrDefault(configObject, "mirrorReversedDoorways", JsonElement::getAsBoolean, false);
             legacyDoorways = getOrDefault(configObject, "legacyDoorways", JsonElement::getAsBoolean, false);
             legacyWalkways = getOrDefault(configObject, "legacyWalkways", JsonElement::getAsBoolean, false);
+            trainCollision = getOrDefault(configObject, "trainCollision", JsonElement::getAsBoolean, false);
+            trainCollisionHeight = clamp(getOrDefault(configObject, "trainCollisionHeight", JsonElement::getAsDouble, 4.0), 1.0, 8.0);
 
             eyecandyScreenGroup.init(configObject);
             directNodeScreenGroup.init(configObject);
@@ -324,6 +328,8 @@ public class ClientConfig {
             configObject.addProperty("mirrorReversedDoorways", mirrorReversedDoorways);
             configObject.addProperty("legacyDoorways", legacyDoorways);
             configObject.addProperty("legacyWalkways", legacyWalkways);
+            configObject.addProperty("trainCollision", trainCollision);
+            configObject.addProperty("trainCollisionHeight", trainCollisionHeight);
             eyecandyScreenGroup.save(configObject);
             directNodeScreenGroup.save(configObject);
             rollAnglesListEntryGroup.save(configObject);

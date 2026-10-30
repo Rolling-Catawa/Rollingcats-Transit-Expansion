@@ -93,6 +93,7 @@ public class RailModelRegistry {
 
         TREE = Tree.loadTree("rail.rte.type", PATH_MAP, t -> t.name.getString());
         RTEClient.railRenderDispatcher.clearRail();
+        cn.jstxjf_.rte.render.RoadMarkingRenderer.clear();
     }
 
     private static final RailModelProperties EMPTY_PROPERTY = new RailModelProperties(
@@ -106,6 +107,14 @@ public class RailModelRegistry {
         return key != null && key.startsWith(LEGACY_BUILTIN_PREFIX)
             ? BUILTIN_PREFIX + key.substring(LEGACY_BUILTIN_PREFIX.length())
             : key;
+    }
+
+    public static boolean isRoadMarking(String key) {
+        if (key == null) {
+            return false;
+        }
+        final RailModelProperties properties = ELEMENTS.get(key);
+        return properties != null && properties.roadMarking != null && !properties.roadMarking.isEmpty();
     }
 
     public static RailModelProperties getProperty(String key) {
@@ -164,6 +173,10 @@ public class RailModelRegistry {
             }
         }
 
-        return new RailModelProperties(key, (MutableComponent) Component.translatable(obj.get("name").getAsString()), rawModel, repeatInterval, yOffset, script, group);
+        final RailModelProperties properties = new RailModelProperties(key, (MutableComponent) Component.translatable(obj.get("name").getAsString()), rawModel, repeatInterval, yOffset, script, group);
+        if (obj.has("roadMarking") && obj.get("roadMarking").isJsonArray()) {
+            properties.roadMarking = RoadMarkingLine.parseAll(obj.get("roadMarking").getAsJsonArray());
+        }
+        return properties;
     }
 }

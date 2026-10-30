@@ -20,6 +20,7 @@ public final class RTEFabricClient implements ClientModInitializer {
         KeyBindingHelper.registerKeyBinding(KeyMappings.DEBUG_KEY);
         KeyBindingHelper.registerKeyBinding(KeyMappings.TRAIN_SCREEN);
         KeyBindingHelper.registerKeyBinding(KeyMappings.CONFIG_SCREEN);
+        ClientTickEvents.START_CLIENT_TICK.register(client -> cn.jstxjf_.rte.util.TrainCollisionManager.clientTick());
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             cn.jstxjf_.rte.RTEClient.tick();
             cn.jstxjf_.rte.gui.TrainScreen.tick();

@@ -105,6 +105,8 @@
     "DepotAccessor",
     "DepotMixin",
     "EntityMixin",
+    "ImmersiveVehiclesWorldMixin",
+    "ServerGamePacketListenerImplMixin",
     "ItemNodeModifierBaseInvoker",
     "ItemNodeModifierBaseMixin",
     "ItemRailModifierCreateRailMixin",

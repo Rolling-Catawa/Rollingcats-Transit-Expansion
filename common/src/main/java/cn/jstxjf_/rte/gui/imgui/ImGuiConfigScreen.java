@@ -17,6 +17,7 @@ import java.util.Map;
 public class ImGuiConfigScreen extends ImGuiScreenBase {
 
     private final ImInt railInterval = new ImInt(ClientConfig.railDistanceRendererInterval);
+    private final ImFloat trainCollisionHeight = new ImFloat((float) ClientConfig.trainCollisionHeight);
     private final ImInt mtrMeshDedupeLimit = new ImInt(ClientConfig.mtrMeshDedupeFaceLimit);
     private static final int[] TEXTURE_SIZES = {512, 1024, 2048, 4096};
     private static final String[] TEXTURE_SIZE_LABELS = {"512", "1024", "2048", "4096"};
@@ -112,6 +113,15 @@ public class ImGuiConfigScreen extends ImGuiScreenBase {
         dirty |= toggle("gui.rte.config.client.railrender", "cfg_railrender", ClientConfig.enableRailRender, v -> ClientConfig.enableRailRender = v);
         dirty |= toggle("gui.rte.config.client.slsmoke", "cfg_smoke", ClientConfig.enableSmoke, v -> ClientConfig.enableSmoke = v);
         dirty |= toggle("gui.rte.config.client.rolling", "cfg_rolling", ClientConfig.enableRolling, v -> ClientConfig.enableRolling = v);
+        dirty |= toggle("gui.rte.config.client.train_collision", "cfg_train_collision", ClientConfig.trainCollision, v -> ClientConfig.trainCollision = v);
+        ImGui.textDisabled(t("gui.rte.config.client.train_collision.description"));
+        if (ClientConfig.trainCollision
+            && ImGui.inputFloat(t("gui.rte.config.client.train_collision_height") + "###cfg_train_collision_height", trainCollisionHeight, 0.25f, 1f, "%.2f")) {
+            final float height = Math.max(1f, Math.min(8f, trainCollisionHeight.get()));
+            trainCollisionHeight.set(height);
+            ClientConfig.trainCollisionHeight = height;
+            dirty = true;
+        }
 
         if (ImGui.inputInt(t("gui.rte.config.client.rail_distance_renderer_interval") + "###cfg_interval", railInterval)) {
             ClientConfig.railDistanceRendererInterval = Math.max(1, Math.min(120, railInterval.get()));

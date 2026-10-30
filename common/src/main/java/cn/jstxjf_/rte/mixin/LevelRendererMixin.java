@@ -122,6 +122,8 @@ public class LevelRendererMixin {
         vertexConsumersProxy = new BufferSourceProxy(bufferSource);
         RTEClient.drawScheduler.commit(vertexConsumersProxy, RTEClient.drawContext);
         vertexConsumersProxy.commit();
+
+        cn.jstxjf_.rte.render.RoadMarkingRenderer.render(client.level, poseStack, bufferSource, camPos3);
     }
 
     private void rte$drawOverlays(Minecraft client, PoseStack poseStack, Camera camera, MultiBufferSource.BufferSource bufferSource, net.minecraft.world.phys.Vec3 camPos3) {

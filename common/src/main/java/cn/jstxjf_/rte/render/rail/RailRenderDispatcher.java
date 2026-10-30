@@ -224,13 +224,14 @@ public class RailRenderDispatcher {
     }
 
     public boolean registerRail(Rail rail) {
-        String modelKey = getModelKeyForRender(rail);
-        RailModelProperties prop = modelKey.isEmpty() ? null : RailModelRegistry.getProperty(modelKey);
-        if (modelKey.isEmpty() || prop == null || prop.rawModel == null) {
-            return false;
+        for (final String modelKey : getModelKeysForRender(rail)) {
+            final RailModelProperties prop = RailModelRegistry.getProperty(modelKey);
+            if (prop != null && prop.rawModel != null) {
+                currentFrameRails.add(rail);
+                return true;
+            }
         }
-        currentFrameRails.add(rail);
-        return true;
+        return false;
     }
 
     public void clearRail() {
@@ -255,12 +256,14 @@ public class RailRenderDispatcher {
         railChunkMap.clear();
         railChunkList.clear();
         railChunksById.clear();
+        cn.jstxjf_.rte.render.RoadMarkingRenderer.clear();
         for (String key : RailModelRegistry.ELEMENTS.keySet()) {
             railChunkMap.put(key, new HashMap<>());
         }
     }
 
     public void registerLightUpdate(int x, int yMin, int yMax, int z) {
+        cn.jstxjf_.rte.render.RoadMarkingRenderer.onSectionDirty(x, z);
         long chunkId = BakedRail.chunkIdFromSectPos(x, z);
         final long now = System.currentTimeMillis();
         final List<RailChunkBase> chunks = railChunksById.get(chunkId);
@@ -566,20 +569,20 @@ public class RailRenderDispatcher {
         final java.util.List<String> declared = ((RailExtraSupplier) (Object) rail).getModelKeys();
         if (declared.size() <= 1) {
             final String single = getModelKeyForRender(rail);
-            return single.isEmpty() ? java.util.Collections.emptyList() : java.util.List.of(single);
+            return single.isEmpty() || RailModelRegistry.isRoadMarking(single) ? java.util.Collections.emptyList() : java.util.List.of(single);
         }
         final java.util.List<String> resolved = new java.util.ArrayList<>();
         for (final String key : declared) {
             if (key == null || key.isEmpty() || key.equals("null")) {
                 continue;
             }
-            if (RailModelRegistry.ELEMENTS.containsKey(key) && !resolved.contains(key)) {
+            if (RailModelRegistry.ELEMENTS.containsKey(key) && !RailModelRegistry.isRoadMarking(key) && !resolved.contains(key)) {
                 resolved.add(key);
             }
         }
         if (resolved.isEmpty()) {
             final String single = getModelKeyForRender(rail);
-            return single.isEmpty() ? java.util.Collections.emptyList() : java.util.List.of(single);
+            return single.isEmpty() || RailModelRegistry.isRoadMarking(single) ? java.util.Collections.emptyList() : java.util.List.of(single);
         }
         return resolved;
     }

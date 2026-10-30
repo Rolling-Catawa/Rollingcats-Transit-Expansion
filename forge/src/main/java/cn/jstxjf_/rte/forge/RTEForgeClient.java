@@ -129,7 +129,9 @@ public final class RTEForgeClient {
 
         @SubscribeEvent
         public static void onClientTick(TickEvent.ClientTickEvent event) {
-            if (event.phase == TickEvent.Phase.END) {
+            if (event.phase == TickEvent.Phase.START) {
+                cn.jstxjf_.rte.util.TrainCollisionManager.clientTick();
+            } else if (event.phase == TickEvent.Phase.END) {
                 RTEClient.tick();
                 cn.jstxjf_.rte.gui.TrainScreen.tick();
             }

@@ -138,7 +138,9 @@ public class RenderVehiclesMixin {
     )
     private static void rte$queueBodyWithRoll(
             VehicleResource vehicleResource, StoredMatrixTransformations smt, VehicleExtension vehicle,
-            int carNumber, int totalCars, int light, boolean fromResourcePackCreator) {
+            int carNumber, int totalCars, int light, boolean doorsClosed) {
+        final boolean effectiveDoorsClosed = doorsClosed
+            && !cn.jstxjf_.rte.scripting.train.ScriptedTrainRenderers.legacyDoorsOpen(vehicle, carNumber);
         StoredMatrixTransformations effectiveSmt = smt;
         try {
             if (vehicle instanceof cn.jstxjf_.rte.data.TrainExtraSupplier) {
@@ -156,7 +158,7 @@ public class RenderVehiclesMixin {
             }
         } catch (Throwable ignored) {
         }
-        vehicleResource.queue(effectiveSmt, vehicle, carNumber, totalCars, light, fromResourcePackCreator);
+        vehicleResource.queue(effectiveSmt, vehicle, carNumber, totalCars, light, effectiveDoorsClosed);
     }
 
     @Redirect(

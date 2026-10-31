@@ -48,7 +48,7 @@ public final class RailBrushHelper {
         boolean propertyUpdated = false;
 
         if (railBrushProp.contains("ModelKeys")) {
-            final java.util.List<String> values = splitModelKeys(railBrushProp.getString("ModelKeys"));
+            final java.util.List<String> values = keepBaseModels(pickedExtra.getModelKeys(), splitModelKeys(railBrushProp.getString("ModelKeys")));
             cn.jstxjf_.rte.RTE.LOGGER.info("[RailModels] applying {} model(s) to rail: {}",
                 values.size(), values);
             if (!values.equals(pickedExtra.getModelKeys())) {
@@ -240,11 +240,7 @@ public final class RailBrushHelper {
             hand = Hand.OFF_HAND;
         }
 
-        if (stack == null) {
-            return;
-        }
-
-        final CompoundTag tag = getOrCreateTagElement(stack, BRUSH_TAG);
+        final CompoundTag tag = stack == null ? DETACHED_BRUSH_TAG : getOrCreateTagElement(stack, BRUSH_TAG);
         modifier.accept(tag);
 
         if (rail != null) {
@@ -255,6 +251,26 @@ public final class RailBrushHelper {
         if (flush) {
             flushBrushTag();
         }
+    }
+
+    public static java.util.List<String> keepBaseModels(java.util.List<String> existing, java.util.List<String> incoming) {
+        if (incoming.isEmpty() || !incoming.stream().allMatch(RailModelRegistry::isRoadMarking)) {
+            return incoming;
+        }
+        final java.util.List<String> merged = new java.util.ArrayList<>();
+        if (existing != null) {
+            for (final String key : existing) {
+                if (key != null && !key.isEmpty() && !RailModelRegistry.isRoadMarking(key) && !merged.contains(key)) {
+                    merged.add(key);
+                }
+            }
+        }
+        for (final String key : incoming) {
+            if (!merged.contains(key)) {
+                merged.add(key);
+            }
+        }
+        return merged;
     }
 
     public static String joinModelKeys(java.util.List<String> keys) {
@@ -290,13 +306,28 @@ public final class RailBrushHelper {
         if (stack == null || stack.isEmpty()) {
             return false;
         }
+        final net.minecraft.world.item.Item item = stack.getItem().data;
+        final net.minecraft.resources.ResourceLocation id = net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item);
+        if (id != null && "mtr".equals(id.getNamespace()) && "brush".equals(id.getPath())) {
+            return true;
+        }
         try {
-            final net.minecraft.world.item.Item brushItem = org.mtr.mod.Items.BRUSH.get().asItem().data;
-            return stack.getItem().data.equals(brushItem);
+            return item.equals(org.mtr.mod.Items.BRUSH.get().asItem().data);
         } catch (Exception e) {
-            return stack.getItem().data.getClass().getSimpleName().equals("ItemBrush");
+            return item.getClass().getSimpleName().equals("ItemBrush");
         }
     }
+
+    public static boolean isHoldingBrush() {
+        final ClientPlayerEntity player = MinecraftClient.getInstance().getPlayerMapped();
+        return player != null && (checkItemBrush(player.getStackInHand(Hand.MAIN_HAND)) || checkItemBrush(player.getStackInHand(Hand.OFF_HAND)));
+    }
+
+    public static CompoundTag getDetachedBrushTag() {
+        return DETACHED_BRUSH_TAG;
+    }
+
+    private static final CompoundTag DETACHED_BRUSH_TAG = new CompoundTag();
 
     public static final String BRUSH_TAG = "RteRailBrush";
     public static final String LEGACY_BRUSH_TAG = "NTERailBrush";

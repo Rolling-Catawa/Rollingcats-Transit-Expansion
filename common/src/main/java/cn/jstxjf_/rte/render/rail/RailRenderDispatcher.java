@@ -593,7 +593,8 @@ public class RailRenderDispatcher {
             customModelKey = "";
         }
 
-        if (customModelKey == null || customModelKey.isEmpty() || !RailModelRegistry.ELEMENTS.containsKey(customModelKey)) {
+        if (customModelKey.isEmpty() || !RailModelRegistry.ELEMENTS.containsKey(customModelKey)
+                || RailModelRegistry.isRoadMarking(customModelKey)) {
             if (rail.getTransportMode() == TransportMode.TRAIN) {
                 if (rail.isSiding()) {
                     return RailModelRegistry.ELEMENTS.containsKey("rte_builtin_depot") ? "rte_builtin_depot" : "rte_builtin_concrete_sleeper";

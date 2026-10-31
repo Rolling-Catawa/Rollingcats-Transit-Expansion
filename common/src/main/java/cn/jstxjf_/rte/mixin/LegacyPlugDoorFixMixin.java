@@ -21,7 +21,6 @@ public class LegacyPlugDoorFixMixin {
     private static final ThreadLocal<String> RTE_RENDER_CONDITION = new ThreadLocal<>();
     private static final ThreadLocal<Boolean> RTE_DROP_PART = new ThreadLocal<>();
     private static final ThreadLocal<String> RTE_RENDER_STAGE = new ThreadLocal<>();
-    private static final ThreadLocal<Boolean> RTE_MIRROR = new ThreadLocal<>();
 
     @Inject(
         method = {"lambda$processModel$6", "lambda$processModel$4"},
@@ -37,12 +36,10 @@ public class LegacyPlugDoorFixMixin {
             RTE_OUTPUT_SIZE.set(outputParts == null ? 0 : outputParts.size());
             RTE_DOOR_SIDE.set("");
             RTE_RENDER_CONDITION.set("");
-            RTE_MIRROR.set(false);
             if (sourceElement == null || !sourceElement.isJsonObject()) {
                 return;
             }
             final JsonObject source = sourceElement.getAsJsonObject();
-            RTE_MIRROR.set(source.has("mirror") && source.get("mirror").isJsonPrimitive() && source.get("mirror").getAsBoolean());
             RTE_DROP_PART.set(false);
             RTE_RENDER_STAGE.set("");
             if (source.has("stage") && source.get("stage").isJsonPrimitive()) {
@@ -135,7 +132,6 @@ public class LegacyPlugDoorFixMixin {
             RTE_RENDER_CONDITION.remove();
             RTE_DROP_PART.remove();
             RTE_RENDER_STAGE.remove();
-            RTE_MIRROR.remove();
         }
     }
 
@@ -159,10 +155,6 @@ public class LegacyPlugDoorFixMixin {
                     cn.jstxjf_.rte.RTE.LOGGER.info(
                         "[LegacyPlugDoor] doorXMultiplier {} -> {}", value.doubleValue(), finalValue.doubleValue());
                 }
-            }
-            if ("doorZMultiplier".equals(key) && value != null && value.doubleValue() != 0
-                    && Boolean.TRUE.equals(RTE_MIRROR.get())) {
-                finalValue = -value.doubleValue();
             }
             if (!rte$hookReported) {
                 rte$hookReported = true;

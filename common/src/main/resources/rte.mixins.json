@@ -33,6 +33,7 @@
     "LegacyDoorOverlayMixin",
     "LegacyVehicleSchemaAccessor",
     "ModelPropertiesPartLegacyMixin",
+    "ObjDoorModelFixMixin",
     "LegacyDoorwayMixin",
     "LegacyFloorMixin",
     "LegacyVehicleResourceMixin",

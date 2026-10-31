@@ -734,8 +734,28 @@ public final class ScriptedTrainRenderers {
             state.leftOpen = false;
             state.rightOpen = false;
         }
-        state.nextScanNanos = now + 250_000_000L;
+        state.nextScanNanos = state.leftOpen || state.rightOpen ? Long.MAX_VALUE : now + 250_000_000L;
         return state;
+    }
+
+    public static boolean legacyDoorsOpen(VehicleExtension vehicle, int carIndex) {
+        if (vehicle == null || vehicle.persistentVehicleData.getDoorValue() <= 0) {
+            return false;
+        }
+        try {
+            final String vehicleId = vehicle.vehicleExtraData.immutableVehicleCars.get(carIndex).getVehicleId();
+            if (!cn.jstxjf_.rte.data.GangwayPolicy.isLegacyFormat(vehicleId)) {
+                return false;
+            }
+            final PositionAndRotation position = getCarPositionAndRotation(vehicle, carIndex);
+            if (position == null) {
+                return false;
+            }
+            final boolean[] sides = doorSidesOf(vehicle, carIndex, position);
+            return sides[0] || sides[1];
+        } catch (Throwable e) {
+            return false;
+        }
     }
 
     private static double rte$doorScanSpacing(VehicleExtension vehicle, int carIndex) {

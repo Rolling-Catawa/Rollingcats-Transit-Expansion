@@ -48,7 +48,7 @@ public final class RailBrushHelper {
         boolean propertyUpdated = false;
 
         if (railBrushProp.contains("ModelKeys")) {
-            final java.util.List<String> values = keepBaseModels(pickedExtra.getModelKeys(), splitModelKeys(railBrushProp.getString("ModelKeys")));
+            final java.util.List<String> values = splitModelKeys(railBrushProp.getString("ModelKeys"));
             cn.jstxjf_.rte.RTE.LOGGER.info("[RailModels] applying {} model(s) to rail: {}",
                 values.size(), values);
             if (!values.equals(pickedExtra.getModelKeys())) {
@@ -251,26 +251,6 @@ public final class RailBrushHelper {
         if (flush) {
             flushBrushTag();
         }
-    }
-
-    public static java.util.List<String> keepBaseModels(java.util.List<String> existing, java.util.List<String> incoming) {
-        if (incoming.isEmpty() || !incoming.stream().allMatch(RailModelRegistry::isRoadMarking)) {
-            return incoming;
-        }
-        final java.util.List<String> merged = new java.util.ArrayList<>();
-        if (existing != null) {
-            for (final String key : existing) {
-                if (key != null && !key.isEmpty() && !RailModelRegistry.isRoadMarking(key) && !merged.contains(key)) {
-                    merged.add(key);
-                }
-            }
-        }
-        for (final String key : incoming) {
-            if (!merged.contains(key)) {
-                merged.add(key);
-            }
-        }
-        return merged;
     }
 
     public static String joinModelKeys(java.util.List<String> keys) {

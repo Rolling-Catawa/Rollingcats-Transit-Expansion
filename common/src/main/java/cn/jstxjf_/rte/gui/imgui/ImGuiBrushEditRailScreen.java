@@ -689,14 +689,11 @@ public class ImGuiBrushEditRailScreen extends ImGuiScreenBase {
             () -> current.isEmpty() ? "" : current.get(0),
             (mc, screen0, key) -> {
                 final String normalizedKey = normalizeModelKey(key);
-                java.util.List<String> next = replace
+                final java.util.List<String> next = replace
                     ? new java.util.ArrayList<>()
                     : new java.util.ArrayList<>(current);
                 if (!normalizedKey.isEmpty() && !next.contains(normalizedKey)) {
                     next.add(normalizedKey);
-                }
-                if (replace) {
-                    next = RailBrushHelper.keepBaseModels(current, next);
                 }
                 rte$applyModelKeys(next);
             },

@@ -1,0 +1,22 @@
+{
+    "rte_builtin_concrete_sleeper": {
+        "name": "rail.rte.builtin_concrete_sleeper",
+        "model": "rte:models/rail.obj",
+        "DEPRECATED_flipv": true,
+        "repeatInterval": 0.5,
+        "group": "group.rte.builtin"
+    },
+    "rte_builtin_depot": {
+        "name": "rail.rte.builtin_depot",
+        "model": "rte:models/rail_siding.obj",
+        "DEPRECATED_flipv": true,
+        "repeatInterval": 0.5,
+        "group": "group.rte.builtin"
+    },
+    "rte_builtin_flat": {
+        "name": "rail.rte.builtin_flat",
+        "model": "rte:models/rail_flat.csv",
+        "repeatInterval": 0.5,
+        "group": "group.rte.builtin"
+    }
+}

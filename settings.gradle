@@ -1,0 +1,26 @@
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+        mavenCentral()
+        maven { url "https://maven.saps.dev/minecraft" }
+        maven { url "https://maven.fabricmc.net/" }
+        maven { url "https://maven.architectury.dev/" }
+        maven {
+            url "http://maven.architectury.dev/"
+            allowInsecureProtocol = true
+        }
+        maven { url "https://files.minecraftforge.net/maven/" }
+        maven { url "https://maven.neoforged.net/releases/" }
+    }
+}
+
+rootProject.name = 'rte'
+
+def rteSettingsProperties = new Properties()
+file('gradle.properties').withInputStream { rteSettingsProperties.load(it) }
+def rteSettingsMc = startParameter.projectProperties.get('minecraft_version') ?: rteSettingsProperties.getProperty('minecraft_version')
+
+include 'common'
+include 'fabric'
+include(rteSettingsMc == '1.21.1' ? 'neoforge' : 'forge')

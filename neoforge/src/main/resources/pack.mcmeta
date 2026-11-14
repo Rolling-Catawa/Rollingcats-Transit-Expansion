@@ -1,0 +1,6 @@
+{
+  "pack": {
+    "description": "rte resources",
+    "pack_format": ${pack_format}
+  }
+}

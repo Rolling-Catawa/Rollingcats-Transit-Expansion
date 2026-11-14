@@ -1,0 +1,61 @@
+apply from: rootProject.file('gradle/preprocess.gradle')
+
+def preprocessedJava = layout.buildDirectory.dir('preprocessed/java')
+def originalJavaDir = file('src/main/java')
+def modernJavaDir = file('src/mc12101/java')
+def modernImports = [
+    'org.mtr.mod.InitClient': 'cn.jstxjf_.rte.mapping.mtr.InitClient',
+    'org.mtr.mod.Init': 'cn.jstxjf_.rte.mapping.mtr.Init',
+    'org.mtr.mod.Items': 'cn.jstxjf_.rte.mapping.mtr.Items',
+    'org.mtr.mod.SoundEvents': 'cn.jstxjf_.rte.mapping.mtr.SoundEvents',
+    'org.mtr.mod.item.ItemNodeModifierBase;': 'cn.jstxjf_.rte.mapping.mtr.ItemNodeModifierBase;',
+    'org.mtr.mod.block.IBlock;': 'cn.jstxjf_.rte.mapping.mtr.IBlock;',
+    'org.mtr.mod.block.IBlock.': 'cn.jstxjf_.rte.mapping.mtr.IBlock.',
+    'org.mtr.mod.packet.PacketDeleteData': 'cn.jstxjf_.rte.mapping.mtr.PacketDeleteData',
+    'org.mtr.mod.packet.PacketUpdateData': 'cn.jstxjf_.rte.mapping.mtr.PacketUpdateData',
+    'org.mtr.mapping.': 'cn.jstxjf_.rte.mapping.',
+    'org.mtr.mod.': 'org.mtr.',
+    'Lorg/mtr/mapping/': 'Lcn/jstxjf_/rte/mapping/',
+    'Lorg/mtr/mod/': 'Lorg/mtr/',
+]
+
+def preprocessSources = tasks.register('preprocessSources') {
+    inputs.dir(originalJavaDir).withPathSensitivity(PathSensitivity.RELATIVE)
+    if (modernJavaDir.isDirectory()) {
+        inputs.dir(modernJavaDir).withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+    inputs.property('mc', project.ext.MC)
+    outputs.dir(preprocessedJava)
+    doLast {
+        def target = preprocessedJava.get().asFile
+        target.deleteDir()
+        target.mkdirs()
+        int mc = project.ext.MC
+        boolean modern = mc >= 12101
+        int touched = 0
+        def roots = modern && modernJavaDir.isDirectory() ? [originalJavaDir, modernJavaDir] : [originalJavaDir]
+        roots.each { root ->
+            root.eachFileRecurse { src ->
+                if (!src.isFile()) return
+                def rel = root.toPath().relativize(src.toPath()).toString()
+                def dst = new File(target, rel)
+                dst.parentFile.mkdirs()
+                if (src.name.endsWith('.java')) {
+                    def text = src.getText('UTF-8')
+                    def processed = project.ext.preprocessText(text, mc)
+                    if (modern) {
+                        modernImports.each { from, to -> processed = processed.replace(from, to) }
+                    }
+                    if (processed != text) touched++
+                    dst.setText(processed, 'UTF-8')
+                } else {
+                    dst.bytes = src.bytes
+                }
+            }
+        }
+        logger.lifecycle("[preprocess] ${project.name} MC=${mc}, 处理了 ${touched} 个含条件块的文件")
+    }
+}
+
+sourceSets.main.java.srcDirs = [preprocessedJava]
+tasks.named('compileJava').configure { dependsOn preprocessSources }

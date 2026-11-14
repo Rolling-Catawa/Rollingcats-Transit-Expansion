@@ -1,0 +1,205 @@
+package cn.jstxjf_.rte.gfx.shader;
+
+import cn.jstxjf_.rte.render.ShadersModHandler;
+import cn.jstxjf_.rte.gfx.batch.MaterialProp;
+import cn.jstxjf_.rte.gfx.batch.ShaderProp;
+import cn.jstxjf_.rte.gfx.util.AttrUtil;
+import com.google.common.collect.ImmutableMap;
+import com.mojang.blaze3d.platform.Window;
+import com.mojang.blaze3d.shaders.ProgramManager;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormatElement;
+import cn.jstxjf_.rte.gfx.math.Matrix4f;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.server.packs.resources.ResourceProvider;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+public class ShaderManager {
+
+    public static Matrix4f currentBatchCameraMatrix;
+    public static ShaderInstance currentBatchShaderInstance;
+
+    //#if MC>=12101
+    public static final VertexFormatElement MC_ELEMENT_MATRIX =
+            VertexFormatElement.register(21, 0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.GENERIC, 16);
+
+    public static final VertexFormat MC_FORMAT_ENTITY_MAT = VertexFormat.builder()
+            .add("Position", VertexFormatElement.POSITION).add("Color", VertexFormatElement.COLOR)
+            .add("UV0", VertexFormatElement.UV0).add("UV1", VertexFormatElement.UV1).add("UV2", VertexFormatElement.UV2)
+            .add("Normal", VertexFormatElement.NORMAL)
+            .add("ModelMat", MC_ELEMENT_MATRIX)
+            .padding(1)
+            .build();
+    //#else
+    public static final VertexFormatElement MC_ELEMENT_MATRIX =
+            new VertexFormatElement(0, VertexFormatElement.Type.FLOAT, VertexFormatElement.Usage.GENERIC, 16);
+
+    public static final VertexFormat MC_FORMAT_ENTITY_MAT = new VertexFormat(ImmutableMap.<String, VertexFormatElement>builder()
+            .put("Position", DefaultVertexFormat.ELEMENT_POSITION).put("Color", DefaultVertexFormat.ELEMENT_COLOR)
+            .put("UV0", DefaultVertexFormat.ELEMENT_UV0).put("UV1", DefaultVertexFormat.ELEMENT_UV1).put("UV2", DefaultVertexFormat.ELEMENT_UV2)
+            .put("Normal", DefaultVertexFormat.ELEMENT_NORMAL)
+            .put("ModelMat", MC_ELEMENT_MATRIX)
+            .put("Padding", DefaultVertexFormat.ELEMENT_PADDING)
+            .build()
+    );
+    //#endif
+
+    public final Map<String, ShaderInstance> shaders = new HashMap<>();
+    public final Map<String, ShaderInstance> instancedShaders = new HashMap<>();
+
+    public boolean isReady() {
+        return this.shaders.size() > 0;
+    }
+
+    public void reloadShaders(ResourceManager resourceManager) throws IOException {
+        this.shaders.values().forEach(ShaderInstance::close);
+        this.shaders.clear();
+        this.instancedShaders.values().forEach(ShaderInstance::close);
+        this.instancedShaders.clear();
+        ResourceProvider provider = new PatchingResourceProvider(resourceManager, false);
+        ResourceProvider instancedProvider = new PatchingResourceProvider(resourceManager, true);
+
+        for (String name : new String[] {
+            "rendertype_entity_cutout",
+            "rendertype_entity_translucent_cull",
+            "rendertype_beacon_beam"
+        }) {
+            shaders.put(name, new ShaderInstance(provider, name, MC_FORMAT_ENTITY_MAT));
+            try {
+                instancedShaders.put(name, new ShaderInstance(instancedProvider, name, MC_FORMAT_ENTITY_MAT));
+            } catch (Exception e) {
+                cn.jstxjf_.rte.RTE.LOGGER.warn("[Shader] instanced variant unavailable for {}: {}", name, e.toString());
+            }
+        }
+    }
+
+    public void setupShaderBatchState(MaterialProp materialProp, ShaderProp shaderProp) {
+        setupShaderBatchState(materialProp, shaderProp, false);
+    }
+
+    public boolean hasInstancedShader(MaterialProp materialProp) {
+        return materialProp != null && instancedShaders.get(materialProp.shaderName) != null;
+    }
+
+    public void setupShaderBatchState(MaterialProp materialProp, ShaderProp shaderProp, boolean instanced) {
+        final boolean useCustomShader = ShadersModHandler.canUseCustomShader();
+        ShaderInstance shaderInstance;
+
+        if (useCustomShader) {
+            shaderInstance = instanced
+                ? instancedShaders.get(materialProp.shaderName)
+                : shaders.get(materialProp.shaderName);
+            materialProp.setupCompositeState();
+        } else {
+            RenderType renderType = materialProp.getBlazeRenderType();
+            renderType.setupRenderState();
+            shaderInstance = RenderSystem.getShader();
+        }
+        if (isLightStage(materialProp)) {
+            RenderSystem.enablePolygonOffset();
+            RenderSystem.polygonOffset(LIGHT_STAGE_OFFSET_FACTOR, LIGHT_STAGE_OFFSET_UNITS);
+        }
+
+        currentBatchShaderInstance = shaderInstance;
+
+        if (shaderInstance == null) {
+            throw new IllegalArgumentException("Cannot get shader: " + materialProp.shaderName
+                    + (useCustomShader ? "_rte_modelmat" : ""));
+        }
+
+        for (int l = 0; l < 8; ++l) {
+            int o = RenderSystem.getShaderTexture(l);
+            shaderInstance.setSampler("Sampler" + l, o);
+        }
+        if (shaderInstance.MODEL_VIEW_MATRIX != null) {
+            Matrix4f mvMatrix = cn.jstxjf_.rte.render.CameraPose.copyOrFallback();
+            if (shaderProp.viewMatrix != null) mvMatrix.multiply(shaderProp.viewMatrix);
+            currentBatchCameraMatrix = mvMatrix.copy();
+            cn.jstxjf_.rte.compat.MatrixCompat.setUniform(shaderInstance.MODEL_VIEW_MATRIX, mvMatrix.asMoj());
+        }
+        if (shaderInstance.PROJECTION_MATRIX != null) {
+            shaderInstance.PROJECTION_MATRIX.set(RenderSystem.getProjectionMatrix());
+        }
+
+        //#if MC<12101
+        if (shaderInstance.INVERSE_VIEW_ROTATION_MATRIX != null) {
+            shaderInstance.INVERSE_VIEW_ROTATION_MATRIX.set(RenderSystem.getInverseViewRotationMatrix());
+        }
+        //#endif
+
+        if (shaderInstance.COLOR_MODULATOR != null) {
+            shaderInstance.COLOR_MODULATOR.set(RenderSystem.getShaderColor());
+        }
+        if (shaderInstance.FOG_START != null) {
+            shaderInstance.FOG_START.set(RenderSystem.getShaderFogStart());
+        }
+        if (shaderInstance.FOG_END != null) {
+            shaderInstance.FOG_END.set(RenderSystem.getShaderFogEnd());
+        }
+        if (shaderInstance.FOG_COLOR != null) {
+            shaderInstance.FOG_COLOR.set(RenderSystem.getShaderFogColor());
+        }
+
+        if (shaderInstance.FOG_SHAPE != null) {
+            shaderInstance.FOG_SHAPE.set(RenderSystem.getShaderFogShape().getIndex());
+        }
+
+        if (shaderInstance.TEXTURE_MATRIX != null) {
+            shaderInstance.TEXTURE_MATRIX.set(RenderSystem.getTextureMatrix());
+        }
+        if (shaderInstance.GAME_TIME != null) {
+            shaderInstance.GAME_TIME.set(RenderSystem.getShaderGameTime());
+        }
+        if (shaderInstance.SCREEN_SIZE != null) {
+            Window window = Minecraft.getInstance().getWindow();
+            shaderInstance.SCREEN_SIZE.set((float)window.getWidth(), (float)window.getHeight());
+        }
+
+        RenderSystem.setupShaderLights(shaderInstance);
+
+        shaderInstance.apply();
+
+        int programId = ((cn.jstxjf_.rte.mixin.ShaderInstanceAccessor) shaderInstance).getProgramId();
+        if (programId != cn.jstxjf_.rte.mixin.ShaderInstanceAccessor.getLastProgramId()) {
+            ProgramManager.glUseProgram(programId);
+            cn.jstxjf_.rte.mixin.ShaderInstanceAccessor.setLastProgramId(programId);
+        }
+    }
+
+    private static final float LIGHT_STAGE_OFFSET_FACTOR = -1.0F;
+    private static final float LIGHT_STAGE_OFFSET_UNITS = -8.0F;
+
+    private static boolean isLightStage(MaterialProp materialProp) {
+        return "rendertype_beacon_beam".equals(materialProp.shaderName);
+    }
+
+    public void cleanupShaderBatchState(MaterialProp materialProp, ShaderProp shaderProp) {
+        if (isLightStage(materialProp)) {
+            RenderSystem.polygonOffset(0.0F, 0.0F);
+            RenderSystem.disablePolygonOffset();
+        }
+        final boolean useCustomShader = ShadersModHandler.canUseCustomShader();
+        if (!useCustomShader) {
+            ShaderInstance shaderInstance = currentBatchShaderInstance != null ? currentBatchShaderInstance : RenderSystem.getShader();
+            if (shaderInstance != null && shaderInstance.MODEL_VIEW_MATRIX != null) {
+                shaderInstance.MODEL_VIEW_MATRIX.set(RenderSystem.getModelViewMatrix());
+                shaderInstance.apply();
+            }
+            if (shaderInstance != null) {
+                shaderInstance.clear();
+            }
+            materialProp.getBlazeRenderType().clearRenderState();
+            currentBatchShaderInstance = null;
+            currentBatchCameraMatrix = null;
+        }
+    }
+
+}

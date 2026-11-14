@@ -1,0 +1,1 @@
+package net.minecraft.client; public class Minecraft {public static Minecraft getInstance(){return new Minecraft();}public void execute(Runnable r){r.run();}}

@@ -1,0 +1,168 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  metadata:
+    name: Prepare build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      build_id: ${{ steps.metadata.outputs.build_id }}
+      build_time: ${{ steps.metadata.outputs.build_time }}
+      minecraft_matrix: ${{ steps.metadata.outputs.minecraft_matrix }}
+      minecraft_versions: ${{ steps.metadata.outputs.minecraft_versions }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: gradle/actions/wrapper-validation@v4
+      - id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^mod_version=//p' gradle.properties | tr -d '\r')"
+          minecraft_versions="$(sed -n 's/^minecraft_versions=//p' gradle.properties | tr -d '\r')"
+          test -n "$version"
+          test -n "$minecraft_versions"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+            test "$tag" = "v$version" || { echo "Tag $tag does not match v$version" >&2; exit 1; }
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build_id=ci.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+          echo "minecraft_versions=$minecraft_versions" >> "$GITHUB_OUTPUT"
+          echo "minecraft_matrix=$(python -c 'import json,sys; print(json.dumps([item.strip() for item in sys.argv[1].split(",") if item.strip()], separators=(",", ":")))' "$minecraft_versions")" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Minecraft ${{ matrix.minecraft }}
+    needs: metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft: ${{ fromJSON(needs.metadata.outputs.minecraft_matrix) }}
+    env:
+      RTE_BUILD_ID: ${{ needs.metadata.outputs.build_id }}
+      RTE_BUILD_TIME: ${{ needs.metadata.outputs.build_time }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
+      - name: Build and verify
+        shell: bash
+        run: |
+          chmod +x gradlew
+          ./gradlew \
+            -Dorg.gradle.java.home="$JAVA_HOME" \
+            --no-daemon \
+            --stacktrace \
+            --max-workers=1 \
+            -Pminecraft_version=${{ matrix.minecraft }} \
+            -PrteMatrixChild=true \
+            :common:clean :fabric:clean :forge:clean releaseBuild
+      - name: Upload version artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rte-jars-${{ matrix.minecraft }}-${{ github.sha }}
+          path: build/dist/*.jar
+          if-no-files-found: error
+          retention-days: 14
+
+  package:
+    name: Verify and package
+    needs: [metadata, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rte-jars-*-${{ github.sha }}
+          path: build/incoming
+          merge-multiple: true
+      - name: Assemble distribution
+        env:
+          RTE_MINECRAFT_VERSIONS: ${{ needs.metadata.outputs.minecraft_versions }}
+        shell: bash
+        run: |
+          minecraft_args=()
+          IFS=',' read -ra minecraft_versions <<< "$RTE_MINECRAFT_VERSIONS"
+          for minecraft_version in "${minecraft_versions[@]}"; do
+            minecraft_args+=(--minecraft "${minecraft_version//[[:space:]]/}")
+          done
+          python scripts/assemble_distribution.py \
+            --input build/incoming \
+            --output build/dist \
+            --version "${{ needs.metadata.outputs.version }}" \
+            --build-id "${{ needs.metadata.outputs.build_id }}" \
+            --commit "${{ github.sha }}" \
+            --build-time "${{ needs.metadata.outputs.build_time }}" \
+            "${minecraft_args[@]}"
+          {
+            echo '## Distribution'
+            echo '```text'
+            cat build/dist/CHECKSUMS.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: rte-${{ needs.metadata.outputs.version }}-${{ github.sha }}
+          path: build/dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [metadata, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: rte-${{ needs.metadata.outputs.version }}-${{ github.sha }}
+          path: build/dist
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+          gh release upload "$GITHUB_REF_NAME" build/dist/* --clobber

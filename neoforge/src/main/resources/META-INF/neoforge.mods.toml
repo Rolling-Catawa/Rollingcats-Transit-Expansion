@@ -1,0 +1,47 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+issueTrackerURL = "https://github.com/Rolling-Catawa/Rollingcats-Transit-Expansion/issues"
+license = "GPL-3.0-or-later"
+
+[[mods]]
+modId = "rte"
+version = "${version}"
+displayName = "Rollingcats Transit Expansion"
+authors = "Rolling-Catawa"
+displayURL = "https://rolling-catawa.github.io/Rollingcats-Transit-Expansion/"
+description = '''
+RTE expands MTR 4 with advanced track geometry, construction tools,
+scripted resources, and ImGui interfaces.
+'''
+logoFile = "icon.png"
+
+[[mixins]]
+config = "rte.mixins.json"
+
+[[dependencies.rte]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforge_version},)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.rte]]
+modId = "minecraft"
+type = "required"
+versionRange = "[${minecraft_version}]"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.rte]]
+modId = "architectury"
+type = "required"
+versionRange = "[${architectury_version},)"
+ordering = "AFTER"
+side = "BOTH"
+
+[[dependencies.rte]]
+modId = "mtr"
+type = "required"
+versionRange = "[4.1.0-beta.2,)"
+ordering = "AFTER"
+side = "BOTH"

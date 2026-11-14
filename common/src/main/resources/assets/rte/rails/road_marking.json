@@ -1,0 +1,148 @@
+{
+    "rte_road_white_dashed": {
+        "name": "rail.rte.road.white_dashed",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": 0,
+                "width": 0.15,
+                "dash": 2,
+                "gap": 4,
+                "color": "#F2F2F2"
+            }
+        ]
+    },
+    "rte_road_white_dashed_long": {
+        "name": "rail.rte.road.white_dashed_long",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": 0,
+                "width": 0.15,
+                "dash": 6,
+                "gap": 9,
+                "color": "#F2F2F2"
+            }
+        ]
+    },
+    "rte_road_white_solid": {
+        "name": "rail.rte.road.white_solid",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": 0,
+                "width": 0.15,
+                "color": "#F2F2F2"
+            }
+        ]
+    },
+    "rte_road_white_edge": {
+        "name": "rail.rte.road.white_edge",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": 0,
+                "width": 0.2,
+                "color": "#F2F2F2"
+            }
+        ]
+    },
+    "rte_road_white_double": {
+        "name": "rail.rte.road.white_double",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": -0.15,
+                "width": 0.15,
+                "color": "#F2F2F2"
+            },
+            {
+                "offset": 0.15,
+                "width": 0.15,
+                "color": "#F2F2F2"
+            }
+        ]
+    },
+    "rte_road_yellow_dashed": {
+        "name": "rail.rte.road.yellow_dashed",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": 0,
+                "width": 0.15,
+                "dash": 4,
+                "gap": 6,
+                "color": "#F2B705"
+            }
+        ]
+    },
+    "rte_road_yellow_solid": {
+        "name": "rail.rte.road.yellow_solid",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": 0,
+                "width": 0.15,
+                "color": "#F2B705"
+            }
+        ]
+    },
+    "rte_road_yellow_double": {
+        "name": "rail.rte.road.yellow_double",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": -0.15,
+                "width": 0.15,
+                "color": "#F2B705"
+            },
+            {
+                "offset": 0.15,
+                "width": 0.15,
+                "color": "#F2B705"
+            }
+        ]
+    },
+    "rte_road_yellow_solid_dashed": {
+        "name": "rail.rte.road.yellow_solid_dashed",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": -0.15,
+                "width": 0.15,
+                "color": "#F2B705"
+            },
+            {
+                "offset": 0.15,
+                "width": 0.15,
+                "dash": 4,
+                "gap": 6,
+                "color": "#F2B705"
+            }
+        ]
+    },
+    "rte_road_stop_line": {
+        "name": "rail.rte.road.stop_line",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": 0,
+                "width": 0.4,
+                "color": "#F2F2F2"
+            }
+        ]
+    },
+    "rte_road_crosswalk": {
+        "name": "rail.rte.road.crosswalk",
+        "group": "group.rte.road_marking",
+        "roadMarking": [
+            {
+                "offset": 0,
+                "width": 4,
+                "dash": 0.45,
+                "gap": 0.6,
+                "color": "#F2F2F2"
+            }
+        ]
+    }
+}

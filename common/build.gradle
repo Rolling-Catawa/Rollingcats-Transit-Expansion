@@ -1,0 +1,67 @@
+loom {
+    enableTransitiveAccessWideners = true
+    accessWidenerPath = file("src/main/resources/rte.accesswidener")
+}
+
+architectury {
+    common rootProject.rtePlatforms
+}
+
+apply from: rootProject.file('gradle/preprocess-sources.gradle')
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+    modImplementation "dev.architectury:architectury:${rootProject.rteDeps.architectury}"
+    
+    modCompileOnly "net.fabricmc.fabric-api:fabric-api:${rootProject.rteDeps.fabricApi}"
+    modCompileOnly "${rootProject.rteDeps.mtr}"
+    
+    compileOnly 'com.google.code.findbugs:jsr305:3.0.2'
+    
+    
+    modImplementation "org.graalvm.sdk:graal-sdk:23.0.1"
+    modImplementation "org.graalvm.js:js:23.0.1"
+    modImplementation "org.mozilla:rhino:1.7.15"
+    if (rootProject.rteDeps.msd) {
+        compileOnly files("../libs/${rootProject.rteDeps.msd}")
+    }
+    modImplementation("io.github.spair:imgui-java-binding:1.86.12") { exclude group: 'org.lwjgl' }
+    modImplementation("io.github.spair:imgui-java-lwjgl3:1.86.12") { exclude group: 'org.lwjgl' }
+    modImplementation("io.github.spair:imgui-java-natives-windows:1.86.12") { exclude group: 'org.lwjgl' }
+    implementation 'com.github.stuxuhai:jpinyin:1.1.8'
+    implementation 'org.msgpack:msgpack-core:0.9.3'
+    if (rootProject.rteMc == '1.19.2') {
+        implementation 'org.joml:joml:1.10.5'
+    }
+}
+
+def rteMixinSourceDir = layout.buildDirectory.dir('preprocessed/java/cn/jstxjf_/rte/mixin')
+
+processResources {
+    dependsOn 'preprocessSources'
+    inputs.dir(rteMixinSourceDir).withPathSensitivity(PathSensitivity.RELATIVE)
+    doLast {
+        def config = new File(destinationDir, 'rte.mixins.json')
+        if (!config.isFile()) {
+            return
+        }
+        def json = new groovy.json.JsonSlurper().parse(config)
+        def mixinDir = rteMixinSourceDir.get().asFile
+        def present = { String name ->
+            def file = new File(mixinDir, name.replace('.', '/') + '.java')
+            file.isFile() && file.getText('UTF-8').contains('@Mixin')
+        }
+        def removed = []
+        ['mixins', 'client', 'server'].each { key ->
+            if (json[key] instanceof List) {
+                def kept = json[key].findAll { present(it) }
+                removed.addAll(json[key] - kept)
+                json[key] = kept
+            }
+        }
+        if (!removed.isEmpty()) {
+            config.setText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(json)), 'UTF-8')
+            logger.lifecycle("[mixins] MC=${project.ext.MC} 移除 ${removed.size()} 个不适用的 mixin")
+        }
+    }
+}

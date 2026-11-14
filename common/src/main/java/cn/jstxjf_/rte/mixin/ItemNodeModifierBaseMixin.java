@@ -1,0 +1,322 @@
+package cn.jstxjf_.rte.mixin;
+
+import cn.jstxjf_.rte.compat.MtrNodes;
+
+import cn.jstxjf_.rte.compat.RailFactory;
+
+import cn.jstxjf_.rte.block.BlockDirectNode;
+import cn.jstxjf_.rte.block.BlockDirectNode.BlockEntityDirectNode;
+import cn.jstxjf_.rte.block.BlockFreeNode;
+import cn.jstxjf_.rte.RTE;
+import cn.jstxjf_.rte.data.RailAngleExtra;
+import cn.jstxjf_.rte.data.RailCalculator;
+import org.mtr.core.data.TransportMode;
+import org.mtr.core.tool.Angle;
+import org.mtr.mapping.holder.*;
+import org.mtr.mapping.mapper.TextHelper;
+import org.mtr.mod.block.BlockNode;
+import org.mtr.mod.item.ItemNodeModifierBase;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import javax.annotation.Nullable;
+
+@Mixin(value = ItemNodeModifierBase.class, remap = false)
+public abstract class ItemNodeModifierBaseMixin {
+
+    @Shadow(remap = false)
+    protected boolean isConnector;
+
+    @Shadow(remap = false)
+    protected abstract void onConnect(World world, ItemStack stack, TransportMode transportMode, BlockState stateStart, BlockState stateEnd, BlockPos posStart, BlockPos posEnd, Angle facingStart, Angle facingEnd, @Nullable ServerPlayerEntity player);
+
+    @Shadow(remap = false)
+    protected abstract void onRemove(World world, BlockPos posStart, BlockPos posEnd, @Nullable ServerPlayerEntity player);
+
+    @Inject(method = "onEndClick", at = @At("HEAD"), cancellable = true, remap = false)
+    private void onEndClick(ItemUsageContext context, BlockPos posEnd, CompoundTag compoundTag, CallbackInfo info) {
+        if (!cn.jstxjf_.rte.util.CompatArbiter.owns(cn.jstxjf_.rte.util.CompatArbiter.Domain.NODE_PLACEMENT)) {
+            return;
+        }
+        final World world = context.getWorld();
+        final BlockPos posStart = context.getBlockPos();
+        final BlockState stateStart = world.getBlockState(posStart);
+        final BlockState stateEnd = world.getBlockState(posEnd);
+
+        final BlockEntityDirectNode beStart = getBlockEntity(world, posStart);
+        final BlockEntityDirectNode beEnd = getBlockEntity(world, posEnd);
+        final double startX = posStart.getX() + (beStart == null ? 0 : beStart.getXOffset());
+        final double startZ = posStart.getZ() + (beStart == null ? 0 : beStart.getZOffset());
+        final double endX = posEnd.getX() + (beEnd == null ? 0 : beEnd.getXOffset());
+        final double endZ = posEnd.getZ() + (beEnd == null ? 0 : beEnd.getZOffset());
+        final boolean anyDirectBlock =
+            world.getBlockState(posStart).getBlock().data instanceof BlockDirectNode
+                || world.getBlockState(posEnd).getBlock().data instanceof BlockDirectNode;
+        if (beStart == null && beEnd == null && !anyDirectBlock) {
+            return;
+        }
+
+        if (!(stateStart.getBlock().data instanceof BlockNode blockNodeStart) ||
+            !(stateEnd.getBlock().data instanceof BlockNode blockNodeEnd)) {
+            return;
+        }
+
+        if (blockNodeStart.transportMode != blockNodeEnd.transportMode) {
+            return;
+        }
+
+        if (compoundTag.contains("transport_mode") && !blockNodeStart.transportMode.toString().equals(compoundTag.getString("transport_mode"))) {
+            return;
+        }
+
+        final PlayerEntity player = context.getPlayer();
+        if (player == null || !ServerPlayerEntity.isInstance(player)) {
+            return;
+        }
+        final ServerPlayerEntity serverPlayer = ServerPlayerEntity.cast(player);
+
+        if (isConnector) {
+            if (posStart.equals(posEnd)) {
+                info.cancel();
+                return;
+            }
+
+            final float angleDifference = (float) Math.toDegrees(Math.atan2(
+                endZ - startZ, endX - startX));
+
+            if (beStart != null && beEnd != null) {
+                if (!beStart.isBound() && !beEnd.isBound()) {
+                    beStart.bind(beEnd);
+                    serverPlayer.sendMessage(new Text(TextHelper.translatable("gui.rte.direct_node.success_bind").data), true);
+                }
+            }
+
+            final boolean startIsDirect = stateStart.getBlock().data instanceof BlockDirectNode;
+            final boolean endIsDirect = stateEnd.getBlock().data instanceof BlockDirectNode;
+
+            boolean s1 = !startIsDirect || (beStart != null && beStart.isBound());
+            boolean s2 = !endIsDirect || (beEnd != null && beEnd.isBound());
+
+            double radStart = Math.toRadians(MtrNodes.getAngle(stateStart));
+            double radEnd = Math.toRadians(MtrNodes.getAngle(stateEnd));
+
+            if (beStart != null && beStart.isBound()) {
+                radStart = beStart.getAngleRadians();
+            }
+            if (beEnd != null && beEnd.isBound()) {
+                radEnd = beEnd.getAngleRadians();
+            }
+
+            if (s1 && !s2) {
+                Double deg = RailCalculator.calculateMaxRadiusAngle(
+                    startX, startZ, endX, endZ,
+                    radStart);
+                if (deg == null) {
+                    deg = (double) angleDifference;
+                }
+                if (beEnd != null) {
+                    beEnd.bind(deg);
+                }
+                radEnd = normalizeRadians(Math.toRadians(deg));
+                s2 = true;
+                serverPlayer.sendMessage(new Text(TextHelper.translatable("gui.rte.direct_node.success_bind").data), true);
+            } else if (s2 && !s1) {
+                Double deg = RailCalculator.calculateMaxRadiusAngle(
+                    endX, endZ, startX, startZ,
+                    radEnd);
+                if (deg == null) {
+                    deg = (double) angleDifference + 180;
+                }
+                if (beStart != null) {
+                    beStart.bind(deg);
+                }
+                radStart = normalizeRadians(Math.toRadians(deg));
+                s1 = true;
+                serverPlayer.sendMessage(new Text(TextHelper.translatable("gui.rte.direct_node.success_bind").data), true);
+            }
+
+            if (!s1 && !s2) {
+                final double chord = Math.toRadians(angleDifference);
+                radStart = chord;
+                radEnd = chord;
+                if (beStart != null) {
+                    beStart.bind(angleDifference);
+                }
+                if (beEnd != null) {
+                    beEnd.bind(angleDifference);
+                }
+                s1 = true;
+                s2 = true;
+                serverPlayer.sendMessage(new Text(TextHelper.translatable("gui.rte.direct_node.success_bind").data), true);
+            }
+
+            if (s1 && s2) {
+                radStart = faceToward(startX, startZ, endX, endZ, radStart);
+                radEnd = faceToward(startX, startZ, endX, endZ, radEnd);
+
+                final double chordDist = Math.sqrt(
+                    Math.pow(endX - startX, 2) + Math.pow(endZ - startZ, 2));
+                final double maxReasonableLength = chordDist * 4 + 32;
+                double bestStart = radStart;
+                double bestEnd = radEnd;
+                double bestLength = Double.MAX_VALUE;
+                final double[][] candidateOrder = {
+                    {radStart, radEnd},
+                    {radStart, normalizeRadians(radEnd + Math.PI)},
+                    {normalizeRadians(radStart + Math.PI), radEnd},
+                    {normalizeRadians(radStart + Math.PI), normalizeRadians(radEnd + Math.PI)}
+                };
+                for (final double[] candidate : candidateOrder) {
+                    final double length = testRailLength(posStart, candidate[0], posEnd, candidate[1], blockNodeStart.transportMode);
+                    if (length <= maxReasonableLength) {
+                        bestLength = length;
+                        bestStart = candidate[0];
+                        bestEnd = candidate[1];
+                        break;
+                    }
+                }
+
+                final double finalRadStart = bestStart;
+                final double finalRadEnd = bestEnd;
+                RailAngleExtra.withAngles(finalRadStart, finalRadEnd, (preciseStart, preciseEnd) -> {
+                    connect(world, context.getStack(), blockNodeStart.transportMode,
+                        stateStart, stateEnd, posStart, posEnd, preciseStart, preciseEnd, serverPlayer,
+                        beStart instanceof BlockFreeNode.BlockEntityFreeNode || beEnd instanceof BlockFreeNode.BlockEntityFreeNode);
+                });
+                boolean connected = isConnected(world.getBlockState(posStart)) && isConnected(world.getBlockState(posEnd));
+                if (!connected) {
+                    for (final double[] candidate : candidateOrder) {
+                        final Angle quantizedStart = Angle.fromAngle((float) Math.toDegrees(candidate[0]));
+                        final Angle quantizedEnd = Angle.fromAngle((float) Math.toDegrees(candidate[1]));
+                        connect(world, context.getStack(), blockNodeStart.transportMode,
+                            stateStart, stateEnd, posStart, posEnd, quantizedStart, quantizedEnd, serverPlayer,
+                            beStart instanceof BlockFreeNode.BlockEntityFreeNode || beEnd instanceof BlockFreeNode.BlockEntityFreeNode);
+                        if (isConnected(world.getBlockState(posStart)) && isConnected(world.getBlockState(posEnd))) {
+                            break;
+                        }
+                    }
+                }
+                if (beStart != null) {
+                    beStart.scheduleUpdateRailwayData();
+                }
+                if (beEnd != null) {
+                    beEnd.scheduleUpdateRailwayData();
+                }
+            } else {
+                serverPlayer.sendMessage(new Text(TextHelper.translatable("gui.rte.direct_node.unbound").data), true);
+            }
+        } else {
+            onRemove(world, posStart, posEnd, serverPlayer);
+        }
+
+        compoundTag.remove("transport_mode");
+        info.cancel();
+    }
+
+    private BlockEntityDirectNode getBlockEntity(World world, BlockPos pos) {
+        BlockEntity entity = world.getBlockEntity(pos);
+        if (entity != null && entity.data instanceof BlockDirectNode.BlockEntityDirectNode) {
+             return (BlockDirectNode.BlockEntityDirectNode) entity.data;
+        }
+        return null;
+    }
+
+    private void connect(World world, ItemStack stack, TransportMode transportMode, BlockState stateStart, BlockState stateEnd,
+                         BlockPos posStart, BlockPos posEnd, Angle facingStart, Angle facingEnd,
+                         ServerPlayerEntity player, boolean spatial) {
+        final BlockEntityDirectNode startNode = getBlockEntity(world, posStart);
+        final BlockEntityDirectNode endNode = getBlockEntity(world, posEnd);
+        final double startX = posStart.getX() + (startNode == null ? 0 : startNode.getXOffset());
+        final double startZ = posStart.getZ() + (startNode == null ? 0 : startNode.getZOffset());
+        final double endX = posEnd.getX() + (endNode == null ? 0 : endNode.getXOffset());
+        final double endZ = posEnd.getZ() + (endNode == null ? 0 : endNode.getZOffset());
+        final double startAngle = faceToward(startX, startZ, endX, endZ, startNode != null && startNode.isBound()
+                ? startNode.getAngleRadians() : facingStart.angleRadians);
+        final double endAngle = faceToward(endX, endZ, startX, startZ, endNode != null && endNode.isBound()
+                ? endNode.getAngleRadians() : normalizeRadians(facingEnd.angleRadians + Math.PI));
+        final org.mtr.core.data.Position startPosition = org.mtr.mod.Init.blockPosToPosition(posStart);
+        cn.jstxjf_.rte.data.RailSpatialContext.run(spatial ? rail -> {
+            final boolean firstIsStart = startPosition.equals(rail.getExtraPosition1());
+            setSpatialEndpoint(rail, firstIsStart, startNode, startAngle);
+            setSpatialEndpoint(rail, !firstIsStart, endNode, endAngle);
+            rail.setPathModeRaw(cn.jstxjf_.rte.data.RailExtraSupplier.PATH_MODE_AUTO_BEZIER);
+            rail.regenerateAutoBezier();
+        } : null, () ->
+                onConnect(world, stack, transportMode, stateStart, stateEnd, posStart, posEnd, facingStart, facingEnd, player));
+    }
+
+    private static void setSpatialEndpoint(cn.jstxjf_.rte.data.RailExtraSupplier rail, boolean first,
+                                           BlockEntityDirectNode node, double angle) {
+        final double x = node == null ? 0 : node.getXOffset();
+        final double y = node == null ? 0 : node.getYOffset();
+        final double z = node == null ? 0 : node.getZOffset();
+        final double pitch = node == null ? 0 : node.getPitchDegrees();
+        if (first) {
+            rail.setNodeXOffset1(x);
+            rail.setNodeYOffset1(y);
+            rail.setNodeZOffset1(z);
+            rail.setNodePitch1(pitch);
+            rail.setExtraAngle1Rad(angle);
+        } else {
+            rail.setNodeXOffset2(x);
+            rail.setNodeYOffset2(y);
+            rail.setNodeZOffset2(z);
+            rail.setNodePitch2(pitch);
+            rail.setExtraAngle2Rad(angle);
+        }
+    }
+
+    private boolean isConnected(BlockState state) {
+        try {
+            return state.data.getValue(MtrNodes.IS_CONNECTED);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private double normalizeRadians(double rad) {
+        rad = rad % (2 * Math.PI);
+        if (rad < 0) rad += 2 * Math.PI;
+        return rad;
+    }
+
+    private double testRailLength(BlockPos posStart, double radStart, BlockPos posEnd, double radEnd, TransportMode transportMode) {
+        final double[] length = {Double.MAX_VALUE};
+        try {
+            final org.mtr.core.data.Position position1 = org.mtr.mod.Init.blockPosToPosition(posStart);
+            final org.mtr.core.data.Position position2 = org.mtr.mod.Init.blockPosToPosition(posEnd);
+            RailAngleExtra.withAngles(radStart, radEnd, (angle1, angle2) -> {
+                try {
+                    final org.mtr.core.data.Rail testRail = RailFactory.newRail(
+                        position1, angle1, position2, angle2,
+                        org.mtr.core.data.Rail.Shape.QUADRATIC, 0,
+                        new org.mtr.libraries.it.unimi.dsi.fastutil.objects.ObjectArrayList<>(),
+                        20, 20, false, false, true, false, true, transportMode);
+                    if (testRail.isValid()) {
+                        final double railLength = testRail.railMath.getLength();
+                        if (Double.isFinite(railLength) && railLength > 0.01) {
+                            length[0] = railLength;
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            });
+        } catch (Exception ignored) {
+        }
+        return length[0];
+    }
+
+    private double faceToward(double fromX, double fromZ, double toX, double toZ, double radians) {
+        final float direction = (float) Math.toDegrees(Math.atan2(toZ - fromZ, toX - fromX));
+        return normalizeRadians(similarFacing(direction, (float) Math.toDegrees(radians)) ? radians : radians + Math.PI);
+    }
+
+    private boolean similarFacing(float angle1, float angle2) {
+        float diff = Math.abs(angle1 - angle2) % 360;
+        if (diff > 180) diff = 360 - diff;
+        return diff < 90;
+    }
+}

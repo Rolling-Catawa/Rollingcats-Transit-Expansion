@@ -1,0 +1,2 @@
+package cn.jstxjf_.rte.scripting.compat;
+public class ScriptVector { public final double x,y,z; public ScriptVector(double x,double y,double z){this.x=x;this.y=y;this.z=z;} public static ScriptVector of(org.mtr.core.tool.Vector v){return new ScriptVector(v.x,v.y,v.z);} }

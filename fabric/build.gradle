@@ -1,0 +1,185 @@
+plugins {
+    id 'com.gradleup.shadow'
+}
+
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+apply from: rootProject.file('gradle/preprocess-sources.gradle')
+
+configurations {
+    common {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentFabric.extendsFrom common
+
+    shadowBundle {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.rteDeps.fabricApi}"
+
+    modImplementation "dev.architectury:architectury-fabric:${rootProject.rteDeps.architectury}"
+
+    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
+
+    modCompileOnly "${rootProject.rteDeps.mtr}"
+    modRuntimeOnly "${rootProject.rteDeps.mtr}"
+    if (rootProject.rteDeps.msd) {
+        modLocalRuntime files("../libs/${rootProject.rteDeps.msd}")
+    }
+
+    modCompileOnly(rootProject.rteMc == '1.21.1' ? "com.terraformersmc:modmenu:11.0.3" : "com.terraformersmc:modmenu:7.2.2")
+
+    implementation "org.graalvm.sdk:graal-sdk:23.0.1"
+    implementation "org.graalvm.js:js:23.0.1"
+    shadowBundle "org.graalvm.sdk:graal-sdk:23.0.1"
+    shadowBundle "org.graalvm.js:js:23.0.1"
+    implementation "org.mozilla:rhino:1.7.15"
+    shadowBundle "org.mozilla:rhino:1.7.15"
+    implementation("io.github.spair:imgui-java-binding:1.86.12") { exclude group: 'org.lwjgl' }
+    implementation("io.github.spair:imgui-java-lwjgl3:1.86.12") { exclude group: 'org.lwjgl' }
+    runtimeOnly("io.github.spair:imgui-java-natives-windows:1.86.12") { exclude group: 'org.lwjgl' }
+    runtimeOnly("io.github.spair:imgui-java-natives-linux:1.86.12") { exclude group: 'org.lwjgl' }
+    runtimeOnly("io.github.spair:imgui-java-natives-macos:1.86.12") { exclude group: 'org.lwjgl' }
+    shadowBundle("io.github.spair:imgui-java-binding:1.86.12") { exclude group: 'org.lwjgl' }
+    shadowBundle("io.github.spair:imgui-java-lwjgl3:1.86.12") { exclude group: 'org.lwjgl' }
+    shadowBundle("io.github.spair:imgui-java-natives-windows:1.86.12") { exclude group: 'org.lwjgl' }
+    shadowBundle("io.github.spair:imgui-java-natives-linux:1.86.12") { exclude group: 'org.lwjgl' }
+    shadowBundle("io.github.spair:imgui-java-natives-macos:1.86.12") { exclude group: 'org.lwjgl' }
+    implementation 'com.github.stuxuhai:jpinyin:1.1.8'
+    shadowBundle 'com.github.stuxuhai:jpinyin:1.1.8'
+    implementation 'org.msgpack:msgpack-core:0.9.3'
+    shadowBundle 'org.msgpack:msgpack-core:0.9.3'
+    if (rootProject.rteMc == '1.19.2') {
+        implementation 'org.joml:joml:1.10.5'
+        shadowBundle 'org.joml:joml:1.10.5'
+    }
+}
+
+repositories {
+    maven { url = "https://maven.shedaniel.me/" }
+    maven { url = "https://maven.terraformersmc.com/releases/" }
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'minecraft_version', rootProject.minecraft_version
+
+    def rteArchitectury = rootProject.rteDeps.architectury.toString()
+    inputs.property 'architectury_version', rteArchitectury
+
+    filesMatching('fabric.mod.json') {
+        expand version: project.version, minecraft_version: rootProject.minecraft_version, architectury_version: rteArchitectury
+    }
+
+    from(rootProject.file('LICENSE.txt')) {
+        rename { 'LICENSE-rte.txt' }
+    }
+    from(rootProject.file('THIRD-PARTY-NOTICES.md')) {
+        rename { 'THIRD-PARTY-NOTICES-rte.md' }
+    }
+}
+
+shadowJar {
+    configurations = [project.configurations.shadowBundle]
+    archiveClassifier = 'dev-shadow'
+    mergeServiceFiles()
+    relocate 'org.mozilla.javascript', 'cn.jstxjf_.rte.libs.rhino'
+    relocate 'com.ibm.icu', 'cn.jstxjf_.rte.libs.icu'
+    relocate 'org.mozilla.classfile', 'cn.jstxjf_.rte.libs.rhino_classfile'
+    relocate 'de.javagl.obj', 'cn.jstxjf_.rte.libs.obj'
+    relocate 'org.graalvm', 'cn.jstxjf_.rte.libs.graalvm'
+    relocate 'com.oracle', 'cn.jstxjf_.rte.libs.oracle'
+    if (rootProject.rteMc == '1.19.2') {
+        relocate 'org.joml', 'cn.jstxjf_.rte.libs.joml'
+    }
+    exclude 'module-info.class'
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+}
+
+remapJar {
+    input.set shadowJar.archiveFile
+}
+
+def rteStampFile = layout.buildDirectory.file("rte-stamp/rte-build.properties")
+def rteGenerateStamp = tasks.register('rteGenerateStamp') {
+    outputs.file(rteStampFile)
+    outputs.upToDateWhen { false }
+    doLast {
+        def s = rootProject.ext.rteStamp
+        def f = rteStampFile.get().asFile
+        f.parentFile.mkdirs()
+        f.text = [
+            "version=${s.version}",
+            "buildId=${s.id}",
+            "commit=${s.commit}",
+            "branch=${s.branch}",
+            "clean=${s.clean}",
+            "buildTime=${s.time}",
+            "platform=fabric"
+        ].join(System.lineSeparator()) + System.lineSeparator()
+    }
+}
+
+processResources {
+    dependsOn rteGenerateStamp
+    from(rteStampFile) { into 'rte' }
+}
+
+jar {
+    dependsOn rteGenerateStamp
+    manifest {
+        attributes(
+            'RTE-Build-Id'   : rootProject.ext.rteStamp.id as String,
+            'RTE-Version'    : rootProject.mod_version,
+            'Implementation-Title'  : 'Rollingcats Transit Expansion',
+            'Implementation-Vendor' : 'Rolling-Catawa'
+        )
+    }
+}
+
+loom {
+    enableTransitiveAccessWideners = true
+    accessWidenerPath = file("../common/src/main/resources/rte.accesswidener")
+}
+
+loom {
+    runs {
+        client {
+            if (rootProject.rteMc == '1.21.1') {
+                runDir = 'run-1.21.1'
+            } else {
+                programArgs "--quickPlaySingleplayer", "test (5)"
+            }
+        }
+        server {
+            if (rootProject.rteMc == '1.21.1') {
+                runDir = 'run-1.21.1-server'
+            }
+        }
+    }
+}
+
+loom {
+    runs {
+        client {
+            vmArgs "-Xmx10G", "-Xms2G", "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=50",
+                   "-XX:+HeapDumpOnOutOfMemoryError",
+                   "-XX:HeapDumpPath=run/heapdumps"
+        }
+    }
+}

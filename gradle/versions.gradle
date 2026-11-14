@@ -1,0 +1,56 @@
+
+ext.rteVersionMatrix = [
+    '1.19.2': [
+        yarn        : '1.19.2+build.28',
+        architectury: '6.6.92',
+        fabricApi   : '0.77.0+1.19.2',
+        forge       : '1.19.2-43.5.2',
+        mtr         : 'local.mtr:MTR-fabric:4.0.5-1.19.2',
+        mtrForge    : 'local.mtr:MTR-forge:4.0.5-1.19.2',
+        msd         : 'MSD-fabric-1.19.2-4.0.5-1.4.5.jar',
+        msdForge    : 'MSD-forge-1.19.2-4.0.5-1.4.5.jar',
+    ],
+    '1.20.1': [
+        yarn        : '1.20.1+build.10',
+        architectury: '9.2.14',
+        fabricApi   : '0.92.6+1.20.1',
+        forge       : '1.20.1-47.4.12',
+        mtr         : 'local.mtr:MTR-fabric:4.0.5',
+        mtrForge    : 'local.mtr:MTR-forge:4.0.5',
+        msd         : 'MSD-fabric-1.20.1-4.0.5-1.4.5.jar',
+        msdForge    : 'MSD-forge-1.20.1-4.0.5-1.4.5.jar',
+    ],
+    '1.20.4': [
+        yarn        : '1.20.4+build.3',
+        architectury: '11.1.17',
+        fabricApi   : '0.97.3+1.20.4',
+        forge       : '1.20.4-49.1.0',
+        mtr         : 'local.mtr:MTR-fabric:4.0.5-1.20.4',
+        mtrForge    : 'local.mtr:MTR-forge:4.0.5-1.20.4',
+        msd         : 'MSD-fabric-1.20.4-4.0.5-1.4.5.jar',
+        msdForge    : 'MSD-forge-1.20.4-4.0.5-1.4.5.jar',
+    ],
+    '1.21.1': [
+        yarn        : '1.21.1+build.3',
+        architectury: '13.0.8',
+        fabricApi   : '0.116.7+1.21.1',
+        neoforge    : '21.1.209',
+        mtr         : 'local.mtr:MTR-fabric:4.1.0-beta.2-1.21.1',
+        mtrNeoForge : 'local.mtr:MTR-neoforge:4.1.0-beta.2-1.21.1',
+        platforms   : ['fabric', 'neoforge'],
+        java        : 21,
+    ],
+]
+
+ext.rteMc = rootProject.property('minecraft_version').toString()
+
+if (!ext.rteVersionMatrix.containsKey(ext.rteMc)) {
+    throw new GradleException(
+        "不支持的 minecraft_version=${ext.rteMc}，" +
+        "可选：${ext.rteVersionMatrix.keySet().join(', ')}。" +
+        "新增版本请在 gradle/versions.gradle 补一行。")
+}
+
+ext.rteDeps = ext.rteVersionMatrix[ext.rteMc]
+ext.rtePlatforms = ext.rteDeps.platforms ?: ['fabric', 'forge']
+ext.rteJava = ext.rteDeps.java ?: 17

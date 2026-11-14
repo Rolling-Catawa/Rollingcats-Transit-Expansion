@@ -1,0 +1,167 @@
+plugins {
+    id 'com.gradleup.shadow'
+}
+
+loom {
+    enableTransitiveAccessWideners = true
+    accessWidenerPath = file("../common/src/main/resources/rte.accesswidener")
+}
+
+architectury {
+    platformSetupLoomIde()
+    neoForge()
+}
+
+apply from: rootProject.file('gradle/preprocess-sources.gradle')
+
+configurations {
+    common {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentNeoForge.extendsFrom common
+
+    shadowBundle {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+}
+
+dependencies {
+    neoForge "net.neoforged:neoforge:${rootProject.rteDeps.neoforge}"
+
+    modImplementation "dev.architectury:architectury-neoforge:${rootProject.rteDeps.architectury}"
+    modCompileOnly "${rootProject.rteDeps.mtrNeoForge}"
+    modRuntimeOnly "${rootProject.rteDeps.mtrNeoForge}"
+
+    common(project(path: ':common', configuration: 'namedElements')) { transitive false }
+    shadowBundle project(path: ':common', configuration: 'transformProductionNeoForge')
+
+    forgeRuntimeLibrary "org.mozilla:rhino:1.7.15"
+    forgeRuntimeLibrary "org.graalvm.sdk:graal-sdk:23.0.1"
+    forgeRuntimeLibrary "org.graalvm.js:js:23.0.1"
+    forgeRuntimeLibrary("io.github.spair:imgui-java-binding:1.86.12") { exclude group: 'org.lwjgl' }
+    forgeRuntimeLibrary("io.github.spair:imgui-java-lwjgl3:1.86.12") { exclude group: 'org.lwjgl' }
+    forgeRuntimeLibrary("io.github.spair:imgui-java-natives-windows:1.86.12") { exclude group: 'org.lwjgl' }
+    forgeRuntimeLibrary("io.github.spair:imgui-java-natives-linux:1.86.12") { exclude group: 'org.lwjgl' }
+    forgeRuntimeLibrary("io.github.spair:imgui-java-natives-macos:1.86.12") { exclude group: 'org.lwjgl' }
+    implementation "org.graalvm.sdk:graal-sdk:23.0.1"
+    implementation "org.graalvm.js:js:23.0.1"
+    shadowBundle "org.graalvm.sdk:graal-sdk:23.0.1"
+    shadowBundle "org.graalvm.js:js:23.0.1"
+    implementation "org.mozilla:rhino:1.7.15"
+    shadowBundle "org.mozilla:rhino:1.7.15"
+    implementation("io.github.spair:imgui-java-binding:1.86.12") { exclude group: 'org.lwjgl' }
+    implementation("io.github.spair:imgui-java-lwjgl3:1.86.12") { exclude group: 'org.lwjgl' }
+    shadowBundle("io.github.spair:imgui-java-binding:1.86.12") { exclude group: 'org.lwjgl' }
+    shadowBundle("io.github.spair:imgui-java-lwjgl3:1.86.12") { exclude group: 'org.lwjgl' }
+    shadowBundle("io.github.spair:imgui-java-natives-windows:1.86.12") { exclude group: 'org.lwjgl' }
+    shadowBundle("io.github.spair:imgui-java-natives-linux:1.86.12") { exclude group: 'org.lwjgl' }
+    shadowBundle("io.github.spair:imgui-java-natives-macos:1.86.12") { exclude group: 'org.lwjgl' }
+    implementation 'com.github.stuxuhai:jpinyin:1.1.8'
+    shadowBundle 'com.github.stuxuhai:jpinyin:1.1.8'
+    implementation 'org.msgpack:msgpack-core:0.9.3'
+    shadowBundle 'org.msgpack:msgpack-core:0.9.3'
+}
+
+repositories {
+    maven { url = "https://maven.shedaniel.me/" }
+}
+
+processResources {
+    inputs.property 'version', project.version
+    inputs.property 'minecraft_version', rootProject.minecraft_version
+
+    def rtePackFormat = 34
+    inputs.property 'pack_format', rtePackFormat
+
+    def rteNeoForge = rootProject.rteDeps.neoforge.toString()
+    def rteArchitectury = rootProject.rteDeps.architectury.toString()
+    inputs.property 'neoforge_version', rteNeoForge
+    inputs.property 'architectury_version', rteArchitectury
+
+    filesMatching('META-INF/neoforge.mods.toml') {
+        expand version: project.version, minecraft_version: rootProject.minecraft_version, neoforge_version: rteNeoForge, architectury_version: rteArchitectury
+    }
+
+    filesMatching('pack.mcmeta') {
+        expand pack_format: rtePackFormat
+    }
+
+    from(rootProject.file('LICENSE.txt')) {
+        rename { 'LICENSE-rte.txt' }
+    }
+    from(rootProject.file('THIRD-PARTY-NOTICES.md')) {
+        rename { 'THIRD-PARTY-NOTICES-rte.md' }
+    }
+}
+
+shadowJar {
+    configurations = [project.configurations.shadowBundle]
+    archiveClassifier = 'dev-shadow'
+    mergeServiceFiles()
+    relocate 'org.mozilla.javascript', 'cn.jstxjf_.rte.libs.rhino'
+    relocate 'com.ibm.icu', 'cn.jstxjf_.rte.libs.icu'
+    relocate 'org.mozilla.classfile', 'cn.jstxjf_.rte.libs.rhino_classfile'
+    relocate 'de.javagl.obj', 'cn.jstxjf_.rte.libs.obj'
+    relocate 'org.graalvm', 'cn.jstxjf_.rte.libs.graalvm'
+    relocate 'com.oracle', 'cn.jstxjf_.rte.libs.oracle'
+    exclude 'module-info.class'
+    exclude 'META-INF/*.SF'
+    exclude 'META-INF/*.DSA'
+    exclude 'META-INF/*.RSA'
+}
+
+remapJar {
+    input.set shadowJar.archiveFile
+}
+
+def rteStampFile = layout.buildDirectory.file("rte-stamp/rte-build.properties")
+def rteGenerateStamp = tasks.register('rteGenerateStamp') {
+    outputs.file(rteStampFile)
+    outputs.upToDateWhen { false }
+    doLast {
+        def s = rootProject.ext.rteStamp
+        def f = rteStampFile.get().asFile
+        f.parentFile.mkdirs()
+        f.text = [
+            "version=${s.version}",
+            "buildId=${s.id}",
+            "commit=${s.commit}",
+            "branch=${s.branch}",
+            "clean=${s.clean}",
+            "buildTime=${s.time}",
+            "platform=neoforge"
+        ].join(System.lineSeparator()) + System.lineSeparator()
+    }
+}
+
+processResources {
+    dependsOn rteGenerateStamp
+    from(rteStampFile) { into 'rte' }
+}
+
+jar {
+    dependsOn rteGenerateStamp
+    manifest {
+        attributes(
+            'RTE-Build-Id'   : rootProject.ext.rteStamp.id as String,
+            'RTE-Version'    : rootProject.mod_version,
+            'Implementation-Title'  : 'Rollingcats Transit Expansion',
+            'Implementation-Vendor' : 'Rolling-Catawa'
+        )
+    }
+}
+
+loom {
+    runs {
+        client {
+            runDir = 'run-1.21.1'
+        }
+        server {
+            runDir = 'run-1.21.1-server'
+        }
+    }
+}

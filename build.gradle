@@ -1,0 +1,396 @@
+plugins {
+    id 'dev.architectury.loom' version '1.17.491' apply false
+    id 'architectury-plugin' version '3.5.169'
+    id 'com.gradleup.shadow' version '9.6.1' apply false
+}
+
+apply from: rootProject.file('gradle/versions.gradle')
+
+def rteFindPython = {
+    def explicit = System.getenv('PYTHON')
+    if (explicit) {
+        return explicit
+    }
+    def windows = System.getProperty('os.name').toLowerCase().contains('windows')
+    def names = windows ? ['python.exe', 'python3.exe'] : ['python3', 'python']
+    for (dir in (System.getenv('PATH') ?: '').split(File.pathSeparator)) {
+        for (name in names) {
+            def file = new File(dir, name)
+            if (file.isFile() && !file.absolutePath.toLowerCase().contains('windowsapps')) {
+                return file.absolutePath
+            }
+        }
+    }
+    if (windows) {
+        def roots = []
+        def localAppData = System.getenv('LOCALAPPDATA')
+        if (localAppData) {
+            roots << new File(localAppData, 'Programs/Python')
+        }
+        new File('C:/Users').listFiles()?.each { roots << new File(it, 'AppData/Local/Programs/Python') }
+        roots << new File('C:/Program Files')
+        roots << new File('C:/')
+        for (root in roots) {
+            def installs = root.listFiles({ file -> file.isDirectory() && file.name ==~ /(?i)python3\d*/ } as FileFilter) ?: []
+            for (install in installs.sort { -(it.name.replaceAll(/\D/, '') as int) }) {
+                def exe = new File(install, 'python.exe')
+                if (exe.isFile()) {
+                    return exe.absolutePath
+                }
+            }
+        }
+    }
+    return 'python'
+}
+def rtePython = rteFindPython()
+def rteBootstrap = new ProcessBuilder(
+    rtePython,
+    rootProject.file('scripts/bootstrap_dependencies.py').absolutePath,
+    '--minecraft',
+    rootProject.minecraft_version.toString()
+).directory(rootProject.projectDir).inheritIO().start()
+def rteBootstrapExit = rteBootstrap.waitFor()
+if (rteBootstrapExit != 0) {
+    throw new GradleException("Dependency bootstrap failed with exit code ${rteBootstrapExit}")
+}
+
+architectury {
+    minecraft = project.minecraft_version
+}
+
+allprojects {
+    group = rootProject.maven_group
+    version = rootProject.mod_version
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+    }
+}
+
+subprojects {
+    apply plugin: 'dev.architectury.loom'
+    apply plugin: 'architectury-plugin'
+    apply plugin: 'maven-publish'
+
+    base {
+        archivesName = "$rootProject.archives_name-$project.name"
+    }
+
+    repositories {
+        mavenLocal()
+        flatDir { dirs 'libs' }
+        maven { url = rootProject.file('libs/repo') }
+        maven { url 'https://api.modrinth.com/maven' }
+        maven { url 'https://maven.architectury.dev/' }
+        maven { url 'https://maven.shedaniel.me/' }
+        mavenCentral()
+        maven { url 'https://maven.fabricmc.net/' }
+        maven { url 'https://maven.neoforged.net/releases/' }
+    }
+
+    dependencies {
+        minecraft "net.minecraft:minecraft:$rootProject.minecraft_version"
+        mappings loom.officialMojangMappings()
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.toVersion(rootProject.rteJava)
+        targetCompatibility = JavaVersion.toVersion(rootProject.rteJava)
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        it.options.release = rootProject.rteJava
+    }
+
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                artifactId = base.archivesName.get()
+                from components.java
+            }
+        }
+
+        repositories {
+        }
+    }
+}
+
+ext.rteStamp = {
+    def exec = { String... cmd ->
+        try {
+            def out = new ByteArrayOutputStream()
+            def proc = new ProcessBuilder(cmd).directory(rootProject.projectDir).redirectErrorStream(false).start()
+            proc.inputStream.eachByte { out.write(it) }
+            proc.waitFor()
+            return proc.exitValue() == 0 ? out.toString('UTF-8').trim() : ''
+        } catch (Exception ignored) {
+            return ''
+        }
+    }
+    def commit = exec('git', 'rev-parse', '--short=12', 'HEAD')
+    def branch = exec('git', 'rev-parse', '--abbrev-ref', 'HEAD')
+    def dirty = exec('git', 'status', '--porcelain')
+    def now = java.time.Instant.now()
+    def time = System.getenv('RTE_BUILD_TIME') ?: now.toString()
+    def localSequence = java.time.format.DateTimeFormatter.ofPattern('yyyyMMddHHmmssSSS')
+        .withZone(java.time.ZoneOffset.UTC)
+        .format(now)
+    def localNonce = UUID.randomUUID().toString().replace('-', '').substring(0, 8)
+    def requestedId = System.getenv('RTE_BUILD_ID')?.trim()
+    return [
+        version: rootProject.mod_version as String,
+        commit : commit.isEmpty() ? 'unknown' : commit,
+        branch : branch.isEmpty() ? 'unknown' : branch,
+        clean  : dirty.isEmpty() ? 'true' : 'false',
+        time   : time,
+        id     : requestedId ? requestedId : "local.${localSequence}.${localNonce}"
+    ]
+}()
+
+
+def rteDistDir = layout.buildDirectory.dir('dist')
+def rteJavaHome = System.getProperty('java.home')
+def rteMatrixChild = providers.gradleProperty('rteMatrixChild').map { it.toBoolean() }.orElse(false).get()
+def rteKeepDist = providers.gradleProperty('rteKeepDist').map { it.toBoolean() }.orElse(false).get()
+def rteMinecraftVersions = rootProject.property('minecraft_versions').toString().split(',').collect { it.trim() }.findAll { !it.isEmpty() }
+
+def bootstrapDependencies = tasks.register('bootstrapDependencies', Exec) {
+    group = 'build setup'
+    workingDir rootProject.projectDir
+    commandLine rtePython, rootProject.file('scripts/bootstrap_dependencies.py'), '--minecraft', rootProject.minecraft_version
+}
+
+def compatTests = tasks.register('compatTests', Exec) {
+    group = 'verification'
+    dependsOn bootstrapDependencies
+    workingDir rootProject.projectDir
+    commandLine rtePython, rootProject.file('tests/compat/run.py'), '--java-home', rteJavaHome
+}
+
+def pathGeometryTests = tasks.register('pathGeometryTests', Exec) {
+    group = 'verification'
+    dependsOn bootstrapDependencies
+    workingDir rootProject.projectDir
+    commandLine rtePython, rootProject.file('tests/path_geometry/run.py'), '--java-home', rteJavaHome
+}
+
+def railScriptsTests = tasks.register('railScriptsTests', Exec) {
+    group = 'verification'
+    dependsOn bootstrapDependencies
+    workingDir rootProject.projectDir
+    commandLine rtePython, rootProject.file('tests/rail_scripts/run.py'), '--java-home', rteJavaHome
+}
+
+def mtr3EquivalenceTests = tasks.register('mtr3EquivalenceTests', Exec) {
+    group = 'verification'
+    dependsOn bootstrapDependencies
+    workingDir rootProject.projectDir
+    commandLine rtePython, rootProject.file('tests/mtr3_equivalence/run.py')
+}
+
+subprojects {
+    tasks.withType(JavaCompile).configureEach {
+        dependsOn bootstrapDependencies
+    }
+}
+
+def rtePublishableJars = { Project p ->
+    p.fileTree(p.layout.buildDirectory.dir('libs')) {
+        include '*.jar'
+        exclude '*-dev-shadow.jar'
+        exclude '*-dev.jar'
+        exclude '*-sources.jar'
+        exclude '*-transformProduction*.jar'
+    }
+}
+
+tasks.register('collectJars', Copy) {
+    group = 'build'
+    description = '收集各平台发布用 jar 到 build/dist，按 MC 版本命名'
+
+    dependsOn(['cleanDist'] + rootProject.rtePlatforms.collect { ":${it}:remapJar" })
+
+    def mcVersion = rootProject.property('minecraft_version').toString()
+    def modVersion = rootProject.mod_version.toString()
+
+    rootProject.rtePlatforms.each { from(rtePublishableJars(project(":${it}"))) }
+    into rteDistDir
+
+    rename { String fileName ->
+        if (!fileName.endsWith('.jar') || fileName.contains('+')) {
+            return fileName
+        }
+        return fileName.substring(0, fileName.length() - 4) + '+' + mcVersion + '.jar'
+    }
+
+    doLast {
+        def dir = rteDistDir.get().asFile
+        def files = (dir.listFiles() ?: []).findAll { it.name.endsWith('.jar') }.sort { it.name }
+        if (files.isEmpty()) {
+            logger.lifecycle('[collectJars] build/dist 为空')
+            return
+        }
+        def md = java.security.MessageDigest.getInstance('SHA-256')
+        def lines = []
+        def mcVersions = files.collect { f ->
+            def name = f.name
+            def plus = name.lastIndexOf('+')
+            plus < 0 ? mcVersion : name.substring(plus + 1, name.length() - 4)
+        }.unique().sort()
+        lines.add('RTE ' + modVersion + ' | Minecraft ' + mcVersions.join(', '))
+        lines.add('Build ' + rootProject.ext.rteStamp.id + ' | Commit ' + rootProject.ext.rteStamp.commit + (rootProject.ext.rteStamp.clean == 'true' ? '' : ' (dirty)'))
+        lines.add('Built ' + rootProject.ext.rteStamp.time)
+        lines.add('-' * 78)
+        logger.lifecycle('[collectJars] ' + dir)
+        files.each { f ->
+            md.reset()
+            f.eachByte(1 << 16) { buf, len -> md.update(buf, 0, len) }
+            def sha = md.digest().encodeHex().toString()
+            def line = String.format('%-48s %8.1f MB  %s', f.name, f.length() / 1048576d, sha)
+            logger.lifecycle('  ' + line)
+            lines.add(line)
+        }
+        def sep = System.lineSeparator()
+        new File(dir, 'CHECKSUMS.txt').setText(lines.join(sep) + sep, 'UTF-8')
+        logger.lifecycle('  已写入 CHECKSUMS.txt')
+    }
+}
+
+tasks.register('verifyDistribution') {
+    group = 'verification'
+    dependsOn 'collectJars', compatTests, pathGeometryTests, mtr3EquivalenceTests, railScriptsTests
+    doLast {
+        def dir = rteDistDir.get().asFile
+        def mcVersion = rootProject.property('minecraft_version').toString()
+        def jars = (dir.listFiles() ?: []).findAll { it.name.endsWith("+${mcVersion}.jar") }.sort { it.name }
+        if (jars.size() != 2) {
+            throw new GradleException("Expected two distribution jars, found ${jars.size()}")
+        }
+        def checksums = new File(dir, 'CHECKSUMS.txt')
+        if (!checksums.isFile()) {
+            throw new GradleException('CHECKSUMS.txt was not generated')
+        }
+        def checksumText = checksums.getText('UTF-8')
+        jars.each { jarFile ->
+            def zip = new java.util.zip.ZipFile(jarFile)
+            try {
+                def entry = zip.getEntry('rte/rte-build.properties')
+                if (entry == null) {
+                    throw new GradleException("Missing build metadata in ${jarFile.name}")
+                }
+                def properties = new Properties()
+                zip.getInputStream(entry).withCloseable { properties.load(it) }
+                if (properties.getProperty('buildId') != rootProject.ext.rteStamp.id) {
+                    throw new GradleException("Build id mismatch in ${jarFile.name}")
+                }
+                def expectedPlatform = rootProject.rtePlatforms.find { jarFile.name.contains("-${it}-") }
+                if (properties.getProperty('platform') != expectedPlatform) {
+                    throw new GradleException("Platform metadata mismatch in ${jarFile.name}")
+                }
+                def metadataPath = expectedPlatform == 'fabric' ? 'fabric.mod.json' : (expectedPlatform == 'neoforge' ? 'META-INF/neoforge.mods.toml' : 'META-INF/mods.toml')
+                def metadataEntry = zip.getEntry(metadataPath)
+                if (metadataEntry == null) {
+                    throw new GradleException("Missing ${metadataPath} in ${jarFile.name}")
+                }
+                def metadataText = zip.getInputStream(metadataEntry).withCloseable { it.getText('UTF-8') }
+                def expectedMinecraft = expectedPlatform == 'fabric'
+                    ? "\"minecraft\": \"~${mcVersion}\""
+                    : "versionRange = \"[${mcVersion}]\""
+                if (!metadataText.contains(expectedMinecraft)) {
+                    throw new GradleException("Minecraft ${mcVersion} metadata mismatch in ${jarFile.name}")
+                }
+                if (!checksumText.contains(jarFile.name)) {
+                    throw new GradleException("Checksum entry missing for ${jarFile.name}")
+                }
+            } finally {
+                zip.close()
+            }
+        }
+    }
+}
+
+tasks.register('releaseBuild') {
+    group = 'build'
+    dependsOn 'verifyDistribution'
+}
+
+def buildAllVersions = tasks.register('buildAllVersions') {
+    group = 'build'
+    doLast {
+        def dir = rteDistDir.get().asFile
+        dir.mkdirs()
+        fileTree(dir).files.each { it.delete() }
+        def wrapper = new File(rootProject.projectDir, System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('windows') ? 'gradlew.bat' : 'gradlew')
+        rteMinecraftVersions.each { mcVersion ->
+            def command = [
+                wrapper.absolutePath,
+                "-Dorg.gradle.java.home=${rteJavaHome}",
+                '--no-daemon',
+                '--max-workers=1',
+                "--project-cache-dir=${new File(rootProject.projectDir, ".gradle/matrix-cache-${mcVersion}").absolutePath}",
+                "-Pminecraft_version=${mcVersion}",
+                '-PrteMatrixChild=true',
+                '-PrteKeepDist=true',
+                ':common:clean'
+            ] + (rteVersionMatrix[mcVersion].platforms ?: ['fabric', 'forge']).collect { ":${it}:clean" } + ['releaseBuild']
+            def processBuilder = new ProcessBuilder(command.collect { it.toString() })
+                .directory(rootProject.projectDir)
+                .redirectErrorStream(true)
+            processBuilder.environment().put('RTE_BUILD_ID', rootProject.ext.rteStamp.id.toString())
+            processBuilder.environment().put('RTE_BUILD_TIME', rootProject.ext.rteStamp.time.toString())
+            def process = processBuilder.start()
+            process.inputStream.withReader('UTF-8') { reader ->
+                reader.eachLine { line -> logger.lifecycle("[${mcVersion}] ${line}") }
+            }
+            def exitCode = process.waitFor()
+            if (exitCode != 0) {
+                throw new GradleException("Minecraft ${mcVersion} build failed with exit code ${exitCode}")
+            }
+        }
+        def expected = rteMinecraftVersions.collectMany { mcVersion ->
+            (rteVersionMatrix[mcVersion].platforms ?: ['fabric', 'forge']).collect { platform -> "rte-${platform}-${rootProject.mod_version}+${mcVersion}.jar" }
+        }
+        def missing = expected.findAll { !new File(dir, it).isFile() }
+        if (!missing.isEmpty()) {
+            throw new GradleException("Missing matrix artifacts: ${missing.join(', ')}")
+        }
+        def checksums = new File(dir, 'CHECKSUMS.txt')
+        if (!checksums.isFile()) {
+            throw new GradleException('Missing matrix CHECKSUMS.txt')
+        }
+        def checksumText = checksums.getText('UTF-8')
+        if (!checksumText.contains('Build ' + rootProject.ext.rteStamp.id)) {
+            throw new GradleException('Matrix build id missing from CHECKSUMS.txt')
+        }
+        def missingChecksums = expected.findAll { !checksumText.contains(it) }
+        if (!missingChecksums.isEmpty()) {
+            throw new GradleException("Missing matrix checksums: ${missingChecksums.join(', ')}")
+        }
+    }
+}
+
+tasks.register('build') {
+    group = 'build'
+    dependsOn rteMatrixChild ? 'releaseBuild' : buildAllVersions
+}
+
+tasks.register('cleanDist', Delete) {
+    group = 'build'
+    description = '清空 build/dist'
+    delete fileTree(rteDistDir)
+    onlyIf { !rteKeepDist }
+}
+
+gradle.projectsEvaluated {
+    if (!rteMatrixChild) {
+        tasks.named('build').configure {
+            setDependsOn([buildAllVersions])
+        }
+        subprojects.each { subproject ->
+            subproject.tasks.named('build').configure {
+                setDependsOn([])
+                enabled = false
+            }
+        }
+    }
+}

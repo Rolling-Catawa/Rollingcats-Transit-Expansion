@@ -145,6 +145,15 @@ public class RenderVehiclesMixin {
         vehicleResource.queueBogie(bogieIndex, effectiveSmt, vehicle, light);
     }
 
+    private static boolean rte$legacyManaged(VehicleExtension vehicle, int carNumber) {
+        try {
+            return cn.jstxjf_.rte.util.LegacyVisualDoorAdapter.isManaged(
+                vehicle.vehicleExtraData.immutableVehicleCars.get(carNumber).getVehicleId());
+        } catch (Throwable e) {
+            return false;
+        }
+    }
+
     @Redirect(
         method = "lambda$render$14",
         at = @At(value = "INVOKE", target = "Lorg/mtr/mod/resource/VehicleResource;queue(Lorg/mtr/mod/render/StoredMatrixTransformations;Lorg/mtr/mod/data/VehicleExtension;IIIZ)V"),
@@ -153,8 +162,8 @@ public class RenderVehiclesMixin {
     private static void rte$queueBodyWithRoll(
             VehicleResource vehicleResource, StoredMatrixTransformations smt, VehicleExtension vehicle,
             int carNumber, int totalCars, int light, boolean doorsClosed) {
-        final boolean effectiveDoorsClosed = doorsClosed
-            && !cn.jstxjf_.rte.scripting.train.ScriptedTrainRenderers.legacyDoorsOpen(vehicle, carNumber);
+        final boolean legacyOpen = cn.jstxjf_.rte.scripting.train.ScriptedTrainRenderers.legacyDoorsOpen(vehicle, carNumber);
+        final boolean effectiveDoorsClosed = rte$legacyManaged(vehicle, carNumber) ? !legacyOpen : doorsClosed && !legacyOpen;
         StoredMatrixTransformations effectiveSmt = smt;
         try {
             if (vehicle instanceof cn.jstxjf_.rte.data.TrainExtraSupplier) {

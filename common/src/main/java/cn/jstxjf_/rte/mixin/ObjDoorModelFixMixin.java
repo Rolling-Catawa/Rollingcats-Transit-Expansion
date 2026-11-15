@@ -20,7 +20,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.lang.reflect.Field;
-import java.util.Collection;
 
 @Mixin(value = ModelPropertiesPart.class, remap = false)
 public abstract class ObjDoorModelFixMixin extends ModelPropertiesPartSchema {
@@ -29,10 +28,10 @@ public abstract class ObjDoorModelFixMixin extends ModelPropertiesPartSchema {
     @Unique private static Field rte$detailX;
     @Unique private static Field rte$detailZ;
     @Unique private static Field rte$detailFlipped;
-    @Unique private static Field rte$detailModelParts;
     @Unique private static boolean rte$detailFieldsFailed;
 
     @Unique private Object rte$currentDetail;
+    @Unique private boolean rte$objPart;
 
     protected ObjDoorModelFixMixin(ReaderBase readerBase) {
         super(readerBase);
@@ -52,6 +51,7 @@ public abstract class ObjDoorModelFixMixin extends ModelPropertiesPartSchema {
                                           org.mtr.libraries.it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<?, ?> closedModels,
                                           double modelYOffset, CallbackInfo ci) {
         RTE_MODEL_Y_OFFSET.set(modelYOffset);
+        rte$objPart = true;
     }
 
     @Inject(
@@ -106,8 +106,7 @@ public abstract class ObjDoorModelFixMixin extends ModelPropertiesPartSchema {
         rte$currentDetail = null;
         if (detail != null && rte$resolveDetailFields()) {
             try {
-                final Object modelParts = rte$detailModelParts.get(detail);
-                if (rte$detailFlipped.getBoolean(detail) && modelParts instanceof Collection<?> parts && parts.isEmpty()) {
+                if (rte$objPart && rte$detailFlipped.getBoolean(detail)) {
                     x -= rte$detailX.getDouble(detail) / 8;
                     z -= rte$detailZ.getDouble(detail) / 8;
                 }
@@ -130,14 +129,11 @@ public abstract class ObjDoorModelFixMixin extends ModelPropertiesPartSchema {
             final Field x = details.getDeclaredField("x");
             final Field z = details.getDeclaredField("z");
             final Field flipped = details.getDeclaredField("flipped");
-            final Field modelParts = details.getDeclaredField("modelParts");
             x.setAccessible(true);
             z.setAccessible(true);
             flipped.setAccessible(true);
-            modelParts.setAccessible(true);
             rte$detailZ = z;
             rte$detailFlipped = flipped;
-            rte$detailModelParts = modelParts;
             rte$detailX = x;
             return true;
         } catch (Throwable e) {

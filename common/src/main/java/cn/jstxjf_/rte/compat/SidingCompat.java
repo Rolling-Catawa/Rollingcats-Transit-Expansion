@@ -15,7 +15,7 @@ public final class SidingCompat {
         //#if MC>=12101
         return ((SidingAccessor) (Object) siding).rte$getVehicleIdMap().values();
         //#else
-        return cn.jstxjf_.rte.compat.SidingCompat.vehicles(siding);
+        return ((SidingAccessor) (Object) siding).rte$getVehicles();
         //#endif
     }
 }

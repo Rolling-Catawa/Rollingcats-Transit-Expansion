@@ -238,18 +238,30 @@ public abstract class ItemNodeModifierBaseMixin {
         final double endAngle = faceToward(endX, endZ, startX, startZ, endNode != null && endNode.isBound()
                 ? endNode.getAngleRadians() : normalizeRadians(facingEnd.angleRadians + Math.PI));
         final org.mtr.core.data.Position startPosition = org.mtr.mod.Init.blockPosToPosition(posStart);
-        cn.jstxjf_.rte.data.RailSpatialContext.run(spatial ? rail -> {
+        // Direct nodes need their fractional offsets written into the rail at creation time.
+        // Otherwise the rail is built from the integer block positions (block centre) and only gets
+        // corrected by a later updateRailwayData() pass, which can be skipped when the node already
+        // has another rail, leaving the new rail snapped to the block centre.
+        final boolean writeNodeTransforms = startNode != null || endNode != null;
+        cn.jstxjf_.rte.data.RailSpatialContext.run(writeNodeTransforms ? rail -> {
             final boolean firstIsStart = startPosition.equals(rail.getExtraPosition1());
-            setSpatialEndpoint(rail, firstIsStart, startNode, startAngle);
-            setSpatialEndpoint(rail, !firstIsStart, endNode, endAngle);
-            rail.setPathModeRaw(cn.jstxjf_.rte.data.RailExtraSupplier.PATH_MODE_AUTO_BEZIER);
-            rail.regenerateAutoBezier();
+            setSpatialEndpoint(rail, firstIsStart, startNode, startAngle, spatial);
+            setSpatialEndpoint(rail, !firstIsStart, endNode, endAngle, spatial);
+            if (spatial) {
+                rail.setPathModeRaw(cn.jstxjf_.rte.data.RailExtraSupplier.PATH_MODE_AUTO_BEZIER);
+                rail.regenerateAutoBezier();
+            }
         } : null, () ->
                 onConnect(world, stack, transportMode, stateStart, stateEnd, posStart, posEnd, facingStart, facingEnd, player));
     }
 
+    /**
+     * Writes one endpoint's fractional transform into the rail. Direct nodes only need the offsets
+     * and pitch; the extra angles are already supplied by the creation path, so they are only
+     * overwritten for free nodes where the spatial curve is rebuilt from scratch.
+     */
     private static void setSpatialEndpoint(cn.jstxjf_.rte.data.RailExtraSupplier rail, boolean first,
-                                           BlockEntityDirectNode node, double angle) {
+                                           BlockEntityDirectNode node, double angle, boolean writeAngle) {
         final double x = node == null ? 0 : node.getXOffset();
         final double y = node == null ? 0 : node.getYOffset();
         final double z = node == null ? 0 : node.getZOffset();
@@ -259,13 +271,17 @@ public abstract class ItemNodeModifierBaseMixin {
             rail.setNodeYOffset1(y);
             rail.setNodeZOffset1(z);
             rail.setNodePitch1(pitch);
-            rail.setExtraAngle1Rad(angle);
+            if (writeAngle) {
+                rail.setExtraAngle1Rad(angle);
+            }
         } else {
             rail.setNodeXOffset2(x);
             rail.setNodeYOffset2(y);
             rail.setNodeZOffset2(z);
             rail.setNodePitch2(pitch);
-            rail.setExtraAngle2Rad(angle);
+            if (writeAngle) {
+                rail.setExtraAngle2Rad(angle);
+            }
         }
     }
 

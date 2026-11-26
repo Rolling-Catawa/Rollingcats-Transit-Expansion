@@ -291,6 +291,15 @@ public abstract class RailMixin implements RailExtraSupplier {
         return length;
     }
 
+    /**
+     * Plan length of the rail, ignoring the fractional node offsets. Exposed so the vertical-curve
+     * helper never calls back into {@link #getLength()} while that value is being computed.
+     */
+    @Override
+    public double getBaseLength() {
+        return rte$getBaseLength();
+    }
+
     @Unique private transient Object rte$orientCheckedMath;
     @Unique private transient boolean rte$mathFromP1 = true;
 

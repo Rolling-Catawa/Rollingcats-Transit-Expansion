@@ -229,6 +229,15 @@ public interface RailExtraSupplier {
 
     double getLength();
 
+    /**
+     * Length of the rail without the fractional node offsets applied. The vertical curve profile is
+     * parameterised by this length, so it can be evaluated while {@link #getLength()} is still being
+     * computed.
+     */
+    default double getBaseLength() {
+        return getLength();
+    }
+
     Vec3 getPosition(double value);
 
     java.util.concurrent.atomic.AtomicReference<java.util.function.BiFunction<Object, Position, Object>> ROLL_NEIGHBOR_RESOLVER = new java.util.concurrent.atomic.AtomicReference<>();
@@ -367,7 +376,9 @@ public interface RailExtraSupplier {
             return 0;
         RailExtraSupplier supplier = (RailExtraSupplier) rail;
         double H = Math.abs(supplier.getHeight());
-        double L = supplier.getLength();
+        // The vertical profile is parameterised by the plan (base) length. Using the effective
+        // length here would call back into getLength() while it is still being computed.
+        double L = supplier.getBaseLength();
         double R = verticalCurveRadius;
         if (R == 0 || L == 0)
             return 0;

@@ -123,7 +123,6 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Unique private transient long rte$effectiveLengthTransformHash;
     @Unique private transient Object rte$effectiveLengthMath;
     @Unique private transient Object rte$effectiveLengthBezier;
-    @Unique private transient boolean rte$computingEffectiveLength;
 
     @Override public String getModelKey() {
         return rte$modelKeys == null || rte$modelKeys.isEmpty() ? "" : rte$modelKeys.get(0);
@@ -256,12 +255,6 @@ public abstract class RailMixin implements RailExtraSupplier {
     @Override
     public double getLength() {
         final double baseLength = rte$getBaseLength();
-        if (rte$computingEffectiveLength) {
-            // rte$getPositionYBase() resolves the vertical curve through getVTheta(), which asks for
-            // getLength() again. Answer with the base length instead of recursing until the stack
-            // overflows (seen when a rail has node offsets and a positive vertical curve radius).
-            return baseLength;
-        }
         if (!hasNodeOffset() || !Double.isFinite(baseLength) || baseLength <= ACCEPT_THRESHOLD) {
             return baseLength;
         }
@@ -275,25 +268,20 @@ public abstract class RailMixin implements RailExtraSupplier {
         }
         final int samples = Math.max(16, Math.min(128, (int) Math.ceil(baseLength / 2)));
         double length = 0;
-        rte$computingEffectiveLength = true;
-        try {
-            Vec3 previous = rte$getBaseCenterPosition(0);
-            for (int i = 1; i <= samples; i++) {
-                final double value = baseLength * i / samples;
-                final Vec3 current = rte$getBaseCenterPosition(value);
-                final double ratio = value / baseLength;
-                final double previousRatio = (i - 1D) / samples;
-                final double dx = current.x + rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, ratio)
-                        - previous.x - rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, previousRatio);
-                final double dy = current.y + rte$nodeYOffsetAt(ratio)
-                        - previous.y - rte$nodeYOffsetAt(previousRatio);
-                final double dz = current.z + rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, ratio)
-                        - previous.z - rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, previousRatio);
-                length += Math.sqrt(dx * dx + dy * dy + dz * dz);
-                previous = current;
-            }
-        } finally {
-            rte$computingEffectiveLength = false;
+        Vec3 previous = rte$getBaseCenterPosition(0);
+        for (int i = 1; i <= samples; i++) {
+            final double value = baseLength * i / samples;
+            final Vec3 current = rte$getBaseCenterPosition(value);
+            final double ratio = value / baseLength;
+            final double previousRatio = (i - 1D) / samples;
+            final double dx = current.x + rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, ratio)
+                    - previous.x - rte$nodeOffsetAt(rte$nodeXOffset1, rte$nodeXOffset2, previousRatio);
+            final double dy = current.y + rte$nodeYOffsetAt(ratio)
+                    - previous.y - rte$nodeYOffsetAt(previousRatio);
+            final double dz = current.z + rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, ratio)
+                    - previous.z - rte$nodeOffsetAt(rte$nodeZOffset1, rte$nodeZOffset2, previousRatio);
+            length += Math.sqrt(dx * dx + dy * dy + dz * dz);
+            previous = current;
         }
         rte$effectiveLength = length;
         rte$effectiveLengthBase = baseLength;
@@ -301,6 +289,15 @@ public abstract class RailMixin implements RailExtraSupplier {
         rte$effectiveLengthMath = railMath;
         rte$effectiveLengthBezier = rte$bezier;
         return length;
+    }
+
+    /**
+     * Plan length of the rail, ignoring the fractional node offsets. Exposed so the vertical-curve
+     * helper never calls back into {@link #getLength()} while that value is being computed.
+     */
+    @Override
+    public double getBaseLength() {
+        return rte$getBaseLength();
     }
 
     @Unique private transient Object rte$orientCheckedMath;
